@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "referalli"
+version = "0.1.0"
+description = "Official Referalli SDK: attribution-first affiliate and referral programs."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+authors = [{ name = "Referalli" }]
+keywords = ["referral", "affiliate", "attribution", "referalli", "webhooks"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Typing :: Typed",
+  "Operating System :: OS Independent",
+  "Framework :: AsyncIO",
+]
+dependencies = []
+
+[project.optional-dependencies]
+async = ["httpx>=0.27"]
+test = ["pytest>=8", "httpx>=0.27"]
+
+[project.urls]
+Homepage = "https://github.com/Referalli/referalli-python"
+Documentation = "https://referalli.com/docs"
+Source = "https://github.com/Referalli/referalli-python"
+Changelog = "https://github.com/Referalli/referalli-python/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/referalli"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/referalli", "README.md", "LICENSE", "CHANGELOG.md", "pyproject.toml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+pythonpath = ["src"]
