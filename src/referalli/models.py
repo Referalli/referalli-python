@@ -300,6 +300,13 @@ CommissionRule = TypedDict("CommissionRule", {
     "createdAt": str,
 })
 
+BillingFilter = TypedDict("BillingFilter", {
+    "metadata": NotRequired[Dict[str, str]],
+    "productIds": NotRequired[List[str]],
+    "priceIds": NotRequired[List[str]],
+    "skus": NotRequired[List[str]],
+})
+
 ValueMapping = TypedDict("ValueMapping", {
     "cash": NotRequired[str],
     "creditApplied": NotRequired[str],
@@ -390,6 +397,7 @@ BillingConnection = TypedDict("BillingConnection", {
     "needsCredentials": bool,
     "hasCredentials": bool,
     "valueMapping": Optional["ValueMapping"],
+    "filter": Optional["BillingFilter"],
     "rotation": "BillingConnectionRotation",
 })
 
@@ -398,6 +406,7 @@ CreatedBillingConnection = TypedDict("CreatedBillingConnection", {
     "provider": str,
     "webhookSecret": str,
     "webhookUrl": str,
+    "filter": Optional["BillingFilter"],
 })
 
 BillingEvent = TypedDict("BillingEvent", {
@@ -411,11 +420,54 @@ BillingEvent = TypedDict("BillingEvent", {
     "fees": int,
     "currency": str,
     "occurredAt": str,
+    "connectionId": Optional[str],
+    "productRef": str,
+    "status": Literal["processed", "ignored_by_filter"],
+    "ignoredReason": Optional[Literal["filter", "internal_customer"]],
+    "catalog": Optional[Dict[str, List[str]]],
+})
+
+InternalCustomer = TypedDict("InternalCustomer", {
+    "customerRef": str,
+    "note": str,
+    "createdAt": str,
+})
+
+IdentityProviderSampleHookOption1 = TypedDict("IdentityProviderSampleHookOption1", {
+    "language": str,
+    "filename": str,
+    "code": str,
+})
+
+IdentityProviderMetadataPaths = TypedDict("IdentityProviderMetadataPaths", {
+    "anonId": List[str],
+    "clickId": List[str],
+    "coupon": List[str],
+})
+
+IdentityProvider = TypedDict("IdentityProvider", {
+    "id": str,
+    "label": str,
+    "mechanism": Literal["webhook", "protocol"],
+    "status": Literal["ga", "beta"],
+    "docsUrl": str,
+    "vendorDocsUrl": str,
+    "secretKind": Literal["hmac", "svix", "jwks", "bearer"],
+    "secretIssuedBy": Literal["referalli", "vendor"],
+    "vendorSteps": List[str],
+    "sampleHook": Optional["IdentityProviderSampleHookOption1"],
+    "metadataPaths": "IdentityProviderMetadataPaths",
 })
 
 WebhookEndpointRotation = TypedDict("WebhookEndpointRotation", {
     "inProgress": bool,
     "previousSecretExpiresAt": NotRequired[str],
+})
+
+WebhookEndpointLastFailureOption1 = TypedDict("WebhookEndpointLastFailureOption1", {
+    "statusCode": Optional[int],
+    "error": Optional[str],
+    "at": str,
 })
 
 WebhookEndpoint = TypedDict("WebhookEndpoint", {
@@ -429,7 +481,21 @@ WebhookEndpoint = TypedDict("WebhookEndpoint", {
     "failingSince": Optional[str],
     "disabledAt": Optional[str],
     "disabledReason": Optional[str],
+    "health": Literal["healthy", "failing", "disabled", "paused"],
+    "lastSuccessAt": Optional[str],
+    "lastFailure": Optional["WebhookEndpointLastFailureOption1"],
+    "consecutiveFailures": int,
+    "alertContacts": List[str],
     "createdAt": str,
+})
+
+HealthCheck = TypedDict("HealthCheck", {
+    "id": str,
+    "ok": bool,
+    "detail": str,
+    "fix": NotRequired[str],
+    "docs": NotRequired[str],
+    "hop": NotRequired[str],
 })
 
 WebhookDelivery = TypedDict("WebhookDelivery", {
@@ -676,6 +742,7 @@ CreatedAuthConnection = TypedDict("CreatedAuthConnection", {
     "provider": str,
     "secret": str,
     "webhookUrl": NotRequired[str],
+    "docsUrl": NotRequired[Optional[str]],
     "metadataKeys": NotRequired[Dict[str, str]],
     "programId": NotRequired[str],
     "instanceId": NotRequired[str],
@@ -1835,7 +1902,7 @@ PrivacyRequestCompletedEvent = TypedDict("PrivacyRequestCompletedEvent", {
     "data": "PrivacyRequestCompletedEventData",
 })
 
-# `data` of a `webhook_endpoint.disabled` event: Sent to your other active endpoints when one is disabled after every delivery failed for 5 days.
+# `data` of a `webhook_endpoint.disabled` event: Sent to your other active endpoints when one is disabled after every delivery failed for 72 hours (or 1000 attempts in a row).
 WebhookEndpointDisabledEventData = TypedDict("WebhookEndpointDisabledEventData", {
     "endpointId": str,
     "url": str,
@@ -1852,6 +1919,46 @@ WebhookEndpointDisabledEvent = TypedDict("WebhookEndpointDisabledEvent", {
     "livemode": bool,
     "createdAt": str,
     "data": "WebhookEndpointDisabledEventData",
+})
+
+# `data` of a `webhook_endpoint.failing` event: Sent to your other active endpoints (never the failing one) when an endpoint has failed every delivery for 1 hour, and again at 24 hours. It's disabled at `disablesAt` unless a delivery succeeds first.
+WebhookEndpointFailingEventData = TypedDict("WebhookEndpointFailingEventData", {
+    "endpointId": str,
+    "url": str,
+    "stage": Literal["1h", "24h"],
+    "failingSince": str,
+    "consecutiveFailures": int,
+    "lastStatusCode": Optional[int],
+    "sampleError": Optional[str],
+    "disablesAt": str,
+})
+
+# A webhook endpoint keeps failing: the `webhook_endpoint.failing` delivery body.
+WebhookEndpointFailingEvent = TypedDict("WebhookEndpointFailingEvent", {
+    "id": str,
+    "topic": Literal["webhook_endpoint.failing"],
+    "orgId": str,
+    "livemode": bool,
+    "createdAt": str,
+    "data": "WebhookEndpointFailingEventData",
+})
+
+# `data` of a `webhook_endpoint.recovered` event: Sent to your active endpoints, including the recovered one, when a delivery succeeds after the endpoint was failing.
+WebhookEndpointRecoveredEventData = TypedDict("WebhookEndpointRecoveredEventData", {
+    "endpointId": str,
+    "url": str,
+    "failingSince": str,
+    "downForMs": int,
+})
+
+# A failing webhook endpoint recovered: the `webhook_endpoint.recovered` delivery body.
+WebhookEndpointRecoveredEvent = TypedDict("WebhookEndpointRecoveredEvent", {
+    "id": str,
+    "topic": Literal["webhook_endpoint.recovered"],
+    "orgId": str,
+    "livemode": bool,
+    "createdAt": str,
+    "data": "WebhookEndpointRecoveredEventData",
 })
 
 PostTOrgTokenVisitResponse = TypedDict("PostTOrgTokenVisitResponse", {
@@ -1971,6 +2078,88 @@ GetWellKnownAssetlinksJsonResponseValueItem = TypedDict("GetWellKnownAssetlinksJ
 
 GetWellKnownAssetlinksJsonResponse: TypeAlias = "List[GetWellKnownAssetlinksJsonResponseValueItem]"
 
+GetWellKnownForgedeckEmbedJsonResponseCheckers = TypedDict("GetWellKnownForgedeckEmbedJsonResponseCheckers", {
+    "userAgent": str,
+    "egress": List[str],
+})
+
+GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippetCookieDaysOption2 = TypedDict("GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippetCookieDaysOption2", {
+    "default": int,
+    "max": int,
+    "note": str,
+})
+
+GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippetStorageItemPurpose = TypedDict("GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippetStorageItemPurpose", {
+    "en": str,
+})
+
+GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippetStorageItem = TypedDict("GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippetStorageItem", {
+    "name": str,
+    "type": Literal["cookie", "localStorage"],
+    "category": str,
+    "lifetime": str,
+    "purpose": "GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippetStorageItemPurpose",
+    "legacy": NotRequired[bool],
+})
+
+GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippet = TypedDict("GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippet", {
+    "script": str,
+    "csp": Dict[str, List[str]],
+    "consentCategory": str,
+    "consentFallbackCategory": str,
+    "consentAdapters": List[str],
+    "consentDefault": NotRequired[Dict[str, Any]],
+    "cookieDays": Union[int, "GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippetCookieDaysOption2"],
+    "storage": List["GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippetStorageItem"],
+})
+
+GetWellKnownForgedeckEmbedJsonResponseSurfacesPortalEmbedStorageItemPurpose = TypedDict("GetWellKnownForgedeckEmbedJsonResponseSurfacesPortalEmbedStorageItemPurpose", {
+    "en": str,
+})
+
+GetWellKnownForgedeckEmbedJsonResponseSurfacesPortalEmbedStorageItem = TypedDict("GetWellKnownForgedeckEmbedJsonResponseSurfacesPortalEmbedStorageItem", {
+    "name": str,
+    "type": Literal["cookie", "localStorage"],
+    "category": str,
+    "lifetime": str,
+    "purpose": "GetWellKnownForgedeckEmbedJsonResponseSurfacesPortalEmbedStorageItemPurpose",
+    "legacy": NotRequired[bool],
+})
+
+GetWellKnownForgedeckEmbedJsonResponseSurfacesPortalEmbed = TypedDict("GetWellKnownForgedeckEmbedJsonResponseSurfacesPortalEmbed", {
+    "script": str,
+    "csp": Dict[str, List[str]],
+    "consentCategory": str,
+    "storage": List["GetWellKnownForgedeckEmbedJsonResponseSurfacesPortalEmbedStorageItem"],
+})
+
+GetWellKnownForgedeckEmbedJsonResponseSurfaces = TypedDict("GetWellKnownForgedeckEmbedJsonResponseSurfaces", {
+    "tracking-snippet": "GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippet",
+    "portal-embed": "GetWellKnownForgedeckEmbedJsonResponseSurfacesPortalEmbed",
+})
+
+GetWellKnownForgedeckEmbedJsonResponseChangesItem = TypedDict("GetWellKnownForgedeckEmbedJsonResponseChangesItem", {
+    "effective": str,
+    "surface": str,
+    "add": NotRequired[List[str]],
+    "remove": NotRequired[List[str]],
+    "note": str,
+})
+
+GetWellKnownForgedeckEmbedJsonResponse = TypedDict("GetWellKnownForgedeckEmbedJsonResponse", {
+    "schema": str,
+    "product": Literal["referalli"],
+    "updated": str,
+    "openapi": str,
+    "llms": str,
+    "status": str,
+    "docs": str,
+    "checkers": "GetWellKnownForgedeckEmbedJsonResponseCheckers",
+    "org": NotRequired[str],
+    "surfaces": "GetWellKnownForgedeckEmbedJsonResponseSurfaces",
+    "changes": List["GetWellKnownForgedeckEmbedJsonResponseChangesItem"],
+})
+
 PostAgentsRegisterResponse = TypedDict("PostAgentsRegisterResponse", {
     "agentId": str,
     "wallet": str,
@@ -2020,6 +2209,10 @@ GetAuthProvidersResponse = TypedDict("GetAuthProvidersResponse", {
     "details": List["GetAuthProvidersResponseDetailsItem"],
 })
 
+PostAuthBackchannelLogoutResponse = TypedDict("PostAuthBackchannelLogoutResponse", {
+    "ok": bool,
+})
+
 PostAuthLogoutResponse = TypedDict("PostAuthLogoutResponse", {
     "ok": bool,
     "logoutUrl": Optional[str],
@@ -2067,6 +2260,54 @@ GetMeResponse = TypedDict("GetMeResponse", {
     "org": NotRequired["GetMeResponseOrg"],
 })
 
+GetPortalAuthCurrentResponse = TypedDict("GetPortalAuthCurrentResponse", {
+    "adapter": Literal["referalli", "oidc", "custom"],
+    "name": Optional[str],
+    "startUrl": Optional[str],
+})
+
+GetOrgPortalAuthResponseAdaptersItem = TypedDict("GetOrgPortalAuthResponseAdaptersItem", {
+    "id": Literal["referalli", "oidc", "custom"],
+    "label": str,
+    "status": Literal["ga", "beta"],
+    "docsUrl": str,
+})
+
+GetOrgPortalAuthResponse = TypedDict("GetOrgPortalAuthResponse", {
+    "adapter": Literal["referalli", "oidc", "custom"],
+    "config": Dict[str, Any],
+    "adapters": List["GetOrgPortalAuthResponseAdaptersItem"],
+    "jwtAudience": str,
+    "jwtSignInUrl": str,
+    "redirectUri": str,
+    "hasSecret": bool,
+    "status": str,
+    "lastOkAt": Optional[str],
+    "lastError": Optional[str],
+})
+
+PutOrgPortalAuthResponseAdaptersItem = TypedDict("PutOrgPortalAuthResponseAdaptersItem", {
+    "id": Literal["referalli", "oidc", "custom"],
+    "label": str,
+    "status": Literal["ga", "beta"],
+    "docsUrl": str,
+})
+
+PutOrgPortalAuthResponse = TypedDict("PutOrgPortalAuthResponse", {
+    "adapter": Literal["referalli", "oidc", "custom"],
+    "config": Dict[str, Any],
+    "adapters": List["PutOrgPortalAuthResponseAdaptersItem"],
+    "jwtAudience": str,
+    "jwtSignInUrl": str,
+    "redirectUri": str,
+})
+
+PostOrgPortalAuthTestResponse = TypedDict("PostOrgPortalAuthTestResponse", {
+    "ok": bool,
+    "detail": str,
+    "fix": NotRequired[str],
+})
+
 GetHostsCurrentResponseValueOption1Branding = TypedDict("GetHostsCurrentResponseValueOption1Branding", {
     "logoUrl": str,
     "theme": Dict[str, str],
@@ -2077,16 +2318,55 @@ GetHostsCurrentResponseValueOption1ProgramsItem = TypedDict("GetHostsCurrentResp
     "name": str,
 })
 
+GetHostsCurrentResponseValueOption1ConsentTagsItem = TypedDict("GetHostsCurrentResponseValueOption1ConsentTagsItem", {
+    "tag": Literal["script"],
+    "attrs": Dict[str, Union[str, bool]],
+    "inline": NotRequired[str],
+})
+
+GetHostsCurrentResponseValueOption1ConsentSettingsLinkOption1 = TypedDict("GetHostsCurrentResponseValueOption1ConsentSettingsLinkOption1", {
+    "call": NotRequired[str],
+    "attrs": NotRequired[Dict[str, str]],
+})
+
+GetHostsCurrentResponseValueOption1ConsentBuiltin = TypedDict("GetHostsCurrentResponseValueOption1ConsentBuiltin", {
+    "policyUrl": str,
+    "text": NotRequired[Dict[str, str]],
+})
+
+GetHostsCurrentResponseValueOption1Consent = TypedDict("GetHostsCurrentResponseValueOption1Consent", {
+    "mode": Literal["cookiemunch", "cmp", "builtin", "none"],
+    "provider": str,
+    "tags": List["GetHostsCurrentResponseValueOption1ConsentTagsItem"],
+    "settingsLink": Optional["GetHostsCurrentResponseValueOption1ConsentSettingsLinkOption1"],
+    "builtin": NotRequired["GetHostsCurrentResponseValueOption1ConsentBuiltin"],
+})
+
+GetHostsCurrentResponseValueOption1ChatOption1TagsItem = TypedDict("GetHostsCurrentResponseValueOption1ChatOption1TagsItem", {
+    "tag": Literal["script"],
+    "attrs": Dict[str, Union[str, bool]],
+    "inline": NotRequired[str],
+})
+
+GetHostsCurrentResponseValueOption1ChatOption1 = TypedDict("GetHostsCurrentResponseValueOption1ChatOption1", {
+    "provider": str,
+    "tags": List["GetHostsCurrentResponseValueOption1ChatOption1TagsItem"],
+})
+
 GetHostsCurrentResponseValueOption1 = TypedDict("GetHostsCurrentResponseValueOption1", {
     "kind": Literal["portal"],
     "orgId": str,
     "orgName": str,
     "branding": "GetHostsCurrentResponseValueOption1Branding",
     "programs": List["GetHostsCurrentResponseValueOption1ProgramsItem"],
+    "consent": "GetHostsCurrentResponseValueOption1Consent",
+    "chat": Optional["GetHostsCurrentResponseValueOption1ChatOption1"],
+    "csp": str,
 })
 
 GetHostsCurrentResponseValueOption2 = TypedDict("GetHostsCurrentResponseValueOption2", {
     "kind": Literal["link"],
+    "csp": str,
 })
 
 GetHostsCurrentResponseValueOption3 = TypedDict("GetHostsCurrentResponseValueOption3", {
@@ -2094,6 +2374,17 @@ GetHostsCurrentResponseValueOption3 = TypedDict("GetHostsCurrentResponseValueOpt
 })
 
 GetHostsCurrentResponse: TypeAlias = "Union[GetHostsCurrentResponseValueOption1, GetHostsCurrentResponseValueOption2, GetHostsCurrentResponseValueOption3]"
+
+GetChatlyIdentityResponseIdentityOption1 = TypedDict("GetChatlyIdentityResponseIdentityOption1", {
+    "externalId": str,
+    "email": str,
+    "name": NotRequired[str],
+    "userHash": str,
+})
+
+GetChatlyIdentityResponse = TypedDict("GetChatlyIdentityResponse", {
+    "identity": Optional["GetChatlyIdentityResponseIdentityOption1"],
+})
 
 PostMobilePurchasesResponse = TypedDict("PostMobilePurchasesResponse", {
     "conversions": int,
@@ -2632,6 +2923,11 @@ GetBillingEventsResponse = TypedDict("GetBillingEventsResponse", {
     "data": List["BillingEvent"],
     "has_more": bool,
     "next_cursor": Optional[str],
+})
+
+PostBillingInternalCustomersResponse = TypedDict("PostBillingInternalCustomersResponse", {
+    "customerRef": str,
+    "note": str,
 })
 
 PutPartnersIdPayoutProfileResponse = TypedDict("PutPartnersIdPayoutProfileResponse", {
@@ -3291,6 +3587,7 @@ PostWebhookEndpointsResponse = TypedDict("PostWebhookEndpointsResponse", {
     "topics": List[str],
     "programIds": Optional[List[str]],
     "legacySignature": bool,
+    "alertContacts": List[str],
     "secret": str,
 })
 
@@ -3300,6 +3597,8 @@ GetWebhookEndpointsResponse = TypedDict("GetWebhookEndpointsResponse", {
     "has_more": bool,
     "next_cursor": Optional[str],
 })
+
+PatchWebhookEndpointsIdResponse: TypeAlias = "Any"
 
 PostWebhookEndpointsIdRotateSecretResponse = TypedDict("PostWebhookEndpointsIdRotateSecretResponse", {
     "id": str,
@@ -3323,6 +3622,12 @@ GetWebhookEndpointsIdDeliveriesResponse = TypedDict("GetWebhookEndpointsIdDelive
 
 GetWebhookDeliveriesIdResponse: TypeAlias = "Any"
 
+PostWebhookEndpointsIdReplayResponse = TypedDict("PostWebhookEndpointsIdReplayResponse", {
+    "endpointId": str,
+    "since": str,
+    "replayed": int,
+})
+
 PostSandboxSimulateResponse = TypedDict("PostSandboxSimulateResponse", {
     "customerRef": str,
     "events": int,
@@ -3344,6 +3649,15 @@ PostImportProviderResponse = TypedDict("PostImportProviderResponse", {
 
 GetOpenapiJsonResponse: TypeAlias = "Dict[str, Any]"
 
+GetBrandingResponseWarningsItem = TypedDict("GetBrandingResponseWarningsItem", {
+    "code": Literal["low_contrast"],
+    "foreground": str,
+    "background": str,
+    "ratio": float,
+    "minimum": float,
+    "message": str,
+})
+
 GetBrandingResponse = TypedDict("GetBrandingResponse", {
     "logoUrl": Optional[str],
     "theme": Optional["GetOpenapiJsonResponse"],
@@ -3354,6 +3668,7 @@ GetBrandingResponse = TypedDict("GetBrandingResponse", {
     "linkDomainVerified": bool,
     "linkDomainStatus": Literal["none", "pending", "provisioning", "active"],
     "emailFrom": Optional[str],
+    "warnings": List["GetBrandingResponseWarningsItem"],
 })
 
 PostBrandingLinkDomainResponse = TypedDict("PostBrandingLinkDomainResponse", {
@@ -3378,6 +3693,20 @@ PostBrandingDomainResponse = TypedDict("PostBrandingDomainResponse", {
     "txtName": str,
     "verified": bool,
     "instructions": str,
+})
+
+PutBrandingResponseWarningsItem = TypedDict("PutBrandingResponseWarningsItem", {
+    "code": Literal["low_contrast"],
+    "foreground": str,
+    "background": str,
+    "ratio": float,
+    "minimum": float,
+    "message": str,
+})
+
+PutBrandingResponse = TypedDict("PutBrandingResponse", {
+    "ok": bool,
+    "warnings": List["PutBrandingResponseWarningsItem"],
 })
 
 PostEmbedTokensResponse = TypedDict("PostEmbedTokensResponse", {
@@ -3697,6 +4026,50 @@ PostRewardsRedeemByCodeResponse = TypedDict("PostRewardsRedeemByCodeResponse", {
     "redeemedMinor": int,
     "remainingMinor": int,
     "capped": bool,
+})
+
+PostRewardsResponse = TypedDict("PostRewardsResponse", {
+    "id": str,
+    "partnerId": str,
+    "programId": str,
+    "ruleKey": Optional[str],
+    "reason": str,
+    "amountMinor": int,
+    "currency": str,
+    "commissionId": Optional[str],
+    "idempotencyKey": str,
+    "createdAt": str,
+    "replayed": bool,
+})
+
+GetRewardsGrantedResponseValueItem = TypedDict("GetRewardsGrantedResponseValueItem", {
+    "id": str,
+    "partnerId": str,
+    "programId": str,
+    "ruleKey": Optional[str],
+    "reason": str,
+    "amountMinor": int,
+    "currency": str,
+    "commissionId": Optional[str],
+    "idempotencyKey": str,
+    "createdAt": str,
+})
+
+GetRewardsGrantedResponse: TypeAlias = "List[GetRewardsGrantedResponseValueItem]"
+
+PutRewardsRulesKeyResponse = TypedDict("PutRewardsRulesKeyResponse", {
+    "key": str,
+    "event": Optional[str],
+    "programId": Optional[str],
+    "amountMinor": int,
+    "currency": str,
+    "reason": str,
+    "enabled": bool,
+    "updatedAt": str,
+})
+
+DeleteRewardsRulesKeyResponse = TypedDict("DeleteRewardsRulesKeyResponse", {
+    "ok": bool,
 })
 
 GetProgramsIdGroupsResponse = TypedDict("GetProgramsIdGroupsResponse", {
@@ -4452,11 +4825,21 @@ GetPartnerSecurityResponse = TypedDict("GetPartnerSecurityResponse", {
     "totpEnabled": bool,
 })
 
+GetAuthConnectionsProvidersResponse = TypedDict("GetAuthConnectionsProvidersResponse", {
+    "data": List["IdentityProvider"],
+})
+
 GetAuthConnectionsResponse = TypedDict("GetAuthConnectionsResponse", {
     "object": Literal["list"],
     "data": List["AuthConnection"],
     "has_more": bool,
     "next_cursor": Optional[str],
+})
+
+PutAuthConnectionsIdSecretResponse = TypedDict("PutAuthConnectionsIdSecretResponse", {
+    "id": str,
+    "provider": str,
+    "ok": bool,
 })
 
 PostAuthConnectionsIdRotateSecretResponse = TypedDict("PostAuthConnectionsIdRotateSecretResponse", {
@@ -4508,6 +4891,16 @@ PostAuthConnectionsIdSignupsResponse = TypedDict("PostAuthConnectionsIdSignupsRe
     "referral": Optional["PostAuthConnectionsIdSignupsResponseReferralOption1"],
     "reasoning": NotRequired["PostAuthConnectionsIdSignupsResponseReasoning"],
     "partner": NotRequired["PostAuthConnectionsIdSignupsResponsePartner"],
+})
+
+PostAuthConnectionsIdPartnersResponsePartner = TypedDict("PostAuthConnectionsIdPartnersResponsePartner", {
+    "id": str,
+    "code": str,
+    "link": Optional[str],
+})
+
+PostAuthConnectionsIdPartnersResponse = TypedDict("PostAuthConnectionsIdPartnersResponse", {
+    "partner": "PostAuthConnectionsIdPartnersResponsePartner",
 })
 
 PostAuthConnectionsIdEraseResponseCustomerOption1 = TypedDict("PostAuthConnectionsIdEraseResponseCustomerOption1", {
@@ -4600,6 +4993,24 @@ PostAuthConnectionsIdSignalsResponse = TypedDict("PostAuthConnectionsIdSignalsRe
     "notes": NotRequired[List[str]],
 })
 
+PostAuthConnectionsInstallResponse = TypedDict("PostAuthConnectionsInstallResponse", {
+    "redirectTo": str,
+})
+
+PostOauthTokenResponse = TypedDict("PostOauthTokenResponse", {
+    "token_type": Literal["connection_secret"],
+    "connectionId": str,
+    "provider": str,
+    "instanceId": str,
+    "programId": str,
+    "secret": str,
+    "reinstalled": bool,
+    "signupsUrl": str,
+    "partnersUrl": str,
+    "eraseUrl": str,
+    "exportUrl": str,
+})
+
 GetOrgSsoResponseProviderOption1 = TypedDict("GetOrgSsoResponseProviderOption1", {
     "name": str,
     "label": str,
@@ -4664,6 +5075,18 @@ PatchOrgSsoResponse = TypedDict("PatchOrgSsoResponse", {
     "roleMapping": Dict[str, str],
 })
 
+PutOrgSsoDirectResponse = TypedDict("PutOrgSsoDirectResponse", {
+    "adapter": Literal["oidc", "workos"],
+    "config": Dict[str, Any],
+    "hasSecret": bool,
+    "signInUrl": str,
+    "redirectUri": str,
+})
+
+DeleteOrgSsoDirectResponse = TypedDict("DeleteOrgSsoDirectResponse", {
+    "removed": bool,
+})
+
 PostPartnerAuthWalletNonceResponse = TypedDict("PostPartnerAuthWalletNonceResponse", {
     "nonce": str,
     "message": str,
@@ -4723,12 +5146,367 @@ PostPublicProgramsHandleJoinResponse = TypedDict("PostPublicProgramsHandleJoinRe
     "portalUrl": str,
 })
 
+GetIntegrationHealthResponse = TypedDict("GetIntegrationHealthResponse", {
+    "ok": bool,
+    "checks": List["HealthCheck"],
+    "generatedAt": str,
+})
+
+GetPlansResponsePlansItem = TypedDict("GetPlansResponsePlansItem", {
+    "key": str,
+    "label": str,
+    "priceMinor": int,
+    "currency": Literal["usd"],
+    "interval": Literal["month"],
+    "maxPrograms": Optional[int],
+    "maxPartners": Optional[int],
+    "marketplace": bool,
+    "discovery": bool,
+    "linkDomain": bool,
+    "portalDomain": bool,
+    "apiPerSec": int,
+    "apiBurst": int,
+})
+
+GetPlansResponse = TypedDict("GetPlansResponse", {
+    "plans": List["GetPlansResponsePlansItem"],
+})
+
+GetEventsResponseEventsItem = TypedDict("GetEventsResponseEventsItem", {
+    "id": str,
+    "topic": str,
+    "orgId": str,
+    "livemode": bool,
+    "createdAt": str,
+    "data": "GetOpenapiJsonResponse",
+})
+
+GetEventsResponse = TypedDict("GetEventsResponse", {
+    "events": List["GetEventsResponseEventsItem"],
+    "hasMore": bool,
+    "nextCursor": Optional[str],
+})
+
+GetSupportContextResponsePartnerOption1 = TypedDict("GetSupportContextResponsePartnerOption1", {
+    "id": str,
+    "name": str,
+    "status": str,
+    "tier": Optional[str],
+    "programs": List[str],
+    "referralLink": Optional[str],
+    "pendingMinor": int,
+    "approvedMinor": int,
+    "paidMinor": int,
+    "currency": str,
+    "nextPayoutAt": Optional[str],
+    "flags": List[str],
+})
+
+GetSupportContextResponseCustomerOption1ReferredByOption1 = TypedDict("GetSupportContextResponseCustomerOption1ReferredByOption1", {
+    "partnerId": str,
+    "name": str,
+})
+
+GetSupportContextResponseCustomerOption1RewardStateOption1 = TypedDict("GetSupportContextResponseCustomerOption1RewardStateOption1", {
+    "kind": str,
+    "status": str,
+    "amountMinor": int,
+    "currency": str,
+    "remainingMinor": int,
+})
+
+GetSupportContextResponseCustomerOption1 = TypedDict("GetSupportContextResponseCustomerOption1", {
+    "referredBy": Optional["GetSupportContextResponseCustomerOption1ReferredByOption1"],
+    "attributedAt": Optional[str],
+    "rewardState": Optional["GetSupportContextResponseCustomerOption1RewardStateOption1"],
+    "commissionsMinor": int,
+    "currency": Optional[str],
+})
+
+GetSupportContextResponseLinks = TypedDict("GetSupportContextResponseLinks", {
+    "dashboard": str,
+    "partner": Optional[str],
+    "referral": Optional[str],
+})
+
+GetSupportContextResponse = TypedDict("GetSupportContextResponse", {
+    "partner": Optional["GetSupportContextResponsePartnerOption1"],
+    "customer": Optional["GetSupportContextResponseCustomerOption1"],
+    "links": "GetSupportContextResponseLinks",
+})
+
+GetSupportAppsResponseValueItemInstall = TypedDict("GetSupportAppsResponseValueItemInstall", {
+    "kind": NotRequired[Literal["api", "manifest", "oauth"]],
+    "steps": List[str],
+    "manifestPath": NotRequired[str],
+})
+
+GetSupportAppsResponseValueItemConfigOption1 = TypedDict("GetSupportAppsResponseValueItemConfigOption1", {
+    "subdomain": Any,
+    "cardKey": Any,
+    "hasPublicKey": bool,
+})
+
+GetSupportAppsResponseValueItem = TypedDict("GetSupportAppsResponseValueItem", {
+    "id": str,
+    "name": str,
+    "status": Literal["ga", "beta"],
+    "docsUrl": str,
+    "vendorDocsUrl": str,
+    "secretSource": Literal["vendor", "minted", "public_key"],
+    "install": "GetSupportAppsResponseValueItemInstall",
+    "cardUrl": str,
+    "enabled": bool,
+    "configured": bool,
+    "config": Optional["GetSupportAppsResponseValueItemConfigOption1"],
+    "lastOkAt": Optional[str],
+    "lastError": Optional[str],
+})
+
+GetSupportAppsResponse: TypeAlias = "List[GetSupportAppsResponseValueItem]"
+
+PutSupportAppsAdapterResponse = TypedDict("PutSupportAppsAdapterResponse", {
+    "adapter": str,
+    "enabled": bool,
+    "cardUrl": str,
+    "secret": NotRequired[str],
+})
+
+DeleteSupportAppsAdapterResponse = TypedDict("DeleteSupportAppsAdapterResponse", {
+    "ok": bool,
+})
+
+PostSupportAppsAdapterTestResponse = TypedDict("PostSupportAppsAdapterTestResponse", {
+    "found": bool,
+    "context": Optional["GetSupportContextResponse"],
+    "rendered": Any,
+})
+
+PostSupportCardsOrgIdAdapterResponse: TypeAlias = "Dict[str, Any]"
+
+GetPrivacyExecutorsResponseValueItemInstall = TypedDict("GetPrivacyExecutorsResponseValueItemInstall", {
+    "kind": NotRequired[Literal["api", "manifest", "oauth"]],
+    "steps": List[str],
+    "manifestPath": NotRequired[str],
+})
+
+GetPrivacyExecutorsResponseValueItemConfigOption1 = TypedDict("GetPrivacyExecutorsResponseValueItemConfigOption1", {
+    "hasPublicKey": bool,
+    "algorithm": Optional[str],
+    "sombraUrl": Optional[str],
+})
+
+GetPrivacyExecutorsResponseValueItemHealth = TypedDict("GetPrivacyExecutorsResponseValueItemHealth", {
+    "ok": bool,
+    "detail": str,
+    "fix": Optional[str],
+})
+
+GetPrivacyExecutorsResponseValueItem = TypedDict("GetPrivacyExecutorsResponseValueItem", {
+    "id": str,
+    "name": str,
+    "status": Literal["ga", "beta"],
+    "docsUrl": str,
+    "vendorDocsUrl": str,
+    "keyKind": Literal["bearer", "hmac", "standard-webhooks", "vendor-jwt"],
+    "install": "GetPrivacyExecutorsResponseValueItemInstall",
+    "url": str,
+    "enabled": bool,
+    "hasKey": bool,
+    "hasVendorSecret": bool,
+    "config": Optional["GetPrivacyExecutorsResponseValueItemConfigOption1"],
+    "health": "GetPrivacyExecutorsResponseValueItemHealth",
+    "lastOkAt": Optional[str],
+    "lastError": Optional[str],
+})
+
+GetPrivacyExecutorsResponse: TypeAlias = "List[GetPrivacyExecutorsResponseValueItem]"
+
+PostPrivacyExecutorKeysResponse = TypedDict("PostPrivacyExecutorKeysResponse", {
+    "adapter": str,
+    "url": str,
+    "enabled": bool,
+    "key": NotRequired[str],
+})
+
+DeletePrivacyExecutorsAdapterResponse = TypedDict("DeletePrivacyExecutorsAdapterResponse", {
+    "ok": bool,
+})
+
+PostPrivacyExecutorsAdapterCheckResponse = TypedDict("PostPrivacyExecutorsAdapterCheckResponse", {
+    "adapter": str,
+    "ok": bool,
+    "detail": str,
+    "fix": Optional[str],
+})
+
+GetPrivacyExecutorRequestsResponseValueItem = TypedDict("GetPrivacyExecutorRequestsResponseValueItem", {
+    "id": str,
+    "adapter": str,
+    "vendorRequestId": Optional[str],
+    "op": str,
+    "status": str,
+    "createdAt": str,
+    "completedAt": Optional[str],
+})
+
+GetPrivacyExecutorRequestsResponse: TypeAlias = "List[GetPrivacyExecutorRequestsResponseValueItem]"
+
+PostAccountCloseResponse = TypedDict("PostAccountCloseResponse", {
+    "closed": bool,
+})
+
+GetClicksConsentCoverageResponse = TypedDict("GetClicksConsentCoverageResponse", {
+    "days": int,
+    "since": str,
+    "attributed": int,
+    "withEvidence": int,
+    "share": Optional[float],
+})
+
+GetClicksIdResponseConsentOption1 = TypedDict("GetClicksIdResponseConsentOption1", {
+    "provider": str,
+    "state": Literal["granted", "denied", "unknown"],
+    "at": NotRequired[str],
+    "stamp": NotRequired[str],
+    "tcString": NotRequired[str],
+    "gppString": NotRequired[str],
+    "purposes": NotRequired[List[str]],
+})
+
+GetClicksIdResponse = TypedDict("GetClicksIdResponse", {
+    "id": str,
+    "programId": str,
+    "partnerId": str,
+    "linkId": Optional[str],
+    "ts": str,
+    "source": Literal["redirect", "snippet", "api"],
+    "eligible": bool,
+    "fraudScore": int,
+    "anonId": Optional[str],
+    "consent": Optional["GetClicksIdResponseConsentOption1"],
+})
+
+GetOrgTrackingConsentResponseAdaptersItem = TypedDict("GetOrgTrackingConsentResponseAdaptersItem", {
+    "id": str,
+    "name": str,
+    "defaultCategory": Optional[str],
+    "status": Literal["ga", "beta"],
+    "docsUrl": str,
+})
+
+GetOrgTrackingConsentResponse = TypedDict("GetOrgTrackingConsentResponse", {
+    "mode": str,
+    "noCmp": NotRequired[Literal["persist", "memory"]],
+    "category": NotRequired[str],
+    "tcfVendorId": NotRequired[int],
+    "gcmSignal": NotRequired[Literal["ad_storage", "analytics_storage"]],
+    "configured": bool,
+    "adapters": List["GetOrgTrackingConsentResponseAdaptersItem"],
+})
+
+GetOrgHostedPagesResponseConsent = TypedDict("GetOrgHostedPagesResponseConsent", {
+    "adapter": str,
+    "config": Dict[str, Any],
+})
+
+GetOrgHostedPagesResponseChatOption1 = TypedDict("GetOrgHostedPagesResponseChatOption1", {
+    "adapter": str,
+    "config": Dict[str, Any],
+})
+
+GetOrgHostedPagesResponseServedConsentTagsItem = TypedDict("GetOrgHostedPagesResponseServedConsentTagsItem", {
+    "tag": Literal["script"],
+    "attrs": Dict[str, Union[str, bool]],
+    "inline": NotRequired[str],
+})
+
+GetOrgHostedPagesResponseServedConsentSettingsLinkOption1 = TypedDict("GetOrgHostedPagesResponseServedConsentSettingsLinkOption1", {
+    "call": NotRequired[str],
+    "attrs": NotRequired[Dict[str, str]],
+})
+
+GetOrgHostedPagesResponseServedConsentBuiltin = TypedDict("GetOrgHostedPagesResponseServedConsentBuiltin", {
+    "policyUrl": str,
+    "text": NotRequired[Dict[str, str]],
+})
+
+GetOrgHostedPagesResponseServedConsent = TypedDict("GetOrgHostedPagesResponseServedConsent", {
+    "mode": Literal["cookiemunch", "cmp", "builtin", "none"],
+    "provider": str,
+    "tags": List["GetOrgHostedPagesResponseServedConsentTagsItem"],
+    "settingsLink": Optional["GetOrgHostedPagesResponseServedConsentSettingsLinkOption1"],
+    "builtin": NotRequired["GetOrgHostedPagesResponseServedConsentBuiltin"],
+})
+
+GetOrgHostedPagesResponseServedChatOption1TagsItem = TypedDict("GetOrgHostedPagesResponseServedChatOption1TagsItem", {
+    "tag": Literal["script"],
+    "attrs": Dict[str, Union[str, bool]],
+    "inline": NotRequired[str],
+})
+
+GetOrgHostedPagesResponseServedChatOption1 = TypedDict("GetOrgHostedPagesResponseServedChatOption1", {
+    "provider": str,
+    "tags": List["GetOrgHostedPagesResponseServedChatOption1TagsItem"],
+})
+
+GetOrgHostedPagesResponseServed = TypedDict("GetOrgHostedPagesResponseServed", {
+    "consent": "GetOrgHostedPagesResponseServedConsent",
+    "chat": Optional["GetOrgHostedPagesResponseServedChatOption1"],
+    "csp": str,
+})
+
+GetOrgHostedPagesResponseAdaptersConsentItem = TypedDict("GetOrgHostedPagesResponseAdaptersConsentItem", {
+    "id": str,
+    "name": str,
+    "status": Literal["ga", "beta"],
+    "docsUrl": str,
+    "vendorDocsUrl": str,
+})
+
+GetOrgHostedPagesResponseAdaptersChatItem = TypedDict("GetOrgHostedPagesResponseAdaptersChatItem", {
+    "id": str,
+    "name": str,
+    "status": Literal["ga", "beta"],
+    "docsUrl": str,
+    "vendorDocsUrl": str,
+})
+
+GetOrgHostedPagesResponseAdapters = TypedDict("GetOrgHostedPagesResponseAdapters", {
+    "consent": List["GetOrgHostedPagesResponseAdaptersConsentItem"],
+    "chat": List["GetOrgHostedPagesResponseAdaptersChatItem"],
+})
+
+GetOrgHostedPagesResponse = TypedDict("GetOrgHostedPagesResponse", {
+    "consent": "GetOrgHostedPagesResponseConsent",
+    "chat": Optional["GetOrgHostedPagesResponseChatOption1"],
+    "customOrigins": Dict[str, List[str]],
+    "status": Literal["unchecked", "ok", "error"],
+    "lastOkAt": Optional[str],
+    "lastError": Optional[str],
+    "served": "GetOrgHostedPagesResponseServed",
+    "adapters": "GetOrgHostedPagesResponseAdapters",
+})
+
+PostOrgHostedPagesCheckResponseChecksItem = TypedDict("PostOrgHostedPagesCheckResponseChecksItem", {
+    "id": str,
+    "ok": bool,
+    "detail": str,
+    "fix": NotRequired[str],
+})
+
+PostOrgHostedPagesCheckResponse = TypedDict("PostOrgHostedPagesCheckResponse", {
+    "ok": bool,
+    "checks": List["PostOrgHostedPagesCheckResponseChecksItem"],
+})
+
 PostWebhooksBillingConnectionIdResponseResultsItem = TypedDict("PostWebhooksBillingConnectionIdResponseResultsItem", {
     "duplicate": bool,
     "billingEventId": Optional[str],
     "conversions": int,
     "linesCreated": int,
     "reversals": int,
+    "ignored": NotRequired[Literal["filter", "internal_customer"]],
 })
 
 PostWebhooksBillingConnectionIdResponse = TypedDict("PostWebhooksBillingConnectionIdResponse", {
@@ -4787,6 +5565,46 @@ PostWebhooksStripeBillingResponse = TypedDict("PostWebhooksStripeBillingResponse
     "planStatus": NotRequired[str],
 })
 
+PostApiPrivacyLookupResponse = TypedDict("PostApiPrivacyLookupResponse", {
+    "subjectId": Optional[str],
+    "status": Literal["found", "no_match"],
+})
+
+PostApiPrivacyRequestsResponse = TypedDict("PostApiPrivacyRequestsResponse", {
+    "id": str,
+    "status": Literal["pending", "completed", "no_match", "rejected"],
+    "eta": NotRequired[str],
+    "detail": NotRequired[str],
+})
+
+GetApiPrivacyRequestsIdResponse = TypedDict("GetApiPrivacyRequestsIdResponse", {
+    "id": str,
+    "type": Literal["access", "deletion"],
+    "status": Literal["pending", "completed", "no_match", "rejected"],
+    "eta": NotRequired[str],
+    "detail": NotRequired[str],
+    "result": NotRequired["GetOpenapiJsonResponse"],
+})
+
+PostApiPrivacyOrgsOrgIdLookupResponse = TypedDict("PostApiPrivacyOrgsOrgIdLookupResponse", {
+    "subjectId": Optional[str],
+    "status": Literal["found", "no_match"],
+})
+
+PostApiPrivacyOrgsOrgIdRequestsResponse = TypedDict("PostApiPrivacyOrgsOrgIdRequestsResponse", {
+    "id": str,
+    "status": Literal["pending", "completed", "no_match", "rejected"],
+    "detail": NotRequired[str],
+})
+
+GetApiPrivacyOrgsOrgIdRequestsIdResponse = TypedDict("GetApiPrivacyOrgsOrgIdRequestsIdResponse", {
+    "id": str,
+    "type": Literal["access", "deletion"],
+    "status": Literal["pending", "completed", "no_match", "rejected"],
+    "detail": NotRequired[str],
+    "result": NotRequired["PostSupportCardsOrgIdAdapterResponse"],
+})
+
 GetGraphqlResponse = TypedDict("GetGraphqlResponse", {
     "data": NotRequired[Optional["GetOpenapiJsonResponse"]],
     "errors": NotRequired[List["GetOpenapiJsonResponse"]],
@@ -4807,8 +5625,37 @@ PostAgentsRegisterBody = TypedDict("PostAgentsRegisterBody", {
     "instantPayout": NotRequired[bool],
 })
 
+PostAuthBackchannelLogoutBody = TypedDict("PostAuthBackchannelLogoutBody", {
+    "logout_token": str,
+})
+
 PostOrgsBody = TypedDict("PostOrgsBody", {
     "name": str,
+})
+
+PutOrgPortalAuthBodyOption1 = TypedDict("PutOrgPortalAuthBodyOption1", {
+    "adapter": Literal["referalli"],
+})
+
+PutOrgPortalAuthBodyOption2 = TypedDict("PutOrgPortalAuthBodyOption2", {
+    "issuer": str,
+    "clientId": str,
+    "clientSecret": NotRequired[str],
+    "scopes": NotRequired[str],
+    "name": NotRequired[str],
+    "trustEmailVerified": NotRequired[bool],
+    "adapter": Literal["oidc"],
+    "autoEnrollProgramId": NotRequired[Optional[str]],
+})
+
+PutOrgPortalAuthBodyOption3 = TypedDict("PutOrgPortalAuthBodyOption3", {
+    "adapter": Literal["custom"],
+    "issuer": str,
+    "jwksUrl": str,
+    "trustEmailVerified": NotRequired[bool],
+    "autoEnrollProgramId": NotRequired[Optional[str]],
+    "name": NotRequired[str],
+    "loginUrl": NotRequired[str],
 })
 
 PostMobilePurchasesBody = TypedDict("PostMobilePurchasesBody", {
@@ -5160,6 +6007,16 @@ PostWidgetTokensBody = TypedDict("PostWidgetTokensBody", {
     "ttlSeconds": NotRequired[int],
 })
 
+PostReferralsAssociateBodyConsent = TypedDict("PostReferralsAssociateBodyConsent", {
+    "provider": str,
+    "state": Literal["granted", "denied", "unknown"],
+    "at": NotRequired[str],
+    "stamp": NotRequired[str],
+    "tcString": NotRequired[str],
+    "gppString": NotRequired[str],
+    "purposes": NotRequired[List[str]],
+})
+
 PostReferralsAssociateBody = TypedDict("PostReferralsAssociateBody", {
     "programId": str,
     "customerRef": str,
@@ -5172,6 +6029,7 @@ PostReferralsAssociateBody = TypedDict("PostReferralsAssociateBody", {
     "idempotencyKey": NotRequired[str],
     "occurredAt": NotRequired[str],
     "emailDomain": NotRequired[str],
+    "consent": NotRequired["PostReferralsAssociateBodyConsent"],
 })
 
 PatchReferralsIdBody = TypedDict("PatchReferralsIdBody", {
@@ -5335,10 +6193,18 @@ PostCommissionsIdSettleBody = TypedDict("PostCommissionsIdSettleBody", {
     "memo": NotRequired[str],
 })
 
+PostBillingConnectionsBodyFilter = TypedDict("PostBillingConnectionsBodyFilter", {
+    "metadata": NotRequired[Dict[str, str]],
+    "productIds": NotRequired[List[str]],
+    "priceIds": NotRequired[List[str]],
+    "skus": NotRequired[List[str]],
+})
+
 PostBillingConnectionsBody = TypedDict("PostBillingConnectionsBody", {
     "provider": Literal["stripe", "paddle", "lemonsqueezy", "polar", "chargebee", "shopify", "generic", "recurly", "braintree", "woocommerce", "bigcommerce"],
     "name": NotRequired[str],
     "webhookSecret": NotRequired[str],
+    "filter": NotRequired["PostBillingConnectionsBodyFilter"],
 })
 
 PutBillingConnectionsIdSecretBody = TypedDict("PutBillingConnectionsIdSecretBody", {
@@ -5352,9 +6218,17 @@ PutBillingConnectionsIdCredentialsBody = TypedDict("PutBillingConnectionsIdCrede
     "region": NotRequired[Literal["us", "eu"]],
 })
 
+PatchBillingConnectionsIdBodyFilterOption1 = TypedDict("PatchBillingConnectionsIdBodyFilterOption1", {
+    "metadata": NotRequired[Dict[str, str]],
+    "productIds": NotRequired[List[str]],
+    "priceIds": NotRequired[List[str]],
+    "skus": NotRequired[List[str]],
+})
+
 PatchBillingConnectionsIdBody = TypedDict("PatchBillingConnectionsIdBody", {
     "status": NotRequired[Literal["active", "paused"]],
     "name": NotRequired[str],
+    "filter": NotRequired[Optional["PatchBillingConnectionsIdBodyFilterOption1"]],
 })
 
 PutBillingConnectionsIdValueMappingBody = TypedDict("PutBillingConnectionsIdValueMappingBody", {
@@ -5379,6 +6253,11 @@ PostBillingConnectionsIdValueMappingPreviewBody = TypedDict("PostBillingConnecti
     "payload": Any,
     "currency": NotRequired[str],
     "mapping": NotRequired["PostBillingConnectionsIdValueMappingPreviewBodyMapping"],
+})
+
+PostBillingInternalCustomersBody = TypedDict("PostBillingInternalCustomersBody", {
+    "customerRef": str,
+    "note": NotRequired[str],
 })
 
 PutPartnersIdPayoutProfileBody = TypedDict("PutPartnersIdPayoutProfileBody", {
@@ -5488,9 +6367,34 @@ PostRoiPatternsPatternReviewBody = TypedDict("PostRoiPatternsPatternReviewBody",
     "programId": NotRequired[str],
 })
 
-# Up to 500 value events; each is validated and recorded on its own.
+PostValueEventsBodyEventsItem = TypedDict("PostValueEventsBodyEventsItem", {
+    "kind": Literal["payment", "refund", "credit_granted", "credit_redeemed", "credit_expired", "credit_revoked", "cost", "adjustment"],
+    "customerRef": NotRequired[str],
+    "partnerId": NotRequired[str],
+    "partnerExternalRef": NotRequired[str],
+    "creditGrantId": NotRequired[str],
+    "referralId": NotRequired[str],
+    "programId": NotRequired[str],
+    "productRef": NotRequired[str],
+    "currency": str,
+    "cashMinor": NotRequired[int],
+    "creditAppliedMinor": NotRequired[int],
+    "discountMinor": NotRequired[int],
+    "taxMinor": NotRequired[int],
+    "feesMinor": NotRequired[int],
+    "costMinor": NotRequired[int],
+    "faceMinor": NotRequired[int],
+    "externalId": str,
+    "invoiceRef": NotRequired[str],
+    "provider": NotRequired[str],
+    "occurredAt": str,
+    "role": NotRequired[Literal["referee", "referrer"]],
+    "metadata": NotRequired[Dict[str, Any]],
+})
+
+# Up to 500 value events; each is validated and recorded on its own, so one bad event is reported in `errors` and the rest are recorded.
 PostValueEventsBody = TypedDict("PostValueEventsBody", {
-    "events": List[Any],
+    "events": List["PostValueEventsBodyEventsItem"],
 })
 
 # CSV text (up to 10000 rows / 5 MB) plus a column-to-field mapping. "kind" applies to every row unless a column maps to kind. Up to 500 rows are recorded before the response; a larger file answers 202 with a jobId to poll at GET /v1/value/import/{jobId}. A dry run is always immediate.
@@ -5540,6 +6444,7 @@ PostWebhookEndpointsBody = TypedDict("PostWebhookEndpointsBody", {
     "topics": NotRequired[List[str]],
     "legacySignature": NotRequired[bool],
     "programIds": NotRequired[Optional[List[str]]],
+    "alertContacts": NotRequired[List[str]],
 })
 
 PatchWebhookEndpointsIdBody = TypedDict("PatchWebhookEndpointsIdBody", {
@@ -5548,6 +6453,7 @@ PatchWebhookEndpointsIdBody = TypedDict("PatchWebhookEndpointsIdBody", {
     "topics": NotRequired[List[str]],
     "legacySignature": NotRequired[bool],
     "programIds": NotRequired[Optional[List[str]]],
+    "alertContacts": NotRequired[List[str]],
 })
 
 PostSandboxSimulateBody = TypedDict("PostSandboxSimulateBody", {
@@ -5678,6 +6584,18 @@ PutProgramsIdRefereeRewardBody = TypedDict("PutProgramsIdRefereeRewardBody", {
     "currency": NotRequired[str],
 })
 
+PostRewardsBody = TypedDict("PostRewardsBody", {
+    "partnerId": NotRequired[str],
+    "partnerExternalRef": NotRequired[str],
+    "reason": str,
+    "amountMinor": NotRequired[int],
+    "currency": NotRequired[str],
+    "ruleKey": NotRequired[str],
+    "event": NotRequired[str],
+    "programId": NotRequired[str],
+    "idempotencyKey": str,
+})
+
 PostRewardsRedeemByCodeBody = TypedDict("PostRewardsRedeemByCodeBody", {
     "amountMinor": NotRequired[int],
     "billingEventId": NotRequired[str],
@@ -5693,6 +6611,15 @@ PostRewardsIdRedeemBody = TypedDict("PostRewardsIdRedeemBody", {
     "invoiceRef": NotRequired[str],
     "externalId": NotRequired[str],
     "occurredAt": NotRequired[Any],
+})
+
+PutRewardsRulesKeyBody = TypedDict("PutRewardsRulesKeyBody", {
+    "event": NotRequired[Optional[str]],
+    "programId": NotRequired[Optional[str]],
+    "amountMinor": int,
+    "currency": NotRequired[str],
+    "reason": str,
+    "enabled": NotRequired[bool],
 })
 
 PostProgramsIdGroupsBodyBaseOption1Option1 = TypedDict("PostProgramsIdGroupsBodyBaseOption1Option1", {
@@ -5911,13 +6838,13 @@ PostEmailPreviewBodyDraft = TypedDict("PostEmailPreviewBodyDraft", {
 })
 
 PostEmailPreviewBody = TypedDict("PostEmailPreviewBody", {
-    "event": Literal["payout_sent", "payout_failed", "invitation_received", "partner_approved", "contract_sent", "webhook_endpoint_disabled", "tax_document_ready"],
+    "event": Literal["payout_sent", "payout_failed", "invitation_received", "partner_approved", "contract_sent", "webhook_endpoint_disabled", "webhook_endpoint_failing", "tax_document_ready"],
     "locale": Literal["en", "es", "de", "fr", "pt", "it", "nl", "sv", "ja", "zh"],
     "draft": NotRequired["PostEmailPreviewBodyDraft"],
 })
 
 PostEmailTestBody = TypedDict("PostEmailTestBody", {
-    "event": Literal["payout_sent", "payout_failed", "invitation_received", "partner_approved", "contract_sent", "webhook_endpoint_disabled", "tax_document_ready"],
+    "event": Literal["payout_sent", "payout_failed", "invitation_received", "partner_approved", "contract_sent", "webhook_endpoint_disabled", "webhook_endpoint_failing", "tax_document_ready"],
     "locale": Literal["en", "es", "de", "fr", "pt", "it", "nl", "sv", "ja", "zh"],
     "to": str,
 })
@@ -5985,7 +6912,7 @@ PostAuthConnectionsBodyKeys = TypedDict("PostAuthConnectionsBodyKeys", {
 })
 
 PostAuthConnectionsBody = TypedDict("PostAuthConnectionsBody", {
-    "provider": Literal["clerk", "supabase", "workos", "generic", "atlas", "custom"],
+    "provider": Literal["atlas", "clerk", "auth0", "supabase", "firebase", "cognito", "stytch", "kinde", "workos", "generic", "custom"],
     "programId": str,
     "instanceId": NotRequired[str],
     "autoEnrollUsers": NotRequired[bool],
@@ -5993,6 +6920,10 @@ PostAuthConnectionsBody = TypedDict("PostAuthConnectionsBody", {
     "name": NotRequired[str],
     "secret": NotRequired[str],
     "keys": NotRequired["PostAuthConnectionsBodyKeys"],
+})
+
+PutAuthConnectionsIdSecretBody = TypedDict("PutAuthConnectionsIdSecretBody", {
+    "secret": str,
 })
 
 PatchAuthConnectionsIdBody = TypedDict("PatchAuthConnectionsIdBody", {
@@ -6039,6 +6970,13 @@ PostAuthConnectionsIdSignupsBody = TypedDict("PostAuthConnectionsIdSignupsBody",
     "test": NotRequired[bool],
 })
 
+PostAuthConnectionsIdPartnersBody = TypedDict("PostAuthConnectionsIdPartnersBody", {
+    "customerRef": str,
+    "email": str,
+    "name": NotRequired[str],
+    "code": NotRequired[str],
+})
+
 PostAuthConnectionsIdEraseBody = TypedDict("PostAuthConnectionsIdEraseBody", {
     "customerRef": str,
 })
@@ -6062,6 +7000,25 @@ PostAuthConnectionsIdSignalsBody = TypedDict("PostAuthConnectionsIdSignalsBody",
     "details": NotRequired[Dict[str, Any]],
 })
 
+PostAuthConnectionsInstallBody = TypedDict("PostAuthConnectionsInstallBody", {
+    "clientId": str,
+    "scope": str,
+    "redirectUri": str,
+    "state": NotRequired[str],
+    "codeChallenge": str,
+    "instanceId": str,
+    "programId": NotRequired[str],
+    "decision": Literal["allow", "deny"],
+})
+
+PostOauthTokenBody = TypedDict("PostOauthTokenBody", {
+    "grant_type": Literal["authorization_code"],
+    "code": str,
+    "code_verifier": str,
+    "client_id": str,
+    "redirect_uri": str,
+})
+
 PatchOrgSsoBody = TypedDict("PatchOrgSsoBody", {
     "requireSso": NotRequired[bool],
     "roleMapping": NotRequired[Dict[str, Literal["owner", "admin", "finance", "analyst", "support"]]],
@@ -6069,6 +7026,31 @@ PatchOrgSsoBody = TypedDict("PatchOrgSsoBody", {
 
 PostOrgSsoTicketsBody = TypedDict("PostOrgSsoTicketsBody", {
     "expiresInDays": NotRequired[int],
+})
+
+PutOrgSsoDirectBodyOption1 = TypedDict("PutOrgSsoDirectBodyOption1", {
+    "adapter": Literal["oidc"],
+    "issuer": str,
+    "clientId": str,
+    "clientSecret": NotRequired[str],
+    "scopes": NotRequired[str],
+    "roleClaim": NotRequired[str],
+    "name": NotRequired[str],
+    "domains": NotRequired[List[str]],
+    "roleMapping": NotRequired[Dict[str, Literal["admin", "finance", "analyst", "support"]]],
+    "defaultRole": NotRequired[Optional[Literal["admin", "finance", "analyst", "support"]]],
+    "trustEmailVerified": NotRequired[bool],
+})
+
+PutOrgSsoDirectBodyOption2 = TypedDict("PutOrgSsoDirectBodyOption2", {
+    "adapter": Literal["workos"],
+    "clientId": str,
+    "apiKey": NotRequired[str],
+    "organizationId": str,
+    "domains": NotRequired[List[str]],
+    "roleMapping": NotRequired[Dict[str, Literal["admin", "finance", "analyst", "support"]]],
+    "defaultRole": NotRequired[Optional[Literal["admin", "finance", "analyst", "support"]]],
+    "trustEmailVerified": NotRequired[bool],
 })
 
 PostPartnerAuthWalletNonceBody = TypedDict("PostPartnerAuthWalletNonceBody", {
@@ -6091,6 +7073,68 @@ PostOnchainConnectionsBody = TypedDict("PostOnchainConnectionsBody", {
 
 PostPublicProgramsHandleJoinBody = TypedDict("PostPublicProgramsHandleJoinBody", {
     "destinationUrl": NotRequired[str],
+})
+
+PutSupportAppsAdapterBodyConfig = TypedDict("PutSupportAppsAdapterBodyConfig", {
+    "publicKeyPem": NotRequired[str],
+    "subdomain": NotRequired[str],
+    "cardKey": NotRequired[str],
+})
+
+PutSupportAppsAdapterBody = TypedDict("PutSupportAppsAdapterBody", {
+    "enabled": NotRequired[bool],
+    "secret": NotRequired[str],
+    "rotate": NotRequired[bool],
+    "config": NotRequired["PutSupportAppsAdapterBodyConfig"],
+})
+
+PostSupportAppsAdapterTestBody = TypedDict("PostSupportAppsAdapterTestBody", {
+    "email": NotRequired[str],
+    "customerRef": NotRequired[str],
+    "partnerExternalRef": NotRequired[str],
+    "ext": NotRequired[str],
+})
+
+PostPrivacyExecutorKeysBodyConfig = TypedDict("PostPrivacyExecutorKeysBodyConfig", {
+    "publicKeyPem": NotRequired[str],
+    "algorithm": NotRequired[Literal["ES384", "ES256", "RS256"]],
+    "sombraUrl": NotRequired[str],
+})
+
+PostPrivacyExecutorKeysBody = TypedDict("PostPrivacyExecutorKeysBody", {
+    "adapter": Literal["cm-standard-v1", "onetrust", "transcend", "datagrail", "ketch", "osano", "custom"],
+    "vendorSecret": NotRequired[str],
+    "config": NotRequired["PostPrivacyExecutorKeysBodyConfig"],
+    "rotate": NotRequired[bool],
+    "enabled": NotRequired[bool],
+})
+
+PostAccountCloseBody = TypedDict("PostAccountCloseBody", {
+    "confirm": str,
+})
+
+PutOrgTrackingConsentBody = TypedDict("PutOrgTrackingConsentBody", {
+    "mode": Literal["auto", "none", "pending", "custom", "cookiemunch", "onetrust", "cookiebot", "usercentrics", "didomi", "osano", "termly", "tcf", "gpp", "gcm"],
+    "category": NotRequired[str],
+    "tcfVendorId": NotRequired[int],
+    "gcmSignal": NotRequired[Literal["ad_storage", "analytics_storage"]],
+    "noCmp": NotRequired[Literal["persist", "memory"]],
+})
+
+PutOrgHostedPagesBodyConsent = TypedDict("PutOrgHostedPagesBodyConsent", {
+    "adapter": Literal["none", "builtin", "cookiemunch", "onetrust", "cookiebot", "usercentrics", "didomi", "osano", "termly", "iubenda", "custom"],
+    "config": NotRequired[Dict[str, Any]],
+})
+
+PutOrgHostedPagesBodyChatOption1 = TypedDict("PutOrgHostedPagesBodyChatOption1", {
+    "adapter": Literal["chatly", "intercom", "crisp", "custom"],
+    "config": NotRequired[Dict[str, Any]],
+})
+
+PutOrgHostedPagesBody = TypedDict("PutOrgHostedPagesBody", {
+    "consent": "PutOrgHostedPagesBodyConsent",
+    "chat": NotRequired[Optional["PutOrgHostedPagesBodyChatOption1"]],
+    "customOrigins": NotRequired[Dict[str, List[str]]],
 })
 
 PostGraphqlBody = TypedDict("PostGraphqlBody", {

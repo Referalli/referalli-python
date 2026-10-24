@@ -383,8 +383,30 @@ class WebhookEndpointDisabledEvent(TypedDict):
     data: "WebhookEndpointDisabledEventData"
 
 
+class WebhookEndpointFailingEvent(TypedDict):
+    """``webhook_endpoint.failing``: A webhook endpoint keeps failing"""
+
+    id: str
+    topic: Literal["webhook_endpoint.failing"]
+    orgId: str
+    livemode: bool
+    createdAt: str
+    data: "WebhookEndpointFailingEventData"
+
+
+class WebhookEndpointRecoveredEvent(TypedDict):
+    """``webhook_endpoint.recovered``: A failing webhook endpoint recovered"""
+
+    id: str
+    topic: Literal["webhook_endpoint.recovered"]
+    orgId: str
+    livemode: bool
+    createdAt: str
+    data: "WebhookEndpointRecoveredEventData"
+
+
 #: Any webhook event. Narrow it on ``event["topic"]``.
-WebhookEvent = Union[BillingEventRecordedEvent, ClickRecordedEvent, CommissionEarnedEvent, CommissionReversedEvent, CommissionSettledEvent, CreditRedeemedEvent, CustomerAliasedEvent, DealSubmittedEvent, DisputeResolvedEvent, FraudCaseOpenedEvent, PartnerAppliedEvent, PartnerApprovedEvent, PartnerEnrolledEvent, PartnerLevelUpEvent, PayoutCancelledEvent, PayoutFailedEvent, PayoutScheduledEvent, PayoutSentEvent, PayoutSubmittedEvent, PrivacyRequestCompletedEvent, RefereeRewardEarnedEvent, ReferralApprovedEvent, ReferralCreatedEvent, ReferralHeldEvent, ReferralPausedEvent, ReferralReassignedEvent, ReferralRejectedEvent, ReferralResumedEvent, ReferralVoidedEvent, RoiPatternDetectedEvent, RoiPaybackReachedEvent, TaxFormDeliveredEvent, WebhookEndpointDisabledEvent, BaseWebhookEvent]
+WebhookEvent = Union[BillingEventRecordedEvent, ClickRecordedEvent, CommissionEarnedEvent, CommissionReversedEvent, CommissionSettledEvent, CreditRedeemedEvent, CustomerAliasedEvent, DealSubmittedEvent, DisputeResolvedEvent, FraudCaseOpenedEvent, PartnerAppliedEvent, PartnerApprovedEvent, PartnerEnrolledEvent, PartnerLevelUpEvent, PayoutCancelledEvent, PayoutFailedEvent, PayoutScheduledEvent, PayoutSentEvent, PayoutSubmittedEvent, PrivacyRequestCompletedEvent, RefereeRewardEarnedEvent, ReferralApprovedEvent, ReferralCreatedEvent, ReferralHeldEvent, ReferralPausedEvent, ReferralReassignedEvent, ReferralRejectedEvent, ReferralResumedEvent, ReferralVoidedEvent, RoiPatternDetectedEvent, RoiPaybackReachedEvent, TaxFormDeliveredEvent, WebhookEndpointDisabledEvent, WebhookEndpointFailingEvent, WebhookEndpointRecoveredEvent, BaseWebhookEvent]
 
 #: Every topic the API publishes.
-TOPICS: Tuple[str, ...] = ("billing_event.recorded", "click.recorded", "commission.earned", "commission.reversed", "commission.settled", "credit.redeemed", "customer.aliased", "deal.submitted", "dispute.resolved", "fraud.case_opened", "partner.applied", "partner.approved", "partner.enrolled", "partner.level_up", "payout.cancelled", "payout.failed", "payout.scheduled", "payout.sent", "payout.submitted", "privacy.request_completed", "referee_reward.earned", "referral.approved", "referral.created", "referral.held", "referral.paused", "referral.reassigned", "referral.rejected", "referral.resumed", "referral.voided", "roi.pattern_detected", "roi.payback_reached", "tax.form_delivered", "webhook_endpoint.disabled")
+TOPICS: Tuple[str, ...] = ("billing_event.recorded", "click.recorded", "commission.earned", "commission.reversed", "commission.settled", "credit.redeemed", "customer.aliased", "deal.submitted", "dispute.resolved", "fraud.case_opened", "partner.applied", "partner.approved", "partner.enrolled", "partner.level_up", "payout.cancelled", "payout.failed", "payout.scheduled", "payout.sent", "payout.submitted", "privacy.request_completed", "referee_reward.earned", "referral.approved", "referral.created", "referral.held", "referral.paused", "referral.reassigned", "referral.rejected", "referral.resumed", "referral.voided", "roi.pattern_detected", "roi.payback_reached", "tax.form_delivered", "webhook_endpoint.disabled", "webhook_endpoint.failing", "webhook_endpoint.recovered")

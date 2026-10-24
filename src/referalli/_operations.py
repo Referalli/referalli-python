@@ -58,6 +58,15 @@ class Operations:
         """
         return self._request("DELETE", f"/v1/billing/connections/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    def delete_billing_internal_customers_customer_ref(self, customer_ref: str, *, idempotency_key: Optional[str] = None) -> Ok:
+        """Remove an internal customer. DELETE /v1/billing/internal-customers/{customerRef}
+
+        Their payments earn again from now on (events already ignored stay ignored). Audited.
+
+        **Auth:** an API key with `billing:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("DELETE", f"/v1/billing/internal-customers/{_seg(customer_ref)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     def delete_branding_domain(self, *, idempotency_key: Optional[str] = None) -> Ok:
         """Remove the portal domain. DELETE /v1/branding/domain
 
@@ -112,6 +121,15 @@ class Operations:
         """
         return self._request("DELETE", f"/v1/org/members/{_seg(user_id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    def delete_org_sso_direct(self, *, idempotency_key: Optional[str] = None) -> DeleteOrgSsoDirectResponse:
+        """Remove your identity provider. DELETE /v1/org/sso/direct
+
+        Removes the org's own IdP configuration; team SSO and "require SSO" turn off, so nobody is locked out. Owner only.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`.
+        """
+        return self._request("DELETE", f"/v1/org/sso/direct", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     def delete_partners_id(self, id: str, *, idempotency_key: Optional[str] = None) -> Ok:
         """Delete a partner. DELETE /v1/partners/{id}
 
@@ -130,6 +148,15 @@ class Operations:
         """
         return self._request("DELETE", f"/v1/payout-connections/{_seg(provider)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    def delete_privacy_executors_adapter(self, adapter: str, *, idempotency_key: Optional[str] = None) -> DeletePrivacyExecutorsAdapterResponse:
+        """Disconnect a DSAR tool. DELETE /v1/privacy/executors/{adapter}
+
+        Removes the tool, its key and settings; its URL answers 404 from now on. The request log stays.
+
+        **Auth:** an API key with `privacy:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("DELETE", f"/v1/privacy/executors/{_seg(adapter)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     def delete_profitability_products_product_ref(self, product_ref: str, *, idempotency_key: Optional[str] = None) -> OkStatus:
         """Delete a product margin. DELETE /v1/profitability/products/{productRef}
 
@@ -138,6 +165,24 @@ class Operations:
         **Auth:** an API key with `analytics:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return self._request("DELETE", f"/v1/profitability/products/{_seg(product_ref)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def delete_rewards_rules_key(self, key: str, *, idempotency_key: Optional[str] = None) -> DeleteRewardsRulesKeyResponse:
+        """Delete a reward rule. DELETE /v1/rewards/rules/{key}
+
+        Deletes the rule. Rewards already granted through it stay.
+
+        **Auth:** an API key with `commissions:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("DELETE", f"/v1/rewards/rules/{_seg(key)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def delete_support_apps_adapter(self, adapter: str, *, idempotency_key: Optional[str] = None) -> DeleteSupportAppsAdapterResponse:
+        """Disconnect a support tool. DELETE /v1/support/apps/{adapter}
+
+        Removes the tool and its secret; its card URL answers 404 from now on.
+
+        **Auth:** an API key with `partners:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("DELETE", f"/v1/support/apps/{_seg(adapter)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def delete_webhook_endpoints_id(self, id: str, *, idempotency_key: Optional[str] = None) -> Ok:
         """Delete a webhook endpoint. DELETE /v1/webhook-endpoints/{id}
@@ -460,6 +505,15 @@ class Operations:
         """
         return self._request("GET", f"/v1/auth/connections/{_seg(id)}/export", query={"customerRef": customer_ref}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    def get_auth_connections_providers(self, *, idempotency_key: Optional[str] = None) -> GetAuthConnectionsProvidersResponse:
+        """List identity connectors. GET /v1/auth/connections/providers
+
+        Every auth provider you can connect (Atlas, Clerk, Auth0, Supabase, Firebase, Cognito, Stytch, Kinde, WorkOS, generic, your own auth), with how it connects, who issues the secret, the setup steps, a copyable template where the vendor has no native webhook, and where the referral metadata lands.
+
+        **Auth:** an API key with `integrations:read` (or `full`), or a session of any role.
+        """
+        return self._request("GET", f"/v1/auth/connections/providers", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     def get_auth_providers(self, *, idempotency_key: Optional[str] = None) -> GetAuthProvidersResponse:
         """List sign-in providers. GET /v1/auth/providers
 
@@ -497,10 +551,10 @@ class Operations:
         """
         return self._request("GET", f"/v1/billing/connections/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
-    def get_billing_events(self, *, customer_ref: Optional[str] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[BillingEvent]:
+    def get_billing_events(self, *, customer_ref: Optional[str] = None, status: Optional[Literal["processed", "ignored_by_filter"]] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[BillingEvent]:
         """List billing events. GET /v1/billing/events
 
-        Payments, refunds and other billing events received from every connection, newest first. Filter with `customerRef`.
+        Payments, refunds and other billing events received from every connection, newest first. Filter with `customerRef`, or `status=ignored_by_filter` for the events a product filter or the internal-customer list set aside (recorded, never processed).
 
         **Auth:** an API key with `billing:read` (or `full`), or a session of any role.
 
@@ -510,11 +564,20 @@ class Operations:
         created[gte]: Only items created at or after this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
         created[lte]: Only items created at or before this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
         """
-        return self._request("GET", f"/v1/billing/events", query={"customerRef": customer_ref, "limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
+        return self._request("GET", f"/v1/billing/events", query={"customerRef": customer_ref, "status": status, "limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
 
-    def get_billing_events_iter(self, *, customer_ref: Optional[str] = None, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Iterator[BillingEvent]:
+    def get_billing_events_iter(self, *, customer_ref: Optional[str] = None, status: Optional[Literal["processed", "ignored_by_filter"]] = None, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Iterator[BillingEvent]:
         """Every item of ``get_billing_events``, following the pages."""
-        return self._paginate(lambda cursor: self.get_billing_events(customer_ref=customer_ref, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
+        return self._paginate(lambda cursor: self.get_billing_events(customer_ref=customer_ref, status=status, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
+
+    def get_billing_internal_customers(self, *, idempotency_key: Optional[str] = None) -> List[InternalCustomer]:
+        """List internal customers. GET /v1/billing/internal-customers
+
+        The org's own customers (staff, test accounts, your own plans) whose payments never earn on any connection. Metadata `planSource: "internal"` on the provider's customer does the same without a list.
+
+        **Auth:** an API key with `billing:read` (or `full`), or a session of any role.
+        """
+        return self._request("GET", f"/v1/billing/internal-customers", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def get_billing_plan(self, *, idempotency_key: Optional[str] = None) -> GetBillingPlanResponse:
         """Get the plan. GET /v1/billing/plan
@@ -528,11 +591,20 @@ class Operations:
     def get_branding(self, *, idempotency_key: Optional[str] = None) -> GetBrandingResponse:
         """Get branding. GET /v1/branding
 
-        The org's logo, theme tokens, sender address, and its custom portal and link domains with their status (`none`, `pending` DNS, `provisioning` a certificate, `active`).
+        The org's logo, theme tokens, sender address, and its custom portal and link domains with their status (`none`, `pending` DNS, `provisioning` a certificate, `active`), and `warnings` for theme colour pairs below WCAG AA contrast.
 
         **Auth:** an API key with `org:read` (or `full`), or a session of any role.
         """
         return self._request("GET", f"/v1/branding", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_chatly_identity(self, *, idempotency_key: Optional[str] = None) -> GetChatlyIdentityResponse:
+        """Get the support-chat identity. GET /v1/chatly/identity
+
+        The signed-in merchant user or partner as a Chatly widget identity: `externalId` (`merchant:<id>` or `partner:<id>`), email, name and `userHash`, the HMAC-SHA256 of `externalId` with Referalli's identity secret. `identity` is null when signed out or when identity verification isn't configured. Never cached.
+
+        **Auth:** none.
+        """
+        return self._request("GET", f"/v1/chatly/identity", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def get_cleanroom_consent(self, *, customer_ref: str, idempotency_key: Optional[str] = None) -> GetCleanroomConsentResponse:
         """Get a customer's consent. GET /v1/cleanroom/consent
@@ -551,6 +623,26 @@ class Operations:
         **Auth:** an API key with `growth:read` (or `full`), or a session of any role.
         """
         return self._request("GET", f"/v1/cleanroom/query", query={"dimension": dimension}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_clicks_consent_coverage(self, *, days: Optional[int] = None, idempotency_key: Optional[str] = None) -> GetClicksConsentCoverageResponse:
+        """Get consent coverage. GET /v1/clicks/consent-coverage
+
+        The share of attributed sign-ups in the last `days` (default 30) whose referral carries consent evidence, on its click or on the `associate` call. Low coverage means sign-ups are attributed from tags without a consent setting (`none`) or from server-side calls that don't pass `consent`.
+
+        **Auth:** an API key with `links:read` (or `full`), or a session of any role.
+
+        days: Look-back window in days.
+        """
+        return self._request("GET", f"/v1/clicks/consent-coverage", query={"days": days}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_clicks_id(self, id: str, *, idempotency_key: Optional[str] = None) -> GetClicksIdResponse:
+        """Get a click. GET /v1/clicks/{id}
+
+        One click with its consent evidence: what the visitor's CMP said when the tracker stored the referral (`consent.provider`, `state`, `stamp`, `tcString`…). A redirect click (`/go`) is recorded before the landing page reads the CMP, so its evidence comes from the first consented visit beacon naming it. `consent` is null when none arrived.
+
+        **Auth:** an API key with `links:read` (or `full`), or a session of any role.
+        """
+        return self._request("GET", f"/v1/clicks/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def get_cli_device_codes_user_code(self, user_code: str, *, idempotency_key: Optional[str] = None) -> GetCliDeviceCodesUserCodeResponse:
         """Get a pending CLI sign-in. GET /v1/cli/device-codes/{userCode}
@@ -769,6 +861,17 @@ class Operations:
         """Every item of ``get_email_templates``, following the pages."""
         return self._paginate(lambda cursor: self.get_email_templates(limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
+    def get_embed(self, *, token: str, idempotency_key: Optional[str] = None) -> GetWellKnownForgedeckEmbedJsonResponse:
+        """Get one org's embed manifest. GET /v1/embed
+
+        The embed manifest for the org that owns `token` (its public tracking token): its link domain in the CSP origins, its longest program cookie window as the storage lifetime, and its consent default. Public, CORS `*`.
+
+        **Auth:** none.
+
+        token: The org's public tracking token.
+        """
+        return self._request("GET", f"/v1/embed", query={"token": token}, body=None, idempotency_key=idempotency_key, kind="json")
+
     def get_embed_summary(self, *, idempotency_key: Optional[str] = None) -> GetEmbedSummaryResponse:
         """Read embedded partner stats. GET /v1/embed/summary
 
@@ -777,6 +880,19 @@ class Operations:
         **Auth:** none.
         """
         return self._request("GET", f"/v1/embed/summary", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_events(self, *, since: Optional[str] = None, topics: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = None, idempotency_key: Optional[str] = None) -> GetEventsResponse:
+        """List past events. GET /v1/events
+
+        The org's events, oldest first, in the shape webhook deliveries carry: filter with `since` and `topics`, page with `after` (the previous page's `nextCursor`). Every event is listed whether or not an endpoint subscribed to it. `referalli events tail --since 1h` uses it to backfill before tailing live.
+
+        **Auth:** an API key with `webhooks:read` (or `full`), or a session of any role.
+
+        since: Only events created at or after this time.
+        topics: Comma-separated topics (default: every topic).
+        after: The `nextCursor` of the previous page: events after this one.
+        """
+        return self._request("GET", f"/v1/events", query={"since": since, "topics": topics, "after": after, "limit": limit}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def get_export_accounting(self, *, format_: Optional[Literal["quickbooks", "xero"]] = None, year: int, idempotency_key: Optional[str] = None) -> str:
         """Export payouts for accounting. GET /v1/export/accounting
@@ -878,6 +994,15 @@ class Operations:
         **Auth:** an API key with `analytics:read` (or `full`), or a session of any role.
         """
         return self._request("GET", f"/v1/incrementality", query={"programId": program_id}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_integration_health(self, *, idempotency_key: Optional[str] = None) -> GetIntegrationHealthResponse:
+        """Check integration health. GET /v1/integration-health
+
+        Every connection the org depends on, each with `ok`, a `detail`, and when it fails a `fix` and `docs` link: billing connections (and when each last received an event), sign-up connections, the tracking snippet (a visit in the last 30 days), payout connections, outbound webhook endpoints, and every adapter of a connected port. `hop` names the leg that failed on a path between systems. `ok` at the top is true only when every check is.
+
+        **Auth:** an API key with `integrations:read` (or `full`), or a session of any role.
+        """
+        return self._request("GET", f"/v1/integration-health", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def get_integrations(self, *, idempotency_key: Optional[str] = None) -> GetIntegrationsResponse:
         """List integrations. GET /v1/integrations
@@ -1094,6 +1219,15 @@ class Operations:
         """
         return self._request("GET", f"/v1/org/fx-feed", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    def get_org_hosted_pages(self, *, idempotency_key: Optional[str] = None) -> GetOrgHostedPagesResponse:
+        """Get the hosted-page consent and chat. GET /v1/org/hosted-pages
+
+        What runs on the pages Referalli hosts for you on your own portal domain (the partner portal and `/join`): your consent banner (Cookie Munch, OneTrust, Cookiebot, Usercentrics, Didomi, Osano, Termly, iubenda, a custom CMP, a built-in necessary-only notice, or none) and your support chat (Chatly, Intercom, Crisp or custom). `served` is exactly what visitors get: the head tags, the "Cookie settings" link and the Content-Security-Policy built from these adapters. Referalli's own banner and chat never run on your domain.
+
+        **Auth:** an API key with `org:read` (or `full`), or a session of any role.
+        """
+        return self._request("GET", f"/v1/org/hosted-pages", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     def get_org_members(self, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[Member]:
         """List team members. GET /v1/org/members
 
@@ -1121,6 +1255,15 @@ class Operations:
         **Auth:** an API key with `payouts:read` (or `full`), or a session of any role.
         """
         return self._request("GET", f"/v1/org/payout-schedule", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_org_portal_auth(self, *, idempotency_key: Optional[str] = None) -> GetOrgPortalAuthResponse:
+        """Get partner sign-in settings. GET /v1/org/portal-auth
+
+        How partners sign in to the org's portal: `referalli` (partner accounts, the default), `oidc` (the merchant's IdP) or `custom` (the merchant's own session, as a short-lived JWT). Includes the audience tokens must carry, the URL to send partners to, the redirect URI to register, and the last check. Never the secret.
+
+        **Auth:** an API key with `org:read` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("GET", f"/v1/org/portal-auth", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def get_org_referral_params(self, *, idempotency_key: Optional[str] = None) -> GetOrgReferralParamsResponse:
         """Get referral query parameters. GET /v1/org/referral-params
@@ -1166,6 +1309,15 @@ class Operations:
         **Auth:** an API key with `org:read` (or `full`), or a session with role `owner`, `admin`, `finance`.
         """
         return self._request("GET", f"/v1/org/tax-profile", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_org_tracking_consent(self, *, idempotency_key: Optional[str] = None) -> GetOrgTrackingConsentResponse:
+        """Get the tracker's consent default. GET /v1/org/tracking-consent
+
+        How `aff.js` reads visitor consent unless the tag says otherwise (`data-consent`): `auto` detects the site's CMP (Cookie Munch, OneTrust, Cookiebot, Usercentrics, Didomi, Osano, Termly, IAB TCF and GPP, Google Consent Mode, or `window.referalliConsent`), an adapter id pins one, `pending` waits for `aff.consent(true|false)`, and `none` always stores. Until consent is granted nothing is stored or sent; the referral stays in memory for the sign-up. `noCmp` is what `auto` does on a site without a CMP. `configured: false` is an org that never chose: it serves `none`, so existing tags behave as before. Lists the adapters with their default category.
+
+        **Auth:** an API key with `org:read` (or `full`), or a session of any role.
+        """
+        return self._request("GET", f"/v1/org/tracking-consent", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def get_outreach(self, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetOutreachResponseDataItem]:
         """List outreach messages. GET /v1/outreach
@@ -1794,6 +1946,42 @@ class Operations:
         """
         return self._request("GET", f"/v1/payouts/{_seg(id)}/invoice", query={"format": format_}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    def get_plans(self, *, idempotency_key: Optional[str] = None) -> GetPlansResponse:
+        """List public plans. GET /v1/plans
+
+        The public plan catalog in display order: monthly price in minor units (USD, billed monthly in advance), limits and features. No authentication; cacheable for an hour. No plan charges a transaction or payout fee.
+
+        **Auth:** none.
+        """
+        return self._request("GET", f"/v1/plans", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_portal_auth_current(self, *, org: Optional[str] = None, idempotency_key: Optional[str] = None) -> GetPortalAuthCurrentResponse:
+        """What a merchant's portal sign-in offers. GET /v1/portal-auth/current
+
+        For the portal's sign-in page: the org (from `org`, or the merchant's portal domain this is called on) and its partner sign-in adapter, with the button label and where it starts. `referalli` with no start URL when the org uses Referalli partner accounts.
+
+        **Auth:** none.
+        """
+        return self._request("GET", f"/v1/portal-auth/current", query={"org": org}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_privacy_executor_requests(self, *, idempotency_key: Optional[str] = None) -> GetPrivacyExecutorRequestsResponse:
+        """List DSAR tool requests. GET /v1/privacy/executor-requests
+
+        The last 200 requests connected DSAR tools sent: operation, outcome and the vendor request id. Subjects are kept only as hashes.
+
+        **Auth:** an API key with `privacy:read` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("GET", f"/v1/privacy/executor-requests", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_privacy_executors(self, *, idempotency_key: Optional[str] = None) -> GetPrivacyExecutorsResponse:
+        """List connected DSAR tools. GET /v1/privacy/executors
+
+        Every DSAR tool that can reach Referalli as a connected system (Cookie Munch cm-standard-v1, OneTrust, Transcend, DataGrail, Ketch, Osano, `custom` for any tool speaking Standard Webhooks), with the per-org URL to register, install steps and a health check. Keys are never returned.
+
+        **Auth:** an API key with `privacy:read` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("GET", f"/v1/privacy/executors", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     def get_privacy_export(self, *, customer_ref: str, idempotency_key: Optional[str] = None) -> CustomerExport:
         """Export a customer's data. GET /v1/privacy/export
 
@@ -2132,6 +2320,15 @@ class Operations:
         """Every item of ``get_rewards``, following the pages."""
         return self._paginate(lambda cursor: self.get_rewards(status=status, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
+    def get_rewards_granted(self, *, idempotency_key: Optional[str] = None) -> GetRewardsGrantedResponse:
+        """List partner rewards. GET /v1/rewards/granted
+
+        The last 200 rewards granted through `POST /v1/rewards`, with the commission line each one posted.
+
+        **Auth:** an API key with `commissions:read` (or `full`), or a session of any role.
+        """
+        return self._request("GET", f"/v1/rewards/granted", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     def get_rewards_lookup_code(self, code: str, *, idempotency_key: Optional[str] = None) -> GetRewardsLookupCodeResponse:
         """Look up a reward code. GET /v1/rewards/lookup/{code}
 
@@ -2140,6 +2337,15 @@ class Operations:
         **Auth:** an API key with `commissions:read` (or `full`), or a session of any role.
         """
         return self._request("GET", f"/v1/rewards/lookup/{_seg(code)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_rewards_rules(self, *, idempotency_key: Optional[str] = None) -> List[PutRewardsRulesKeyResponse]:
+        """List reward rules. GET /v1/rewards/rules
+
+        Your rules that turn an inbound event (or a rule key) into a fixed partner reward.
+
+        **Auth:** an API key with `commissions:read` (or `full`), or a session of any role.
+        """
+        return self._request("GET", f"/v1/rewards/rules", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def get_roi_breakdown(self, *, from_: Optional[str] = None, to: Optional[str] = None, program_id: Optional[str] = None, partner_id: Optional[str] = None, window_days: Optional[int] = None, currency: Optional[str] = None, format_: Optional[Literal["json", "csv"]] = None, by: Literal["program", "partner", "cohort", "source", "role"], limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetRoiBreakdownResponseDataItem]:
         """Get the ROI breakdown. GET /v1/roi/breakdown
@@ -2321,6 +2527,36 @@ class Operations:
         **Auth:** none.
         """
         return self._request("GET", f"/v1/status/incidents/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_support_apps(self, *, idempotency_key: Optional[str] = None) -> GetSupportAppsResponse:
+        """List support tool connections. GET /v1/support/apps
+
+        Every support tool Referalli can show referral context in (Chatly cards and AI tools, Intercom, Zendesk, HubSpot, Front, Help Scout, custom), with its card URL, install steps and whether it is set up. Secrets are never returned.
+
+        **Auth:** an API key with `partners:read` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("GET", f"/v1/support/apps", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_support_cards_org_id_adapter(self, org_id: str, adapter: str, *, email: Optional[str] = None, external_id: Optional[str] = None, idempotency_key: Optional[str] = None) -> PostSupportCardsOrgIdAdapterResponse:
+        """Render a support card for a tool (GET). GET /v1/support/cards/{orgId}/{adapter}
+
+        The same card for tools that fetch with GET (HubSpot legacy CRM cards pass the contact as query parameters). Signed as for the POST form; 404 otherwise.
+
+        **Auth:** none.
+        """
+        return self._request("GET", f"/v1/support/cards/{_seg(org_id)}/{_seg(adapter)}", query={"email": email, "externalId": external_id}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_support_context(self, *, email: Optional[str] = None, customer_ref: Optional[str] = None, partner_external_ref: Optional[str] = None, ext: Optional[str] = None, idempotency_key: Optional[str] = None) -> GetSupportContextResponse:
+        """Get referral context for a support contact. GET /v1/support/context
+
+        What a support agent should know about a contact: the partner (status, tier, programs, referral link, pending/approved/paid balances, next payout, open flags) and/or the referred customer (who referred them, when, the referee reward and what is left of it). Name the contact by `partnerExternalRef`, `ext` (a tool's verified external id), `customerRef` or `email`; the email is used only when no stronger key is given. Your org's data only; `partner` and `customer` are null when nothing matches.
+
+        **Auth:** an API key with `partners:read` (or `full`), or a session with role `owner`, `admin`, `support`, `finance`, `analyst`.
+
+        email: Used only when no stronger key is given.
+        ext: A support tool's verified external id: matched as a partner externalRef, then as a customer ref.
+        """
+        return self._request("GET", f"/v1/support/context", query={"email": email, "customerRef": customer_ref, "partnerExternalRef": partner_external_ref, "ext": ext}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def get_tax1099(self, *, year: int, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetTax1099ResponseDataItem]:
         """Export 1099-NEC data. GET /v1/tax/1099
@@ -2557,7 +2793,7 @@ class Operations:
     def patch_billing_connections_id(self, id: str, body: PatchBillingConnectionsIdBody, *, idempotency_key: Optional[str] = None) -> BillingConnection:
         """Update a billing connection. PATCH /v1/billing/connections/{id}
 
-        Renames a connection or sets `status`: `paused` makes its webhook URL refuse events until set back to `active`. Audited.
+        Renames a connection, sets `status` (`paused` makes its webhook URL refuse events until set back to `active`), or sets its product `filter` (`null` removes it). A filter applies to events received from then on. Audited.
 
         **Auth:** an API key with `billing:write` (or `full`), or a session with role `owner`, `admin`.
         """
@@ -2635,14 +2871,23 @@ class Operations:
         """
         return self._request("PATCH", f"/v1/referrals/{_seg(id)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
-    def patch_webhook_endpoints_id(self, id: str, body: PatchWebhookEndpointsIdBody, *, idempotency_key: Optional[str] = None) -> WebhookEndpoint:
+    def patch_webhook_endpoints_id(self, id: str, body: PatchWebhookEndpointsIdBody, *, idempotency_key: Optional[str] = None) -> PatchWebhookEndpointsIdResponse:
         """Update a webhook endpoint. PATCH /v1/webhook-endpoints/{id}
 
-        Changes the URL, topics, programs (`null` or `[]` for every program) or legacy signature, or pauses it (`status: "paused"`, deliveries held). Setting `active` re-enables a paused or auto-disabled endpoint: held deliveries resume and the failure clock starts over. Audited.
+        Changes the URL, topics, programs (`null` or `[]` for every program) or legacy signature, or pauses it (`status: "paused"`, deliveries held). Setting `active` re-enables a paused or auto-disabled endpoint: held deliveries resume and the failure clock starts over. `warnings` has `domain_changed` when the URL moves to another host. Audited.
 
         **Auth:** an API key with `webhooks:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return self._request("PATCH", f"/v1/webhook-endpoints/{_seg(id)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def post_account_close(self, body: PostAccountCloseBody, *, idempotency_key: Optional[str] = None) -> PostAccountCloseResponse:
+        """Close your own account. POST /v1/account/close
+
+        Closes the signed-in merchant user or partner account: every session ends, identity is redacted and commission records stay under a pseudonym. Send `confirm` with the account's email. Refused (409) for an organization's only owner or a partner still owed money. Step-up: `x-totp-code` when two-factor is on, otherwise a sign-in less than 15 minutes old (else 401 `step_up_required`).
+
+        **Auth:** a partner session.
+        """
+        return self._request("POST", f"/v1/account/close", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     def post_admin_orgs_id_plan(self, id: str, body: PostAdminOrgsIdPlanBody, *, idempotency_key: Optional[str] = None) -> PostAdminOrgsIdPlanResponse:
         """Set an organization's plan. POST /v1/admin/orgs/{id}/plan
@@ -2752,6 +2997,15 @@ class Operations:
         """
         return self._request("POST", f"/v1/attribution/replay", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    def post_auth_backchannel_logout(self, body: PostAuthBackchannelLogoutBody, *, idempotency_key: Optional[str] = None) -> PostAuthBackchannelLogoutResponse:
+        """Receive an OpenID Connect back-channel logout. POST /v1/auth/backchannel-logout
+
+        The `backchannel_logout_uri` of Referalli's own sign-in client. Takes a form-encoded `logout_token` (OpenID Connect Back-Channel Logout 1.0): verified against the issuer's keys, `aud`, `events`, a fresh `iat`, no `nonce`, and a single-use `jti`; then ends the Referalli sessions for its `sid` (or every session of its `sub`). Answers 503 until the deployment sets IDP_LOGOUT_SYNC=true.
+
+        **Auth:** none.
+        """
+        return self._request("POST", f"/v1/auth/backchannel-logout", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     def post_auth_connections(self, body: PostAuthConnectionsBody, *, idempotency_key: Optional[str] = None) -> CreatedAuthConnection:
         """Connect an auth platform. POST /v1/auth/connections
 
@@ -2778,6 +3032,15 @@ class Operations:
         **Auth:** a signature (see above); no API key.
         """
         return self._request("POST", f"/v1/auth/connections/{_seg(id)}/erase", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def post_auth_connections_id_partners(self, id: str, body: PostAuthConnectionsIdPartnersBody, *, idempotency_key: Optional[str] = None) -> PostAuthConnectionsIdPartnersResponse:
+        """Enrol a user as a partner (signed protocol). POST /v1/auth/connections/{id}/partners
+
+        A user asked to become a partner from the platform, with the code they chose: they are enrolled now (whatever `autoEnrollUsers` says), with a coupon and, when the connection has a destination, a link. 409 when the code is held by someone else. Signed like the other protocol calls (`x-referalli-signature`, `x-referalli-id`).
+
+        **Auth:** none.
+        """
+        return self._request("POST", f"/v1/auth/connections/{_seg(id)}/partners", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     def post_auth_connections_id_ping(self, id: str, body: Dict[str, Any], *, idempotency_key: Optional[str] = None) -> PostAuthConnectionsIdPingResponse:
         """Test an auth connection (signed protocol). POST /v1/auth/connections/{id}/ping
@@ -2833,6 +3096,15 @@ class Operations:
         """
         return self._request("POST", f"/v1/auth/connections/{_seg(id)}/users", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    def post_auth_connections_install(self, body: PostAuthConnectionsInstallBody, *, idempotency_key: Optional[str] = None) -> PostAuthConnectionsInstallResponse:
+        """Approve a one-click install. POST /v1/auth/connections/install
+
+        The dashboard's consent step for `GET /v1/oauth/authorize`: `allow` returns the redirect back to the platform with a single-use code (10 minutes) for the chosen program; `deny` returns it with `error=access_denied`. Owner or admin. Audited.
+
+        **Auth:** an API key with `integrations:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("POST", f"/v1/auth/connections/install", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     def post_auth_logout(self, *, idempotency_key: Optional[str] = None) -> PostAuthLogoutResponse:
         """Sign out. POST /v1/auth/logout
 
@@ -2863,7 +3135,7 @@ class Operations:
     def post_billing_connections(self, body: PostBillingConnectionsBody, *, idempotency_key: Optional[str] = None) -> CreatedBillingConnection:
         """Create a billing connection. POST /v1/billing/connections
 
-        Connects a billing provider (`stripe`, `paddle`, `lemonsqueezy`, `polar`, `chargebee`, `shopify`, `recurly`, `braintree`, `woocommerce`, `bigcommerce` or `generic`) so its payment webhooks become commissions. Returns the `webhookUrl` path to register with the provider and its signing secret (generated unless you pass the provider's own `webhookSecret`); the secret is returned only here. Audited.
+        Connects a billing provider (`stripe`, `paddle`, `lemonsqueezy`, `polar`, `chargebee`, `shopify`, `recurly`, `braintree`, `woocommerce`, `bigcommerce` or `generic`) so its payment webhooks become commissions. Returns the `webhookUrl` path to register with the provider and its signing secret (generated unless you pass the provider's own `webhookSecret`); the secret is returned only here. A `filter` (`productIds`, `priceIds`, `skus` and/or exact `metadata`) limits which payments and subscription events earn when one provider account sells several products; the rest are recorded as `ignored_by_filter`. Audited.
 
         **Auth:** an API key with `billing:write` (or `full`), or a session with role `owner`, `admin`.
         """
@@ -2886,6 +3158,15 @@ class Operations:
         **Auth:** an API key with `billing:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return self._request("POST", f"/v1/billing/connections/{_seg(id)}/value-mapping/preview", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def post_billing_internal_customers(self, body: PostBillingInternalCustomersBody, *, idempotency_key: Optional[str] = None) -> PostBillingInternalCustomersResponse:
+        """Add an internal customer. POST /v1/billing/internal-customers
+
+        Marks a customer ref (the provider customer id, or the `referalli_customer_ref` it is linked to) as internal: its payments are recorded as `ignored_by_filter` from now on. Idempotent; a repeat updates the note. Audited.
+
+        **Auth:** an API key with `billing:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("POST", f"/v1/billing/internal-customers", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     def post_billing_portal(self, *, idempotency_key: Optional[str] = None) -> PostBillingPortalResponse:
         """Open the subscription portal. POST /v1/billing/portal
@@ -3283,6 +3564,15 @@ class Operations:
         """
         return self._request("POST", f"/v1/notifications/{_seg(id)}/read", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    def post_oauth_token(self, body: PostOauthTokenBody, *, idempotency_key: Optional[str] = None) -> PostOauthTokenResponse:
+        """Exchange an install code. POST /v1/oauth/token
+
+        Server to server: the platform trades the single-use code and its PKCE `code_verifier` for a new signed-protocol connection and its signing secret (returned only here). Installing again for the same instance keeps the connection and issues a new secret, the old one verifying for 24 hours. 401 for an unknown, used, expired or mismatched code. No authentication.
+
+        **Auth:** none.
+        """
+        return self._request("POST", f"/v1/oauth/token", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     def post_onchain_connections(self, body: PostOnchainConnectionsBody, *, idempotency_key: Optional[str] = None) -> PostOnchainConnectionsResponse:
         """Create an on-chain connection. POST /v1/onchain/connections
 
@@ -3291,6 +3581,15 @@ class Operations:
         **Auth:** an API key with `billing:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return self._request("POST", f"/v1/onchain/connections", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def post_org_hosted_pages_check(self, *, idempotency_key: Optional[str] = None) -> PostOrgHostedPagesCheckResponse:
+        """Check the hosted-page adapters. POST /v1/org/hosted-pages/check
+
+        Read-only checks against the vendors: does the Cookie Munch site exist (and a reminder to add your portal domain as its alias), does each script URL answer. Updates `status` and `lastError`. Owner or admin.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("POST", f"/v1/org/hosted-pages/check", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def post_org_members(self, body: PostOrgMembersBody, *, idempotency_key: Optional[str] = None) -> PostOrgMembersResponse:
         """Add a team member. POST /v1/org/members
@@ -3301,6 +3600,15 @@ class Operations:
         """
         return self._request("POST", f"/v1/org/members", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    def post_org_portal_auth_test(self, *, idempotency_key: Optional[str] = None) -> PostOrgPortalAuthTestResponse:
+        """Test partner sign-in. POST /v1/org/portal-auth/test
+
+        Checks the partner sign-in configuration (JWKS reachable, or OIDC discovery) and records the result.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("POST", f"/v1/org/portal-auth/test", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     def post_orgs(self, body: PostOrgsBody, *, idempotency_key: Optional[str] = None) -> PostOrgsResponse:
         """Create an organization. POST /v1/orgs
 
@@ -3309,6 +3617,15 @@ class Operations:
         **Auth:** an API key with `team:write` (or `full`), or a session of any role.
         """
         return self._request("POST", f"/v1/orgs", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def post_org_sso_direct_test(self, *, idempotency_key: Optional[str] = None) -> PostOrgPortalAuthTestResponse:
+        """Test your identity provider. POST /v1/org/sso/direct/test
+
+        Checks the configuration against the IdP (OIDC discovery, or the WorkOS organization) and records the result as the configuration's last success or last error.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("POST", f"/v1/org/sso/direct/test", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def post_org_sso_link(self, *, idempotency_key: Optional[str] = None) -> PostOrgSsoLinkResponse:
         """Link the org to SSO. POST /v1/org/sso/link
@@ -3598,6 +3915,24 @@ class Operations:
         """
         return self._request("POST", f"/v1/payout-runs/run-scheduled", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    def post_privacy_executor_keys(self, body: PostPrivacyExecutorKeysBody, *, idempotency_key: Optional[str] = None) -> PostPrivacyExecutorKeysResponse:
+        """Mint a DSAR executor key. POST /v1/privacy/executor-keys
+
+        Enables a DSAR tool for your org and mints its executor key (a bearer key, or a `whsec_` secret for Standard Webhooks), returned once. Rotating stops the old key at once. Also stores vendor settings: a Transcend public key and API key for completion callbacks, an Osano webhook secret.
+
+        **Auth:** an API key with `privacy:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("POST", f"/v1/privacy/executor-keys", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def post_privacy_executors_adapter_check(self, adapter: str, *, idempotency_key: Optional[str] = None) -> PostPrivacyExecutorsAdapterCheckResponse:
+        """Check a DSAR tool connection. POST /v1/privacy/executors/{adapter}/check
+
+        Whether the tool is ready: a key or the vendor credentials it needs, and no failing requests since it was set up. Answers `{ok, detail, fix}`.
+
+        **Auth:** an API key with `privacy:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("POST", f"/v1/privacy/executors/{_seg(adapter)}/check", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     def post_privacy_forget(self, body: PostPrivacyForgetBody, *, idempotency_key: Optional[str] = None) -> PostPrivacyForgetResponse:
         """Erase a data subject. POST /v1/privacy/forget
 
@@ -3769,6 +4104,15 @@ class Operations:
         """
         return self._request("POST", f"/v1/referrals/{_seg(id)}/void", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    def post_rewards(self, body: PostRewardsBody, *, idempotency_key: Optional[str] = None) -> PostRewardsResponse:
+        """Reward a partner. POST /v1/rewards
+
+        Rewards a partner for something outside a sale (a community answer, an event): one `earned` commission line that is approved and paid like any other. Name the partner by `partnerId` or `partnerExternalRef`; the amount is `amountMinor` (+ `currency`) or comes from a rule (`ruleKey`, or the `event` a rule maps). Idempotent on `idempotencyKey`: a retry returns the first grant with 200; the same key with a different request is 409.
+
+        **Auth:** an API key with `commissions:write` (or `full`), or a session with role `owner`, `admin`, `finance`.
+        """
+        return self._request("POST", f"/v1/rewards", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     def post_rewards_id_redeem(self, id: str, body: PostRewardsIdRedeemBody, *, idempotency_key: Optional[str] = None) -> PostRewardsRedeemByCodeResponse:
         """Redeem a reward. POST /v1/rewards/{id}/redeem
 
@@ -3804,6 +4148,24 @@ class Operations:
         **Auth:** an API key with `billing:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return self._request("POST", f"/v1/sandbox/simulate", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def post_support_apps_adapter_test(self, adapter: str, body: PostSupportAppsAdapterTestBody, *, idempotency_key: Optional[str] = None) -> PostSupportAppsAdapterTestResponse:
+        """Preview a support card. POST /v1/support/apps/{adapter}/test
+
+        Renders what the tool would show for a contact, from your own session: the context and the tool-format card. Nothing is sent to the tool.
+
+        **Auth:** an API key with `partners:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("POST", f"/v1/support/apps/{_seg(adapter)}/test", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def post_support_cards_org_id_adapter(self, org_id: str, adapter: str, body: Dict[str, Any], *, idempotency_key: Optional[str] = None) -> PostSupportCardsOrgIdAdapterResponse:
+        """Render a support card for a tool. POST /v1/support/cards/{orgId}/{adapter}
+
+        Called by the support tool, signed in its own scheme (Chatly `x-chatly-signature`, Intercom `X-Body-Signature`, HubSpot v3, Front, Help Scout, a Zendesk app JWT, or the custom `X-Referalli-Signature`). Answers the tool's card format. An unknown org, a tool that is not connected, or a bad or stale signature all answer 404.
+
+        **Auth:** none.
+        """
+        return self._request("POST", f"/v1/support/cards/{_seg(org_id)}/{_seg(adapter)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     def post_tax1099_documents_id_correct(self, id: str, *, idempotency_key: Optional[str] = None) -> TaxFiling:
         """File a corrected 1099. POST /v1/tax/1099/documents/{id}/correct
@@ -3889,11 +4251,22 @@ class Operations:
     def post_webhook_endpoints(self, body: PostWebhookEndpointsBody, *, idempotency_key: Optional[str] = None) -> PostWebhookEndpointsResponse:
         """Create a webhook endpoint. POST /v1/webhook-endpoints
 
-        Subscribes an HTTPS URL to event topics (default `["*"]`, every event; see the `webhooks` section of this document for each topic's payload). `programIds` limits it to events about those programs (org-wide events such as payouts are then not sent). Deliveries are signed the Standard Webhooks way with the returned `secret` (`whsec_…`), shown only here. `legacySignature: true` also sends the deprecated body-only signature.
+        Subscribes an HTTPS URL to event topics (default `["*"]`, every event; see the `webhooks` section of this document for each topic's payload). `programIds` limits it to events about those programs (org-wide events such as payouts are then not sent). Deliveries are signed the Standard Webhooks way with the returned `secret` (`whsec_…`), shown only here. `legacySignature: true` also sends the deprecated body-only signature. `alertContacts` (up to 10 emails) are emailed, with the org owner, when the endpoint has failed for 1 hour and again at 24 hours; it is disabled after 72 hours of failures or 1,000 failed attempts in a row.
 
         **Auth:** an API key with `webhooks:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return self._request("POST", f"/v1/webhook-endpoints", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def post_webhook_endpoints_id_replay(self, id: str, *, since: str, idempotency_key: Optional[str] = None) -> PostWebhookEndpointsIdReplayResponse:
+        """Replay failed deliveries. POST /v1/webhook-endpoints/{id}/replay
+
+        Requeues the endpoint's failed deliveries created at or after `since` (ISO 8601), for after an outage. Each keeps its `webhook-id`, so receivers can dedupe. Audited.
+
+        **Auth:** an API key with `webhooks:write` (or `full`), or a session with role `owner`, `admin`.
+
+        since: Requeue failed deliveries created at or after this time.
+        """
+        return self._request("POST", f"/v1/webhook-endpoints/{_seg(id)}/replay", query={"since": since}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def post_webhook_endpoints_id_rotate_secret(self, id: str, *, idempotency_key: Optional[str] = None) -> PostWebhookEndpointsIdRotateSecretResponse:
         """Rotate an endpoint secret. POST /v1/webhook-endpoints/{id}/rotate-secret
@@ -3931,6 +4304,15 @@ class Operations:
         """
         return self._request("POST", f"/v1/zapier/hooks", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    def put_auth_connections_id_secret(self, id: str, body: PutAuthConnectionsIdSecretBody, *, idempotency_key: Optional[str] = None) -> PutAuthConnectionsIdSecretResponse:
+        """Set a vendor-issued secret. PUT /v1/auth/connections/{id}/secret
+
+        For webhook connectors whose vendor issues the signing secret (Clerk, Stytch, WorkOS) or key set (Kinde's JWKS document): replaces the connection's secret. The previous one keeps verifying for 24 hours. Signed-protocol connections rotate instead. Audited.
+
+        **Auth:** an API key with `integrations:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("PUT", f"/v1/auth/connections/{_seg(id)}/secret", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     def put_billing_connections_id_credentials(self, id: str, body: PutBillingConnectionsIdCredentialsBody, *, idempotency_key: Optional[str] = None) -> PutBillingConnectionsIdCredentialsResponse:
         """Set provider API credentials. PUT /v1/billing/connections/{id}/credentials
 
@@ -3958,10 +4340,10 @@ class Operations:
         """
         return self._request("PUT", f"/v1/billing/connections/{_seg(id)}/value-mapping", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
-    def put_branding(self, body: PutBrandingBody, *, idempotency_key: Optional[str] = None) -> Ok:
+    def put_branding(self, body: PutBrandingBody, *, idempotency_key: Optional[str] = None) -> PutBrandingResponse:
         """Update branding. PUT /v1/branding
 
-        Sets the logo URL, theme (only the documented `--r-*` tokens, with plain CSS values) and email sender. Omitted fields keep their value.
+        Sets the logo URL, theme (only the documented `--r-*` tokens, with plain CSS values) and email sender. Omitted fields keep their value. `warnings` lists theme text/background pairs (`--r-accent-ink` on `--r-accent`, `--r-ink` on `--r-paper`) below the 4.5:1 WCAG AA contrast; the theme is saved anyway.
 
         **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
         """
@@ -4048,6 +4430,15 @@ class Operations:
         """
         return self._request("PUT", f"/v1/org/fx-feed", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    def put_org_hosted_pages(self, body: PutOrgHostedPagesBody, *, idempotency_key: Optional[str] = None) -> GetOrgHostedPagesResponse:
+        """Set the hosted-page consent and chat. PUT /v1/org/hosted-pages
+
+        Validates and saves the adapters. A CMP's `scriptUrl` must be https on that vendor's own hosts; `custom` needs every origin listed. `customOrigins` adds origins per CSP directive (https or wss, no wildcards, no keywords). Owner or admin. Audited.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("PUT", f"/v1/org/hosted-pages", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     def put_org_payout_schedule(self, body: PutOrgPayoutScheduleBody, *, idempotency_key: Optional[str] = None) -> PutOrgPayoutScheduleResponse:
         """Set the org payout schedule. PUT /v1/org/payout-schedule
 
@@ -4056,6 +4447,15 @@ class Operations:
         **Auth:** an API key with `payouts:write` (or `full`), or a session with role `owner`, `admin`, `finance`.
         """
         return self._request("PUT", f"/v1/org/payout-schedule", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def put_org_portal_auth(self, body: Union[PutOrgPortalAuthBodyOption1, PutOrgPortalAuthBodyOption2, PutOrgPortalAuthBodyOption3], *, idempotency_key: Optional[str] = None) -> PutOrgPortalAuthResponse:
+        """Set partner sign-in. PUT /v1/org/portal-auth
+
+        Chooses the portal sign-in adapter and its settings. `custom`: `issuer`, `jwksUrl` (https), optional `loginUrl` (your page that mints the token) and `autoEnrollProgramId`. `oidc`: `issuer`, `clientId`, `clientSecret`. `referalli` removes any configuration. Owner only.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`.
+        """
+        return self._request("PUT", f"/v1/org/portal-auth", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     def put_org_referral_params(self, body: PutOrgReferralParamsBody, *, idempotency_key: Optional[str] = None) -> GetOrgReferralParamsResponse:
         """Set referral query parameters. PUT /v1/org/referral-params
@@ -4075,6 +4475,15 @@ class Operations:
         """
         return self._request("PUT", f"/v1/org/retention", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    def put_org_sso_direct(self, body: Union[PutOrgSsoDirectBodyOption1, PutOrgSsoDirectBodyOption2], *, idempotency_key: Optional[str] = None) -> PutOrgSsoDirectResponse:
+        """Connect your own identity provider. PUT /v1/org/sso/direct
+
+        Team SSO with the org's own IdP, no broker: `adapter` `oidc` (issuer, client id and secret, the claim that holds roles) or `workos` (client id, organization id, the org's own API key). `roleMapping` maps IdP groups or roles to `admin`, `finance`, `analyst` or `support` (never owner); `defaultRole` covers everyone else, or null to keep them out; `domains` are the email domains "require SSO" applies to. The secret is encrypted and never returned; leave it out to keep the stored one. 409 while the org uses the Atlas broker. Owner only.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`.
+        """
+        return self._request("PUT", f"/v1/org/sso/direct", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     def put_org_tax_filing(self, body: PutOrgTaxFilingBody, *, idempotency_key: Optional[str] = None) -> PutOrgTaxFilingResponse:
         """Connect a 1099 filing provider. PUT /v1/org/tax-filing
 
@@ -4092,6 +4501,15 @@ class Operations:
         **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`, `finance`.
         """
         return self._request("PUT", f"/v1/org/tax-profile", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def put_org_tracking_consent(self, body: PutOrgTrackingConsentBody, *, idempotency_key: Optional[str] = None) -> GetOrgTrackingConsentResponse:
+        """Set the tracker's consent default. PUT /v1/org/tracking-consent
+
+        Sets the consent default served inside `/t/{token}/aff.js` (cached up to 5 minutes). Owner or admin. Audited.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("PUT", f"/v1/org/tracking-consent", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     def put_partner_locale(self, body: PutPartnerLocaleBody, *, idempotency_key: Optional[str] = None) -> PutPartnerLocaleResponse:
         """Set my email language (partner). PUT /v1/partner/locale
@@ -4237,6 +4655,24 @@ class Operations:
         """
         return self._request("PUT", f"/v1/programs/{_seg(id)}/referee-reward", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    def put_rewards_rules_key(self, key: str, body: PutRewardsRulesKeyBody, *, idempotency_key: Optional[str] = None) -> PutRewardsRulesKeyResponse:
+        """Save a reward rule. PUT /v1/rewards/rules/{key}
+
+        Creates or replaces a rule: the amount, the reason, an optional program and an optional `event` it rewards (one rule per event).
+
+        **Auth:** an API key with `commissions:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("PUT", f"/v1/rewards/rules/{_seg(key)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def put_support_apps_adapter(self, adapter: str, body: PutSupportAppsAdapterBody, *, idempotency_key: Optional[str] = None) -> PutSupportAppsAdapterResponse:
+        """Connect a support tool. PUT /v1/support/apps/{adapter}
+
+        Enable a support tool and store its signing secret (vendor-issued; write-only) or, for Zendesk, the app public key in `config.publicKeyPem`. For `custom` Referalli mints the secret: it is returned once, and `rotate: true` mints a new one.
+
+        **Auth:** an API key with `partners:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("PUT", f"/v1/support/apps/{_seg(adapter)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
 
 class AsyncOperations:
     _request: Callable[..., Any]
@@ -4280,6 +4716,15 @@ class AsyncOperations:
         **Auth:** an API key with `billing:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return await self._request("DELETE", f"/v1/billing/connections/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def delete_billing_internal_customers_customer_ref(self, customer_ref: str, *, idempotency_key: Optional[str] = None) -> Ok:
+        """Remove an internal customer. DELETE /v1/billing/internal-customers/{customerRef}
+
+        Their payments earn again from now on (events already ignored stay ignored). Audited.
+
+        **Auth:** an API key with `billing:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("DELETE", f"/v1/billing/internal-customers/{_seg(customer_ref)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def delete_branding_domain(self, *, idempotency_key: Optional[str] = None) -> Ok:
         """Remove the portal domain. DELETE /v1/branding/domain
@@ -4335,6 +4780,15 @@ class AsyncOperations:
         """
         return await self._request("DELETE", f"/v1/org/members/{_seg(user_id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    async def delete_org_sso_direct(self, *, idempotency_key: Optional[str] = None) -> DeleteOrgSsoDirectResponse:
+        """Remove your identity provider. DELETE /v1/org/sso/direct
+
+        Removes the org's own IdP configuration; team SSO and "require SSO" turn off, so nobody is locked out. Owner only.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`.
+        """
+        return await self._request("DELETE", f"/v1/org/sso/direct", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     async def delete_partners_id(self, id: str, *, idempotency_key: Optional[str] = None) -> Ok:
         """Delete a partner. DELETE /v1/partners/{id}
 
@@ -4353,6 +4807,15 @@ class AsyncOperations:
         """
         return await self._request("DELETE", f"/v1/payout-connections/{_seg(provider)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    async def delete_privacy_executors_adapter(self, adapter: str, *, idempotency_key: Optional[str] = None) -> DeletePrivacyExecutorsAdapterResponse:
+        """Disconnect a DSAR tool. DELETE /v1/privacy/executors/{adapter}
+
+        Removes the tool, its key and settings; its URL answers 404 from now on. The request log stays.
+
+        **Auth:** an API key with `privacy:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("DELETE", f"/v1/privacy/executors/{_seg(adapter)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     async def delete_profitability_products_product_ref(self, product_ref: str, *, idempotency_key: Optional[str] = None) -> OkStatus:
         """Delete a product margin. DELETE /v1/profitability/products/{productRef}
 
@@ -4361,6 +4824,24 @@ class AsyncOperations:
         **Auth:** an API key with `analytics:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return await self._request("DELETE", f"/v1/profitability/products/{_seg(product_ref)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def delete_rewards_rules_key(self, key: str, *, idempotency_key: Optional[str] = None) -> DeleteRewardsRulesKeyResponse:
+        """Delete a reward rule. DELETE /v1/rewards/rules/{key}
+
+        Deletes the rule. Rewards already granted through it stay.
+
+        **Auth:** an API key with `commissions:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("DELETE", f"/v1/rewards/rules/{_seg(key)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def delete_support_apps_adapter(self, adapter: str, *, idempotency_key: Optional[str] = None) -> DeleteSupportAppsAdapterResponse:
+        """Disconnect a support tool. DELETE /v1/support/apps/{adapter}
+
+        Removes the tool and its secret; its card URL answers 404 from now on.
+
+        **Auth:** an API key with `partners:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("DELETE", f"/v1/support/apps/{_seg(adapter)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def delete_webhook_endpoints_id(self, id: str, *, idempotency_key: Optional[str] = None) -> Ok:
         """Delete a webhook endpoint. DELETE /v1/webhook-endpoints/{id}
@@ -4683,6 +5164,15 @@ class AsyncOperations:
         """
         return await self._request("GET", f"/v1/auth/connections/{_seg(id)}/export", query={"customerRef": customer_ref}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    async def get_auth_connections_providers(self, *, idempotency_key: Optional[str] = None) -> GetAuthConnectionsProvidersResponse:
+        """List identity connectors. GET /v1/auth/connections/providers
+
+        Every auth provider you can connect (Atlas, Clerk, Auth0, Supabase, Firebase, Cognito, Stytch, Kinde, WorkOS, generic, your own auth), with how it connects, who issues the secret, the setup steps, a copyable template where the vendor has no native webhook, and where the referral metadata lands.
+
+        **Auth:** an API key with `integrations:read` (or `full`), or a session of any role.
+        """
+        return await self._request("GET", f"/v1/auth/connections/providers", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     async def get_auth_providers(self, *, idempotency_key: Optional[str] = None) -> GetAuthProvidersResponse:
         """List sign-in providers. GET /v1/auth/providers
 
@@ -4720,10 +5210,10 @@ class AsyncOperations:
         """
         return await self._request("GET", f"/v1/billing/connections/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
-    async def get_billing_events(self, *, customer_ref: Optional[str] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[BillingEvent]:
+    async def get_billing_events(self, *, customer_ref: Optional[str] = None, status: Optional[Literal["processed", "ignored_by_filter"]] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[BillingEvent]:
         """List billing events. GET /v1/billing/events
 
-        Payments, refunds and other billing events received from every connection, newest first. Filter with `customerRef`.
+        Payments, refunds and other billing events received from every connection, newest first. Filter with `customerRef`, or `status=ignored_by_filter` for the events a product filter or the internal-customer list set aside (recorded, never processed).
 
         **Auth:** an API key with `billing:read` (or `full`), or a session of any role.
 
@@ -4733,11 +5223,20 @@ class AsyncOperations:
         created[gte]: Only items created at or after this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
         created[lte]: Only items created at or before this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
         """
-        return await self._request("GET", f"/v1/billing/events", query={"customerRef": customer_ref, "limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
+        return await self._request("GET", f"/v1/billing/events", query={"customerRef": customer_ref, "status": status, "limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
 
-    def get_billing_events_iter(self, *, customer_ref: Optional[str] = None, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> AsyncIterator[BillingEvent]:
+    def get_billing_events_iter(self, *, customer_ref: Optional[str] = None, status: Optional[Literal["processed", "ignored_by_filter"]] = None, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> AsyncIterator[BillingEvent]:
         """Every item of ``get_billing_events``, following the pages (use ``async for``)."""
-        return self._paginate(lambda cursor: self.get_billing_events(customer_ref=customer_ref, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
+        return self._paginate(lambda cursor: self.get_billing_events(customer_ref=customer_ref, status=status, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
+
+    async def get_billing_internal_customers(self, *, idempotency_key: Optional[str] = None) -> List[InternalCustomer]:
+        """List internal customers. GET /v1/billing/internal-customers
+
+        The org's own customers (staff, test accounts, your own plans) whose payments never earn on any connection. Metadata `planSource: "internal"` on the provider's customer does the same without a list.
+
+        **Auth:** an API key with `billing:read` (or `full`), or a session of any role.
+        """
+        return await self._request("GET", f"/v1/billing/internal-customers", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def get_billing_plan(self, *, idempotency_key: Optional[str] = None) -> GetBillingPlanResponse:
         """Get the plan. GET /v1/billing/plan
@@ -4751,11 +5250,20 @@ class AsyncOperations:
     async def get_branding(self, *, idempotency_key: Optional[str] = None) -> GetBrandingResponse:
         """Get branding. GET /v1/branding
 
-        The org's logo, theme tokens, sender address, and its custom portal and link domains with their status (`none`, `pending` DNS, `provisioning` a certificate, `active`).
+        The org's logo, theme tokens, sender address, and its custom portal and link domains with their status (`none`, `pending` DNS, `provisioning` a certificate, `active`), and `warnings` for theme colour pairs below WCAG AA contrast.
 
         **Auth:** an API key with `org:read` (or `full`), or a session of any role.
         """
         return await self._request("GET", f"/v1/branding", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_chatly_identity(self, *, idempotency_key: Optional[str] = None) -> GetChatlyIdentityResponse:
+        """Get the support-chat identity. GET /v1/chatly/identity
+
+        The signed-in merchant user or partner as a Chatly widget identity: `externalId` (`merchant:<id>` or `partner:<id>`), email, name and `userHash`, the HMAC-SHA256 of `externalId` with Referalli's identity secret. `identity` is null when signed out or when identity verification isn't configured. Never cached.
+
+        **Auth:** none.
+        """
+        return await self._request("GET", f"/v1/chatly/identity", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def get_cleanroom_consent(self, *, customer_ref: str, idempotency_key: Optional[str] = None) -> GetCleanroomConsentResponse:
         """Get a customer's consent. GET /v1/cleanroom/consent
@@ -4774,6 +5282,26 @@ class AsyncOperations:
         **Auth:** an API key with `growth:read` (or `full`), or a session of any role.
         """
         return await self._request("GET", f"/v1/cleanroom/query", query={"dimension": dimension}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_clicks_consent_coverage(self, *, days: Optional[int] = None, idempotency_key: Optional[str] = None) -> GetClicksConsentCoverageResponse:
+        """Get consent coverage. GET /v1/clicks/consent-coverage
+
+        The share of attributed sign-ups in the last `days` (default 30) whose referral carries consent evidence, on its click or on the `associate` call. Low coverage means sign-ups are attributed from tags without a consent setting (`none`) or from server-side calls that don't pass `consent`.
+
+        **Auth:** an API key with `links:read` (or `full`), or a session of any role.
+
+        days: Look-back window in days.
+        """
+        return await self._request("GET", f"/v1/clicks/consent-coverage", query={"days": days}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_clicks_id(self, id: str, *, idempotency_key: Optional[str] = None) -> GetClicksIdResponse:
+        """Get a click. GET /v1/clicks/{id}
+
+        One click with its consent evidence: what the visitor's CMP said when the tracker stored the referral (`consent.provider`, `state`, `stamp`, `tcString`…). A redirect click (`/go`) is recorded before the landing page reads the CMP, so its evidence comes from the first consented visit beacon naming it. `consent` is null when none arrived.
+
+        **Auth:** an API key with `links:read` (or `full`), or a session of any role.
+        """
+        return await self._request("GET", f"/v1/clicks/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def get_cli_device_codes_user_code(self, user_code: str, *, idempotency_key: Optional[str] = None) -> GetCliDeviceCodesUserCodeResponse:
         """Get a pending CLI sign-in. GET /v1/cli/device-codes/{userCode}
@@ -4992,6 +5520,17 @@ class AsyncOperations:
         """Every item of ``get_email_templates``, following the pages (use ``async for``)."""
         return self._paginate(lambda cursor: self.get_email_templates(limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
+    async def get_embed(self, *, token: str, idempotency_key: Optional[str] = None) -> GetWellKnownForgedeckEmbedJsonResponse:
+        """Get one org's embed manifest. GET /v1/embed
+
+        The embed manifest for the org that owns `token` (its public tracking token): its link domain in the CSP origins, its longest program cookie window as the storage lifetime, and its consent default. Public, CORS `*`.
+
+        **Auth:** none.
+
+        token: The org's public tracking token.
+        """
+        return await self._request("GET", f"/v1/embed", query={"token": token}, body=None, idempotency_key=idempotency_key, kind="json")
+
     async def get_embed_summary(self, *, idempotency_key: Optional[str] = None) -> GetEmbedSummaryResponse:
         """Read embedded partner stats. GET /v1/embed/summary
 
@@ -5000,6 +5539,19 @@ class AsyncOperations:
         **Auth:** none.
         """
         return await self._request("GET", f"/v1/embed/summary", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_events(self, *, since: Optional[str] = None, topics: Optional[str] = None, after: Optional[str] = None, limit: Optional[int] = None, idempotency_key: Optional[str] = None) -> GetEventsResponse:
+        """List past events. GET /v1/events
+
+        The org's events, oldest first, in the shape webhook deliveries carry: filter with `since` and `topics`, page with `after` (the previous page's `nextCursor`). Every event is listed whether or not an endpoint subscribed to it. `referalli events tail --since 1h` uses it to backfill before tailing live.
+
+        **Auth:** an API key with `webhooks:read` (or `full`), or a session of any role.
+
+        since: Only events created at or after this time.
+        topics: Comma-separated topics (default: every topic).
+        after: The `nextCursor` of the previous page: events after this one.
+        """
+        return await self._request("GET", f"/v1/events", query={"since": since, "topics": topics, "after": after, "limit": limit}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def get_export_accounting(self, *, format_: Optional[Literal["quickbooks", "xero"]] = None, year: int, idempotency_key: Optional[str] = None) -> str:
         """Export payouts for accounting. GET /v1/export/accounting
@@ -5101,6 +5653,15 @@ class AsyncOperations:
         **Auth:** an API key with `analytics:read` (or `full`), or a session of any role.
         """
         return await self._request("GET", f"/v1/incrementality", query={"programId": program_id}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_integration_health(self, *, idempotency_key: Optional[str] = None) -> GetIntegrationHealthResponse:
+        """Check integration health. GET /v1/integration-health
+
+        Every connection the org depends on, each with `ok`, a `detail`, and when it fails a `fix` and `docs` link: billing connections (and when each last received an event), sign-up connections, the tracking snippet (a visit in the last 30 days), payout connections, outbound webhook endpoints, and every adapter of a connected port. `hop` names the leg that failed on a path between systems. `ok` at the top is true only when every check is.
+
+        **Auth:** an API key with `integrations:read` (or `full`), or a session of any role.
+        """
+        return await self._request("GET", f"/v1/integration-health", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def get_integrations(self, *, idempotency_key: Optional[str] = None) -> GetIntegrationsResponse:
         """List integrations. GET /v1/integrations
@@ -5317,6 +5878,15 @@ class AsyncOperations:
         """
         return await self._request("GET", f"/v1/org/fx-feed", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    async def get_org_hosted_pages(self, *, idempotency_key: Optional[str] = None) -> GetOrgHostedPagesResponse:
+        """Get the hosted-page consent and chat. GET /v1/org/hosted-pages
+
+        What runs on the pages Referalli hosts for you on your own portal domain (the partner portal and `/join`): your consent banner (Cookie Munch, OneTrust, Cookiebot, Usercentrics, Didomi, Osano, Termly, iubenda, a custom CMP, a built-in necessary-only notice, or none) and your support chat (Chatly, Intercom, Crisp or custom). `served` is exactly what visitors get: the head tags, the "Cookie settings" link and the Content-Security-Policy built from these adapters. Referalli's own banner and chat never run on your domain.
+
+        **Auth:** an API key with `org:read` (or `full`), or a session of any role.
+        """
+        return await self._request("GET", f"/v1/org/hosted-pages", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     async def get_org_members(self, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[Member]:
         """List team members. GET /v1/org/members
 
@@ -5344,6 +5914,15 @@ class AsyncOperations:
         **Auth:** an API key with `payouts:read` (or `full`), or a session of any role.
         """
         return await self._request("GET", f"/v1/org/payout-schedule", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_org_portal_auth(self, *, idempotency_key: Optional[str] = None) -> GetOrgPortalAuthResponse:
+        """Get partner sign-in settings. GET /v1/org/portal-auth
+
+        How partners sign in to the org's portal: `referalli` (partner accounts, the default), `oidc` (the merchant's IdP) or `custom` (the merchant's own session, as a short-lived JWT). Includes the audience tokens must carry, the URL to send partners to, the redirect URI to register, and the last check. Never the secret.
+
+        **Auth:** an API key with `org:read` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("GET", f"/v1/org/portal-auth", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def get_org_referral_params(self, *, idempotency_key: Optional[str] = None) -> GetOrgReferralParamsResponse:
         """Get referral query parameters. GET /v1/org/referral-params
@@ -5389,6 +5968,15 @@ class AsyncOperations:
         **Auth:** an API key with `org:read` (or `full`), or a session with role `owner`, `admin`, `finance`.
         """
         return await self._request("GET", f"/v1/org/tax-profile", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_org_tracking_consent(self, *, idempotency_key: Optional[str] = None) -> GetOrgTrackingConsentResponse:
+        """Get the tracker's consent default. GET /v1/org/tracking-consent
+
+        How `aff.js` reads visitor consent unless the tag says otherwise (`data-consent`): `auto` detects the site's CMP (Cookie Munch, OneTrust, Cookiebot, Usercentrics, Didomi, Osano, Termly, IAB TCF and GPP, Google Consent Mode, or `window.referalliConsent`), an adapter id pins one, `pending` waits for `aff.consent(true|false)`, and `none` always stores. Until consent is granted nothing is stored or sent; the referral stays in memory for the sign-up. `noCmp` is what `auto` does on a site without a CMP. `configured: false` is an org that never chose: it serves `none`, so existing tags behave as before. Lists the adapters with their default category.
+
+        **Auth:** an API key with `org:read` (or `full`), or a session of any role.
+        """
+        return await self._request("GET", f"/v1/org/tracking-consent", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def get_outreach(self, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetOutreachResponseDataItem]:
         """List outreach messages. GET /v1/outreach
@@ -6017,6 +6605,42 @@ class AsyncOperations:
         """
         return await self._request("GET", f"/v1/payouts/{_seg(id)}/invoice", query={"format": format_}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    async def get_plans(self, *, idempotency_key: Optional[str] = None) -> GetPlansResponse:
+        """List public plans. GET /v1/plans
+
+        The public plan catalog in display order: monthly price in minor units (USD, billed monthly in advance), limits and features. No authentication; cacheable for an hour. No plan charges a transaction or payout fee.
+
+        **Auth:** none.
+        """
+        return await self._request("GET", f"/v1/plans", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_portal_auth_current(self, *, org: Optional[str] = None, idempotency_key: Optional[str] = None) -> GetPortalAuthCurrentResponse:
+        """What a merchant's portal sign-in offers. GET /v1/portal-auth/current
+
+        For the portal's sign-in page: the org (from `org`, or the merchant's portal domain this is called on) and its partner sign-in adapter, with the button label and where it starts. `referalli` with no start URL when the org uses Referalli partner accounts.
+
+        **Auth:** none.
+        """
+        return await self._request("GET", f"/v1/portal-auth/current", query={"org": org}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_privacy_executor_requests(self, *, idempotency_key: Optional[str] = None) -> GetPrivacyExecutorRequestsResponse:
+        """List DSAR tool requests. GET /v1/privacy/executor-requests
+
+        The last 200 requests connected DSAR tools sent: operation, outcome and the vendor request id. Subjects are kept only as hashes.
+
+        **Auth:** an API key with `privacy:read` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("GET", f"/v1/privacy/executor-requests", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_privacy_executors(self, *, idempotency_key: Optional[str] = None) -> GetPrivacyExecutorsResponse:
+        """List connected DSAR tools. GET /v1/privacy/executors
+
+        Every DSAR tool that can reach Referalli as a connected system (Cookie Munch cm-standard-v1, OneTrust, Transcend, DataGrail, Ketch, Osano, `custom` for any tool speaking Standard Webhooks), with the per-org URL to register, install steps and a health check. Keys are never returned.
+
+        **Auth:** an API key with `privacy:read` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("GET", f"/v1/privacy/executors", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     async def get_privacy_export(self, *, customer_ref: str, idempotency_key: Optional[str] = None) -> CustomerExport:
         """Export a customer's data. GET /v1/privacy/export
 
@@ -6355,6 +6979,15 @@ class AsyncOperations:
         """Every item of ``get_rewards``, following the pages (use ``async for``)."""
         return self._paginate(lambda cursor: self.get_rewards(status=status, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
+    async def get_rewards_granted(self, *, idempotency_key: Optional[str] = None) -> GetRewardsGrantedResponse:
+        """List partner rewards. GET /v1/rewards/granted
+
+        The last 200 rewards granted through `POST /v1/rewards`, with the commission line each one posted.
+
+        **Auth:** an API key with `commissions:read` (or `full`), or a session of any role.
+        """
+        return await self._request("GET", f"/v1/rewards/granted", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     async def get_rewards_lookup_code(self, code: str, *, idempotency_key: Optional[str] = None) -> GetRewardsLookupCodeResponse:
         """Look up a reward code. GET /v1/rewards/lookup/{code}
 
@@ -6363,6 +6996,15 @@ class AsyncOperations:
         **Auth:** an API key with `commissions:read` (or `full`), or a session of any role.
         """
         return await self._request("GET", f"/v1/rewards/lookup/{_seg(code)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_rewards_rules(self, *, idempotency_key: Optional[str] = None) -> List[PutRewardsRulesKeyResponse]:
+        """List reward rules. GET /v1/rewards/rules
+
+        Your rules that turn an inbound event (or a rule key) into a fixed partner reward.
+
+        **Auth:** an API key with `commissions:read` (or `full`), or a session of any role.
+        """
+        return await self._request("GET", f"/v1/rewards/rules", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def get_roi_breakdown(self, *, from_: Optional[str] = None, to: Optional[str] = None, program_id: Optional[str] = None, partner_id: Optional[str] = None, window_days: Optional[int] = None, currency: Optional[str] = None, format_: Optional[Literal["json", "csv"]] = None, by: Literal["program", "partner", "cohort", "source", "role"], limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetRoiBreakdownResponseDataItem]:
         """Get the ROI breakdown. GET /v1/roi/breakdown
@@ -6544,6 +7186,36 @@ class AsyncOperations:
         **Auth:** none.
         """
         return await self._request("GET", f"/v1/status/incidents/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_support_apps(self, *, idempotency_key: Optional[str] = None) -> GetSupportAppsResponse:
+        """List support tool connections. GET /v1/support/apps
+
+        Every support tool Referalli can show referral context in (Chatly cards and AI tools, Intercom, Zendesk, HubSpot, Front, Help Scout, custom), with its card URL, install steps and whether it is set up. Secrets are never returned.
+
+        **Auth:** an API key with `partners:read` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("GET", f"/v1/support/apps", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_support_cards_org_id_adapter(self, org_id: str, adapter: str, *, email: Optional[str] = None, external_id: Optional[str] = None, idempotency_key: Optional[str] = None) -> PostSupportCardsOrgIdAdapterResponse:
+        """Render a support card for a tool (GET). GET /v1/support/cards/{orgId}/{adapter}
+
+        The same card for tools that fetch with GET (HubSpot legacy CRM cards pass the contact as query parameters). Signed as for the POST form; 404 otherwise.
+
+        **Auth:** none.
+        """
+        return await self._request("GET", f"/v1/support/cards/{_seg(org_id)}/{_seg(adapter)}", query={"email": email, "externalId": external_id}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_support_context(self, *, email: Optional[str] = None, customer_ref: Optional[str] = None, partner_external_ref: Optional[str] = None, ext: Optional[str] = None, idempotency_key: Optional[str] = None) -> GetSupportContextResponse:
+        """Get referral context for a support contact. GET /v1/support/context
+
+        What a support agent should know about a contact: the partner (status, tier, programs, referral link, pending/approved/paid balances, next payout, open flags) and/or the referred customer (who referred them, when, the referee reward and what is left of it). Name the contact by `partnerExternalRef`, `ext` (a tool's verified external id), `customerRef` or `email`; the email is used only when no stronger key is given. Your org's data only; `partner` and `customer` are null when nothing matches.
+
+        **Auth:** an API key with `partners:read` (or `full`), or a session with role `owner`, `admin`, `support`, `finance`, `analyst`.
+
+        email: Used only when no stronger key is given.
+        ext: A support tool's verified external id: matched as a partner externalRef, then as a customer ref.
+        """
+        return await self._request("GET", f"/v1/support/context", query={"email": email, "customerRef": customer_ref, "partnerExternalRef": partner_external_ref, "ext": ext}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def get_tax1099(self, *, year: int, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetTax1099ResponseDataItem]:
         """Export 1099-NEC data. GET /v1/tax/1099
@@ -6780,7 +7452,7 @@ class AsyncOperations:
     async def patch_billing_connections_id(self, id: str, body: PatchBillingConnectionsIdBody, *, idempotency_key: Optional[str] = None) -> BillingConnection:
         """Update a billing connection. PATCH /v1/billing/connections/{id}
 
-        Renames a connection or sets `status`: `paused` makes its webhook URL refuse events until set back to `active`. Audited.
+        Renames a connection, sets `status` (`paused` makes its webhook URL refuse events until set back to `active`), or sets its product `filter` (`null` removes it). A filter applies to events received from then on. Audited.
 
         **Auth:** an API key with `billing:write` (or `full`), or a session with role `owner`, `admin`.
         """
@@ -6858,14 +7530,23 @@ class AsyncOperations:
         """
         return await self._request("PATCH", f"/v1/referrals/{_seg(id)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
-    async def patch_webhook_endpoints_id(self, id: str, body: PatchWebhookEndpointsIdBody, *, idempotency_key: Optional[str] = None) -> WebhookEndpoint:
+    async def patch_webhook_endpoints_id(self, id: str, body: PatchWebhookEndpointsIdBody, *, idempotency_key: Optional[str] = None) -> PatchWebhookEndpointsIdResponse:
         """Update a webhook endpoint. PATCH /v1/webhook-endpoints/{id}
 
-        Changes the URL, topics, programs (`null` or `[]` for every program) or legacy signature, or pauses it (`status: "paused"`, deliveries held). Setting `active` re-enables a paused or auto-disabled endpoint: held deliveries resume and the failure clock starts over. Audited.
+        Changes the URL, topics, programs (`null` or `[]` for every program) or legacy signature, or pauses it (`status: "paused"`, deliveries held). Setting `active` re-enables a paused or auto-disabled endpoint: held deliveries resume and the failure clock starts over. `warnings` has `domain_changed` when the URL moves to another host. Audited.
 
         **Auth:** an API key with `webhooks:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return await self._request("PATCH", f"/v1/webhook-endpoints/{_seg(id)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def post_account_close(self, body: PostAccountCloseBody, *, idempotency_key: Optional[str] = None) -> PostAccountCloseResponse:
+        """Close your own account. POST /v1/account/close
+
+        Closes the signed-in merchant user or partner account: every session ends, identity is redacted and commission records stay under a pseudonym. Send `confirm` with the account's email. Refused (409) for an organization's only owner or a partner still owed money. Step-up: `x-totp-code` when two-factor is on, otherwise a sign-in less than 15 minutes old (else 401 `step_up_required`).
+
+        **Auth:** a partner session.
+        """
+        return await self._request("POST", f"/v1/account/close", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     async def post_admin_orgs_id_plan(self, id: str, body: PostAdminOrgsIdPlanBody, *, idempotency_key: Optional[str] = None) -> PostAdminOrgsIdPlanResponse:
         """Set an organization's plan. POST /v1/admin/orgs/{id}/plan
@@ -6975,6 +7656,15 @@ class AsyncOperations:
         """
         return await self._request("POST", f"/v1/attribution/replay", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    async def post_auth_backchannel_logout(self, body: PostAuthBackchannelLogoutBody, *, idempotency_key: Optional[str] = None) -> PostAuthBackchannelLogoutResponse:
+        """Receive an OpenID Connect back-channel logout. POST /v1/auth/backchannel-logout
+
+        The `backchannel_logout_uri` of Referalli's own sign-in client. Takes a form-encoded `logout_token` (OpenID Connect Back-Channel Logout 1.0): verified against the issuer's keys, `aud`, `events`, a fresh `iat`, no `nonce`, and a single-use `jti`; then ends the Referalli sessions for its `sid` (or every session of its `sub`). Answers 503 until the deployment sets IDP_LOGOUT_SYNC=true.
+
+        **Auth:** none.
+        """
+        return await self._request("POST", f"/v1/auth/backchannel-logout", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     async def post_auth_connections(self, body: PostAuthConnectionsBody, *, idempotency_key: Optional[str] = None) -> CreatedAuthConnection:
         """Connect an auth platform. POST /v1/auth/connections
 
@@ -7001,6 +7691,15 @@ class AsyncOperations:
         **Auth:** a signature (see above); no API key.
         """
         return await self._request("POST", f"/v1/auth/connections/{_seg(id)}/erase", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def post_auth_connections_id_partners(self, id: str, body: PostAuthConnectionsIdPartnersBody, *, idempotency_key: Optional[str] = None) -> PostAuthConnectionsIdPartnersResponse:
+        """Enrol a user as a partner (signed protocol). POST /v1/auth/connections/{id}/partners
+
+        A user asked to become a partner from the platform, with the code they chose: they are enrolled now (whatever `autoEnrollUsers` says), with a coupon and, when the connection has a destination, a link. 409 when the code is held by someone else. Signed like the other protocol calls (`x-referalli-signature`, `x-referalli-id`).
+
+        **Auth:** none.
+        """
+        return await self._request("POST", f"/v1/auth/connections/{_seg(id)}/partners", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     async def post_auth_connections_id_ping(self, id: str, body: Dict[str, Any], *, idempotency_key: Optional[str] = None) -> PostAuthConnectionsIdPingResponse:
         """Test an auth connection (signed protocol). POST /v1/auth/connections/{id}/ping
@@ -7056,6 +7755,15 @@ class AsyncOperations:
         """
         return await self._request("POST", f"/v1/auth/connections/{_seg(id)}/users", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    async def post_auth_connections_install(self, body: PostAuthConnectionsInstallBody, *, idempotency_key: Optional[str] = None) -> PostAuthConnectionsInstallResponse:
+        """Approve a one-click install. POST /v1/auth/connections/install
+
+        The dashboard's consent step for `GET /v1/oauth/authorize`: `allow` returns the redirect back to the platform with a single-use code (10 minutes) for the chosen program; `deny` returns it with `error=access_denied`. Owner or admin. Audited.
+
+        **Auth:** an API key with `integrations:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("POST", f"/v1/auth/connections/install", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     async def post_auth_logout(self, *, idempotency_key: Optional[str] = None) -> PostAuthLogoutResponse:
         """Sign out. POST /v1/auth/logout
 
@@ -7086,7 +7794,7 @@ class AsyncOperations:
     async def post_billing_connections(self, body: PostBillingConnectionsBody, *, idempotency_key: Optional[str] = None) -> CreatedBillingConnection:
         """Create a billing connection. POST /v1/billing/connections
 
-        Connects a billing provider (`stripe`, `paddle`, `lemonsqueezy`, `polar`, `chargebee`, `shopify`, `recurly`, `braintree`, `woocommerce`, `bigcommerce` or `generic`) so its payment webhooks become commissions. Returns the `webhookUrl` path to register with the provider and its signing secret (generated unless you pass the provider's own `webhookSecret`); the secret is returned only here. Audited.
+        Connects a billing provider (`stripe`, `paddle`, `lemonsqueezy`, `polar`, `chargebee`, `shopify`, `recurly`, `braintree`, `woocommerce`, `bigcommerce` or `generic`) so its payment webhooks become commissions. Returns the `webhookUrl` path to register with the provider and its signing secret (generated unless you pass the provider's own `webhookSecret`); the secret is returned only here. A `filter` (`productIds`, `priceIds`, `skus` and/or exact `metadata`) limits which payments and subscription events earn when one provider account sells several products; the rest are recorded as `ignored_by_filter`. Audited.
 
         **Auth:** an API key with `billing:write` (or `full`), or a session with role `owner`, `admin`.
         """
@@ -7109,6 +7817,15 @@ class AsyncOperations:
         **Auth:** an API key with `billing:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return await self._request("POST", f"/v1/billing/connections/{_seg(id)}/value-mapping/preview", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def post_billing_internal_customers(self, body: PostBillingInternalCustomersBody, *, idempotency_key: Optional[str] = None) -> PostBillingInternalCustomersResponse:
+        """Add an internal customer. POST /v1/billing/internal-customers
+
+        Marks a customer ref (the provider customer id, or the `referalli_customer_ref` it is linked to) as internal: its payments are recorded as `ignored_by_filter` from now on. Idempotent; a repeat updates the note. Audited.
+
+        **Auth:** an API key with `billing:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("POST", f"/v1/billing/internal-customers", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     async def post_billing_portal(self, *, idempotency_key: Optional[str] = None) -> PostBillingPortalResponse:
         """Open the subscription portal. POST /v1/billing/portal
@@ -7506,6 +8223,15 @@ class AsyncOperations:
         """
         return await self._request("POST", f"/v1/notifications/{_seg(id)}/read", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    async def post_oauth_token(self, body: PostOauthTokenBody, *, idempotency_key: Optional[str] = None) -> PostOauthTokenResponse:
+        """Exchange an install code. POST /v1/oauth/token
+
+        Server to server: the platform trades the single-use code and its PKCE `code_verifier` for a new signed-protocol connection and its signing secret (returned only here). Installing again for the same instance keeps the connection and issues a new secret, the old one verifying for 24 hours. 401 for an unknown, used, expired or mismatched code. No authentication.
+
+        **Auth:** none.
+        """
+        return await self._request("POST", f"/v1/oauth/token", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     async def post_onchain_connections(self, body: PostOnchainConnectionsBody, *, idempotency_key: Optional[str] = None) -> PostOnchainConnectionsResponse:
         """Create an on-chain connection. POST /v1/onchain/connections
 
@@ -7514,6 +8240,15 @@ class AsyncOperations:
         **Auth:** an API key with `billing:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return await self._request("POST", f"/v1/onchain/connections", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def post_org_hosted_pages_check(self, *, idempotency_key: Optional[str] = None) -> PostOrgHostedPagesCheckResponse:
+        """Check the hosted-page adapters. POST /v1/org/hosted-pages/check
+
+        Read-only checks against the vendors: does the Cookie Munch site exist (and a reminder to add your portal domain as its alias), does each script URL answer. Updates `status` and `lastError`. Owner or admin.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("POST", f"/v1/org/hosted-pages/check", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def post_org_members(self, body: PostOrgMembersBody, *, idempotency_key: Optional[str] = None) -> PostOrgMembersResponse:
         """Add a team member. POST /v1/org/members
@@ -7524,6 +8259,15 @@ class AsyncOperations:
         """
         return await self._request("POST", f"/v1/org/members", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    async def post_org_portal_auth_test(self, *, idempotency_key: Optional[str] = None) -> PostOrgPortalAuthTestResponse:
+        """Test partner sign-in. POST /v1/org/portal-auth/test
+
+        Checks the partner sign-in configuration (JWKS reachable, or OIDC discovery) and records the result.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("POST", f"/v1/org/portal-auth/test", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     async def post_orgs(self, body: PostOrgsBody, *, idempotency_key: Optional[str] = None) -> PostOrgsResponse:
         """Create an organization. POST /v1/orgs
 
@@ -7532,6 +8276,15 @@ class AsyncOperations:
         **Auth:** an API key with `team:write` (or `full`), or a session of any role.
         """
         return await self._request("POST", f"/v1/orgs", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def post_org_sso_direct_test(self, *, idempotency_key: Optional[str] = None) -> PostOrgPortalAuthTestResponse:
+        """Test your identity provider. POST /v1/org/sso/direct/test
+
+        Checks the configuration against the IdP (OIDC discovery, or the WorkOS organization) and records the result as the configuration's last success or last error.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("POST", f"/v1/org/sso/direct/test", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def post_org_sso_link(self, *, idempotency_key: Optional[str] = None) -> PostOrgSsoLinkResponse:
         """Link the org to SSO. POST /v1/org/sso/link
@@ -7821,6 +8574,24 @@ class AsyncOperations:
         """
         return await self._request("POST", f"/v1/payout-runs/run-scheduled", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    async def post_privacy_executor_keys(self, body: PostPrivacyExecutorKeysBody, *, idempotency_key: Optional[str] = None) -> PostPrivacyExecutorKeysResponse:
+        """Mint a DSAR executor key. POST /v1/privacy/executor-keys
+
+        Enables a DSAR tool for your org and mints its executor key (a bearer key, or a `whsec_` secret for Standard Webhooks), returned once. Rotating stops the old key at once. Also stores vendor settings: a Transcend public key and API key for completion callbacks, an Osano webhook secret.
+
+        **Auth:** an API key with `privacy:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("POST", f"/v1/privacy/executor-keys", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def post_privacy_executors_adapter_check(self, adapter: str, *, idempotency_key: Optional[str] = None) -> PostPrivacyExecutorsAdapterCheckResponse:
+        """Check a DSAR tool connection. POST /v1/privacy/executors/{adapter}/check
+
+        Whether the tool is ready: a key or the vendor credentials it needs, and no failing requests since it was set up. Answers `{ok, detail, fix}`.
+
+        **Auth:** an API key with `privacy:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("POST", f"/v1/privacy/executors/{_seg(adapter)}/check", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     async def post_privacy_forget(self, body: PostPrivacyForgetBody, *, idempotency_key: Optional[str] = None) -> PostPrivacyForgetResponse:
         """Erase a data subject. POST /v1/privacy/forget
 
@@ -7992,6 +8763,15 @@ class AsyncOperations:
         """
         return await self._request("POST", f"/v1/referrals/{_seg(id)}/void", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    async def post_rewards(self, body: PostRewardsBody, *, idempotency_key: Optional[str] = None) -> PostRewardsResponse:
+        """Reward a partner. POST /v1/rewards
+
+        Rewards a partner for something outside a sale (a community answer, an event): one `earned` commission line that is approved and paid like any other. Name the partner by `partnerId` or `partnerExternalRef`; the amount is `amountMinor` (+ `currency`) or comes from a rule (`ruleKey`, or the `event` a rule maps). Idempotent on `idempotencyKey`: a retry returns the first grant with 200; the same key with a different request is 409.
+
+        **Auth:** an API key with `commissions:write` (or `full`), or a session with role `owner`, `admin`, `finance`.
+        """
+        return await self._request("POST", f"/v1/rewards", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     async def post_rewards_id_redeem(self, id: str, body: PostRewardsIdRedeemBody, *, idempotency_key: Optional[str] = None) -> PostRewardsRedeemByCodeResponse:
         """Redeem a reward. POST /v1/rewards/{id}/redeem
 
@@ -8027,6 +8807,24 @@ class AsyncOperations:
         **Auth:** an API key with `billing:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return await self._request("POST", f"/v1/sandbox/simulate", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def post_support_apps_adapter_test(self, adapter: str, body: PostSupportAppsAdapterTestBody, *, idempotency_key: Optional[str] = None) -> PostSupportAppsAdapterTestResponse:
+        """Preview a support card. POST /v1/support/apps/{adapter}/test
+
+        Renders what the tool would show for a contact, from your own session: the context and the tool-format card. Nothing is sent to the tool.
+
+        **Auth:** an API key with `partners:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("POST", f"/v1/support/apps/{_seg(adapter)}/test", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def post_support_cards_org_id_adapter(self, org_id: str, adapter: str, body: Dict[str, Any], *, idempotency_key: Optional[str] = None) -> PostSupportCardsOrgIdAdapterResponse:
+        """Render a support card for a tool. POST /v1/support/cards/{orgId}/{adapter}
+
+        Called by the support tool, signed in its own scheme (Chatly `x-chatly-signature`, Intercom `X-Body-Signature`, HubSpot v3, Front, Help Scout, a Zendesk app JWT, or the custom `X-Referalli-Signature`). Answers the tool's card format. An unknown org, a tool that is not connected, or a bad or stale signature all answer 404.
+
+        **Auth:** none.
+        """
+        return await self._request("POST", f"/v1/support/cards/{_seg(org_id)}/{_seg(adapter)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     async def post_tax1099_documents_id_correct(self, id: str, *, idempotency_key: Optional[str] = None) -> TaxFiling:
         """File a corrected 1099. POST /v1/tax/1099/documents/{id}/correct
@@ -8112,11 +8910,22 @@ class AsyncOperations:
     async def post_webhook_endpoints(self, body: PostWebhookEndpointsBody, *, idempotency_key: Optional[str] = None) -> PostWebhookEndpointsResponse:
         """Create a webhook endpoint. POST /v1/webhook-endpoints
 
-        Subscribes an HTTPS URL to event topics (default `["*"]`, every event; see the `webhooks` section of this document for each topic's payload). `programIds` limits it to events about those programs (org-wide events such as payouts are then not sent). Deliveries are signed the Standard Webhooks way with the returned `secret` (`whsec_…`), shown only here. `legacySignature: true` also sends the deprecated body-only signature.
+        Subscribes an HTTPS URL to event topics (default `["*"]`, every event; see the `webhooks` section of this document for each topic's payload). `programIds` limits it to events about those programs (org-wide events such as payouts are then not sent). Deliveries are signed the Standard Webhooks way with the returned `secret` (`whsec_…`), shown only here. `legacySignature: true` also sends the deprecated body-only signature. `alertContacts` (up to 10 emails) are emailed, with the org owner, when the endpoint has failed for 1 hour and again at 24 hours; it is disabled after 72 hours of failures or 1,000 failed attempts in a row.
 
         **Auth:** an API key with `webhooks:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return await self._request("POST", f"/v1/webhook-endpoints", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def post_webhook_endpoints_id_replay(self, id: str, *, since: str, idempotency_key: Optional[str] = None) -> PostWebhookEndpointsIdReplayResponse:
+        """Replay failed deliveries. POST /v1/webhook-endpoints/{id}/replay
+
+        Requeues the endpoint's failed deliveries created at or after `since` (ISO 8601), for after an outage. Each keeps its `webhook-id`, so receivers can dedupe. Audited.
+
+        **Auth:** an API key with `webhooks:write` (or `full`), or a session with role `owner`, `admin`.
+
+        since: Requeue failed deliveries created at or after this time.
+        """
+        return await self._request("POST", f"/v1/webhook-endpoints/{_seg(id)}/replay", query={"since": since}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def post_webhook_endpoints_id_rotate_secret(self, id: str, *, idempotency_key: Optional[str] = None) -> PostWebhookEndpointsIdRotateSecretResponse:
         """Rotate an endpoint secret. POST /v1/webhook-endpoints/{id}/rotate-secret
@@ -8154,6 +8963,15 @@ class AsyncOperations:
         """
         return await self._request("POST", f"/v1/zapier/hooks", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    async def put_auth_connections_id_secret(self, id: str, body: PutAuthConnectionsIdSecretBody, *, idempotency_key: Optional[str] = None) -> PutAuthConnectionsIdSecretResponse:
+        """Set a vendor-issued secret. PUT /v1/auth/connections/{id}/secret
+
+        For webhook connectors whose vendor issues the signing secret (Clerk, Stytch, WorkOS) or key set (Kinde's JWKS document): replaces the connection's secret. The previous one keeps verifying for 24 hours. Signed-protocol connections rotate instead. Audited.
+
+        **Auth:** an API key with `integrations:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("PUT", f"/v1/auth/connections/{_seg(id)}/secret", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     async def put_billing_connections_id_credentials(self, id: str, body: PutBillingConnectionsIdCredentialsBody, *, idempotency_key: Optional[str] = None) -> PutBillingConnectionsIdCredentialsResponse:
         """Set provider API credentials. PUT /v1/billing/connections/{id}/credentials
 
@@ -8181,10 +8999,10 @@ class AsyncOperations:
         """
         return await self._request("PUT", f"/v1/billing/connections/{_seg(id)}/value-mapping", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
-    async def put_branding(self, body: PutBrandingBody, *, idempotency_key: Optional[str] = None) -> Ok:
+    async def put_branding(self, body: PutBrandingBody, *, idempotency_key: Optional[str] = None) -> PutBrandingResponse:
         """Update branding. PUT /v1/branding
 
-        Sets the logo URL, theme (only the documented `--r-*` tokens, with plain CSS values) and email sender. Omitted fields keep their value.
+        Sets the logo URL, theme (only the documented `--r-*` tokens, with plain CSS values) and email sender. Omitted fields keep their value. `warnings` lists theme text/background pairs (`--r-accent-ink` on `--r-accent`, `--r-ink` on `--r-paper`) below the 4.5:1 WCAG AA contrast; the theme is saved anyway.
 
         **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
         """
@@ -8271,6 +9089,15 @@ class AsyncOperations:
         """
         return await self._request("PUT", f"/v1/org/fx-feed", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    async def put_org_hosted_pages(self, body: PutOrgHostedPagesBody, *, idempotency_key: Optional[str] = None) -> GetOrgHostedPagesResponse:
+        """Set the hosted-page consent and chat. PUT /v1/org/hosted-pages
+
+        Validates and saves the adapters. A CMP's `scriptUrl` must be https on that vendor's own hosts; `custom` needs every origin listed. `customOrigins` adds origins per CSP directive (https or wss, no wildcards, no keywords). Owner or admin. Audited.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("PUT", f"/v1/org/hosted-pages", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     async def put_org_payout_schedule(self, body: PutOrgPayoutScheduleBody, *, idempotency_key: Optional[str] = None) -> PutOrgPayoutScheduleResponse:
         """Set the org payout schedule. PUT /v1/org/payout-schedule
 
@@ -8279,6 +9106,15 @@ class AsyncOperations:
         **Auth:** an API key with `payouts:write` (or `full`), or a session with role `owner`, `admin`, `finance`.
         """
         return await self._request("PUT", f"/v1/org/payout-schedule", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def put_org_portal_auth(self, body: Union[PutOrgPortalAuthBodyOption1, PutOrgPortalAuthBodyOption2, PutOrgPortalAuthBodyOption3], *, idempotency_key: Optional[str] = None) -> PutOrgPortalAuthResponse:
+        """Set partner sign-in. PUT /v1/org/portal-auth
+
+        Chooses the portal sign-in adapter and its settings. `custom`: `issuer`, `jwksUrl` (https), optional `loginUrl` (your page that mints the token) and `autoEnrollProgramId`. `oidc`: `issuer`, `clientId`, `clientSecret`. `referalli` removes any configuration. Owner only.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`.
+        """
+        return await self._request("PUT", f"/v1/org/portal-auth", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     async def put_org_referral_params(self, body: PutOrgReferralParamsBody, *, idempotency_key: Optional[str] = None) -> GetOrgReferralParamsResponse:
         """Set referral query parameters. PUT /v1/org/referral-params
@@ -8298,6 +9134,15 @@ class AsyncOperations:
         """
         return await self._request("PUT", f"/v1/org/retention", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    async def put_org_sso_direct(self, body: Union[PutOrgSsoDirectBodyOption1, PutOrgSsoDirectBodyOption2], *, idempotency_key: Optional[str] = None) -> PutOrgSsoDirectResponse:
+        """Connect your own identity provider. PUT /v1/org/sso/direct
+
+        Team SSO with the org's own IdP, no broker: `adapter` `oidc` (issuer, client id and secret, the claim that holds roles) or `workos` (client id, organization id, the org's own API key). `roleMapping` maps IdP groups or roles to `admin`, `finance`, `analyst` or `support` (never owner); `defaultRole` covers everyone else, or null to keep them out; `domains` are the email domains "require SSO" applies to. The secret is encrypted and never returned; leave it out to keep the stored one. 409 while the org uses the Atlas broker. Owner only.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`.
+        """
+        return await self._request("PUT", f"/v1/org/sso/direct", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     async def put_org_tax_filing(self, body: PutOrgTaxFilingBody, *, idempotency_key: Optional[str] = None) -> PutOrgTaxFilingResponse:
         """Connect a 1099 filing provider. PUT /v1/org/tax-filing
 
@@ -8315,6 +9160,15 @@ class AsyncOperations:
         **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`, `finance`.
         """
         return await self._request("PUT", f"/v1/org/tax-profile", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def put_org_tracking_consent(self, body: PutOrgTrackingConsentBody, *, idempotency_key: Optional[str] = None) -> GetOrgTrackingConsentResponse:
+        """Set the tracker's consent default. PUT /v1/org/tracking-consent
+
+        Sets the consent default served inside `/t/{token}/aff.js` (cached up to 5 minutes). Owner or admin. Audited.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("PUT", f"/v1/org/tracking-consent", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     async def put_partner_locale(self, body: PutPartnerLocaleBody, *, idempotency_key: Optional[str] = None) -> PutPartnerLocaleResponse:
         """Set my email language (partner). PUT /v1/partner/locale
@@ -8460,6 +9314,24 @@ class AsyncOperations:
         """
         return await self._request("PUT", f"/v1/programs/{_seg(id)}/referee-reward", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    async def put_rewards_rules_key(self, key: str, body: PutRewardsRulesKeyBody, *, idempotency_key: Optional[str] = None) -> PutRewardsRulesKeyResponse:
+        """Save a reward rule. PUT /v1/rewards/rules/{key}
+
+        Creates or replaces a rule: the amount, the reason, an optional program and an optional `event` it rewards (one rule per event).
+
+        **Auth:** an API key with `commissions:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("PUT", f"/v1/rewards/rules/{_seg(key)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def put_support_apps_adapter(self, adapter: str, body: PutSupportAppsAdapterBody, *, idempotency_key: Optional[str] = None) -> PutSupportAppsAdapterResponse:
+        """Connect a support tool. PUT /v1/support/apps/{adapter}
+
+        Enable a support tool and store its signing secret (vendor-issued; write-only) or, for Zendesk, the app public key in `config.publicKeyPem`. For `custom` Referalli mints the secret: it is returned once, and `rotate: true` mints a new one.
+
+        **Auth:** an API key with `partners:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("PUT", f"/v1/support/apps/{_seg(adapter)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
 
 #: Every operation: id → (method, path, path params, query params (wire, python), has body, response kind, method name).
 OPERATIONS: Dict[str, tuple] = {
@@ -8467,15 +9339,20 @@ OPERATIONS: Dict[str, tuple] = {
     "deleteAssetsId": ("DELETE", "/v1/assets/{id}", ["id"], [], False, "json", "delete_assets_id"),
     "deleteAuthConnectionsId": ("DELETE", "/v1/auth/connections/{id}", ["id"], [], False, "json", "delete_auth_connections_id"),
     "deleteBillingConnectionsId": ("DELETE", "/v1/billing/connections/{id}", ["id"], [], False, "json", "delete_billing_connections_id"),
+    "deleteBillingInternalCustomersCustomerRef": ("DELETE", "/v1/billing/internal-customers/{customerRef}", ["customerRef"], [], False, "json", "delete_billing_internal_customers_customer_ref"),
     "deleteBrandingDomain": ("DELETE", "/v1/branding/domain", [], [], False, "json", "delete_branding_domain"),
     "deleteBrandingLinkDomain": ("DELETE", "/v1/branding/link-domain", [], [], False, "json", "delete_branding_link_domain"),
     "deleteCliListenersId": ("DELETE", "/v1/cli/listeners/{id}", ["id"], [], False, "json", "delete_cli_listeners_id"),
     "deleteEmailTemplatesEventLocale": ("DELETE", "/v1/email/templates/{event}/{locale}", ["event","locale"], [], False, "json", "delete_email_templates_event_locale"),
     "deleteIntegrationsKind": ("DELETE", "/v1/integrations/{kind}", ["kind"], [], False, "json", "delete_integrations_kind"),
     "deleteOrgMembersUserId": ("DELETE", "/v1/org/members/{userId}", ["userId"], [], False, "json", "delete_org_members_user_id"),
+    "deleteOrgSsoDirect": ("DELETE", "/v1/org/sso/direct", [], [], False, "json", "delete_org_sso_direct"),
     "deletePartnersId": ("DELETE", "/v1/partners/{id}", ["id"], [], False, "json", "delete_partners_id"),
     "deletePayoutConnectionsProvider": ("DELETE", "/v1/payout-connections/{provider}", ["provider"], [], False, "json", "delete_payout_connections_provider"),
+    "deletePrivacyExecutorsAdapter": ("DELETE", "/v1/privacy/executors/{adapter}", ["adapter"], [], False, "json", "delete_privacy_executors_adapter"),
     "deleteProfitabilityProductsProductRef": ("DELETE", "/v1/profitability/products/{productRef}", ["productRef"], [], False, "json", "delete_profitability_products_product_ref"),
+    "deleteRewardsRulesKey": ("DELETE", "/v1/rewards/rules/{key}", ["key"], [], False, "json", "delete_rewards_rules_key"),
+    "deleteSupportAppsAdapter": ("DELETE", "/v1/support/apps/{adapter}", ["adapter"], [], False, "json", "delete_support_apps_adapter"),
     "deleteWebhookEndpointsId": ("DELETE", "/v1/webhook-endpoints/{id}", ["id"], [], False, "json", "delete_webhook_endpoints_id"),
     "deleteZapierHooksId": ("DELETE", "/v1/zapier/hooks/{id}", ["id"], [], False, "json", "delete_zapier_hooks_id"),
     "getAdminMetrics": ("GET", "/v1/admin/metrics", [], [], False, "json", "get_admin_metrics"),
@@ -8496,14 +9373,19 @@ OPERATIONS: Dict[str, tuple] = {
     "getAuditLogs": ("GET", "/v1/audit-logs", [], [["actor","actor"],["actorType","actor_type"],["action","action"],["subjectType","subject_type"],["subjectId","subject_id"],["created[gte]","created_gte"],["created[lte]","created_lte"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"]], False, "list", "get_audit_logs"),
     "getAuthConnections": ("GET", "/v1/auth/connections", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_auth_connections"),
     "getAuthConnectionsIdExport": ("GET", "/v1/auth/connections/{id}/export", ["id"], [["customerRef","customer_ref"]], False, "json", "get_auth_connections_id_export"),
+    "getAuthConnectionsProviders": ("GET", "/v1/auth/connections/providers", [], [], False, "json", "get_auth_connections_providers"),
     "getAuthProviders": ("GET", "/v1/auth/providers", [], [], False, "json", "get_auth_providers"),
     "getBillingConnections": ("GET", "/v1/billing/connections", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_billing_connections"),
     "getBillingConnectionsId": ("GET", "/v1/billing/connections/{id}", ["id"], [], False, "json", "get_billing_connections_id"),
-    "getBillingEvents": ("GET", "/v1/billing/events", [], [["customerRef","customer_ref"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_billing_events"),
+    "getBillingEvents": ("GET", "/v1/billing/events", [], [["customerRef","customer_ref"],["status","status"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_billing_events"),
+    "getBillingInternalCustomers": ("GET", "/v1/billing/internal-customers", [], [], False, "json", "get_billing_internal_customers"),
     "getBillingPlan": ("GET", "/v1/billing/plan", [], [], False, "json", "get_billing_plan"),
     "getBranding": ("GET", "/v1/branding", [], [], False, "json", "get_branding"),
+    "getChatlyIdentity": ("GET", "/v1/chatly/identity", [], [], False, "json", "get_chatly_identity"),
     "getCleanroomConsent": ("GET", "/v1/cleanroom/consent", [], [["customerRef","customer_ref"]], False, "json", "get_cleanroom_consent"),
     "getCleanroomQuery": ("GET", "/v1/cleanroom/query", [], [["dimension","dimension"]], False, "json", "get_cleanroom_query"),
+    "getClicksConsentCoverage": ("GET", "/v1/clicks/consent-coverage", [], [["days","days"]], False, "json", "get_clicks_consent_coverage"),
+    "getClicksId": ("GET", "/v1/clicks/{id}", ["id"], [], False, "json", "get_clicks_id"),
     "getCliDeviceCodesUserCode": ("GET", "/v1/cli/device-codes/{userCode}", ["userCode"], [], False, "json", "get_cli_device_codes_user_code"),
     "getCliListenersIdEvents": ("GET", "/v1/cli/listeners/{id}/events", ["id"], [["wait","wait"]], False, "json", "get_cli_listeners_id_events"),
     "getCliLogs": ("GET", "/v1/cli/logs", [], [["after","after"],["wait","wait"],["limit","limit"]], False, "json", "get_cli_logs"),
@@ -8519,7 +9401,9 @@ OPERATIONS: Dict[str, tuple] = {
     "getDisputes": ("GET", "/v1/disputes", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_disputes"),
     "getEmailSettings": ("GET", "/v1/email/settings", [], [], False, "json", "get_email_settings"),
     "getEmailTemplates": ("GET", "/v1/email/templates", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_email_templates"),
+    "getEmbed": ("GET", "/v1/embed", [], [["token","token"]], False, "json", "get_embed"),
     "getEmbedSummary": ("GET", "/v1/embed/summary", [], [], False, "json", "get_embed_summary"),
+    "getEvents": ("GET", "/v1/events", [], [["since","since"],["topics","topics"],["after","after"],["limit","limit"]], False, "json", "get_events"),
     "getExportAccounting": ("GET", "/v1/export/accounting", [], [["format","format_"],["year","year"]], False, "text", "get_export_accounting"),
     "getExportFull": ("GET", "/v1/export/full", [], [], False, "text", "get_export_full"),
     "getFraudCases": ("GET", "/v1/fraud/cases", [], [["status","status"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_fraud_cases"),
@@ -8529,6 +9413,7 @@ OPERATIONS: Dict[str, tuple] = {
     "getHostsCurrent": ("GET", "/v1/hosts/current", [], [], False, "json", "get_hosts_current"),
     "getHostsCurrentThemeCss": ("GET", "/v1/hosts/current/theme.css", [], [], False, "text", "get_hosts_current_theme_css"),
     "getIncrementality": ("GET", "/v1/incrementality", [], [["programId","program_id"]], False, "json", "get_incrementality"),
+    "getIntegrationHealth": ("GET", "/v1/integration-health", [], [], False, "json", "get_integration_health"),
     "getIntegrations": ("GET", "/v1/integrations", [], [], False, "json", "get_integrations"),
     "getIntegrationsDeliveries": ("GET", "/v1/integrations/deliveries", [], [["kind","kind"],["status","status"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_integrations_deliveries"),
     "getInvitations": ("GET", "/v1/invitations", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_invitations"),
@@ -8545,13 +9430,16 @@ OPERATIONS: Dict[str, tuple] = {
     "getOpenapiYaml": ("GET", "/v1/openapi.yaml", [], [], False, "text", "get_openapi_yaml"),
     "getOrg": ("GET", "/v1/org", [], [], False, "json", "get_org"),
     "getOrgFxFeed": ("GET", "/v1/org/fx-feed", [], [], False, "json", "get_org_fx_feed"),
+    "getOrgHostedPages": ("GET", "/v1/org/hosted-pages", [], [], False, "json", "get_org_hosted_pages"),
     "getOrgMembers": ("GET", "/v1/org/members", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_org_members"),
     "getOrgPayoutSchedule": ("GET", "/v1/org/payout-schedule", [], [], False, "json", "get_org_payout_schedule"),
+    "getOrgPortalAuth": ("GET", "/v1/org/portal-auth", [], [], False, "json", "get_org_portal_auth"),
     "getOrgReferralParams": ("GET", "/v1/org/referral-params", [], [], False, "json", "get_org_referral_params"),
     "getOrgRetention": ("GET", "/v1/org/retention", [], [], False, "json", "get_org_retention"),
     "getOrgSso": ("GET", "/v1/org/sso", [], [], False, "json", "get_org_sso"),
     "getOrgSsoConnectionsIdSamlMetadata": ("GET", "/v1/org/sso/connections/{id}/saml-metadata", ["id"], [], False, "json", "get_org_sso_connections_id_saml_metadata"),
     "getOrgTaxProfile": ("GET", "/v1/org/tax-profile", [], [], False, "json", "get_org_tax_profile"),
+    "getOrgTrackingConsent": ("GET", "/v1/org/tracking-consent", [], [], False, "json", "get_org_tracking_consent"),
     "getOutreach": ("GET", "/v1/outreach", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_outreach"),
     "getPartnerAchievements": ("GET", "/v1/partner/achievements", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_partner_achievements"),
     "getPartnerAdvance": ("GET", "/v1/partner/advance", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_partner_advance"),
@@ -8595,6 +9483,10 @@ OPERATIONS: Dict[str, tuple] = {
     "getPayoutRuns": ("GET", "/v1/payout-runs", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_payout_runs"),
     "getPayouts": ("GET", "/v1/payouts", [], [["partnerId","partner_id"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_payouts"),
     "getPayoutsIdInvoice": ("GET", "/v1/payouts/{id}/invoice", ["id"], [["format","format_"]], False, "json", "get_payouts_id_invoice"),
+    "getPlans": ("GET", "/v1/plans", [], [], False, "json", "get_plans"),
+    "getPortalAuthCurrent": ("GET", "/v1/portal-auth/current", [], [["org","org"]], False, "json", "get_portal_auth_current"),
+    "getPrivacyExecutorRequests": ("GET", "/v1/privacy/executor-requests", [], [], False, "json", "get_privacy_executor_requests"),
+    "getPrivacyExecutors": ("GET", "/v1/privacy/executors", [], [], False, "json", "get_privacy_executors"),
     "getPrivacyExport": ("GET", "/v1/privacy/export", [], [["customerRef","customer_ref"]], False, "json", "get_privacy_export"),
     "getPrivacyRequests": ("GET", "/v1/privacy/requests", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_privacy_requests"),
     "getPrivacyRequestsId": ("GET", "/v1/privacy/requests/{id}", ["id"], [], False, "json", "get_privacy_requests_id"),
@@ -8621,7 +9513,9 @@ OPERATIONS: Dict[str, tuple] = {
     "getReportsFilteredClicks": ("GET", "/v1/reports/filtered-clicks", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_reports_filtered_clicks"),
     "getReportsPartnerPerformance": ("GET", "/v1/reports/partner-performance", [], [["format","format_"]], False, "json", "get_reports_partner_performance"),
     "getRewards": ("GET", "/v1/rewards", [], [["status","status"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_rewards"),
+    "getRewardsGranted": ("GET", "/v1/rewards/granted", [], [], False, "json", "get_rewards_granted"),
     "getRewardsLookupCode": ("GET", "/v1/rewards/lookup/{code}", ["code"], [], False, "json", "get_rewards_lookup_code"),
+    "getRewardsRules": ("GET", "/v1/rewards/rules", [], [], False, "json", "get_rewards_rules"),
     "getRoiBreakdown": ("GET", "/v1/roi/breakdown", [], [["from","from_"],["to","to"],["programId","program_id"],["partnerId","partner_id"],["windowDays","window_days"],["currency","currency"],["format","format_"],["by","by"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_roi_breakdown"),
     "getRoiDataQuality": ("GET", "/v1/roi/data-quality", [], [["from","from_"],["to","to"],["format","format_"]], False, "json", "get_roi_data_quality"),
     "getRoiGrants": ("GET", "/v1/roi/grants", [], [["from","from_"],["to","to"],["programId","program_id"],["partnerId","partner_id"],["windowDays","window_days"],["currency","currency"],["format","format_"],["status","status"],["role","role"],["paidBack","paid_back"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_roi_grants"),
@@ -8635,6 +9529,9 @@ OPERATIONS: Dict[str, tuple] = {
     "getStatusIncidents": ("GET", "/v1/status/incidents", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_status_incidents"),
     "getStatusIncidentsAtom": ("GET", "/v1/status/incidents.atom", [], [], False, "text", "get_status_incidents_atom"),
     "getStatusIncidentsId": ("GET", "/v1/status/incidents/{id}", ["id"], [], False, "json", "get_status_incidents_id"),
+    "getSupportApps": ("GET", "/v1/support/apps", [], [], False, "json", "get_support_apps"),
+    "getSupportCardsOrgIdAdapter": ("GET", "/v1/support/cards/{orgId}/{adapter}", ["orgId","adapter"], [["email","email"],["externalId","external_id"]], False, "json", "get_support_cards_org_id_adapter"),
+    "getSupportContext": ("GET", "/v1/support/context", [], [["email","email"],["customerRef","customer_ref"],["partnerExternalRef","partner_external_ref"],["ext","ext"]], False, "json", "get_support_context"),
     "getTax1099": ("GET", "/v1/tax/1099", [], [["year","year"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_tax1099"),
     "getTax1099Filings": ("GET", "/v1/tax/1099/filings", [], [["year","year"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_tax1099_filings"),
     "getTax1099Preview": ("GET", "/v1/tax/1099/preview", [], [["year","year"]], False, "json", "get_tax1099_preview"),
@@ -8663,6 +9560,7 @@ OPERATIONS: Dict[str, tuple] = {
     "patchProgramsId": ("PATCH", "/v1/programs/{id}", ["id"], [], True, "json", "patch_programs_id"),
     "patchReferralsId": ("PATCH", "/v1/referrals/{id}", ["id"], [], True, "json", "patch_referrals_id"),
     "patchWebhookEndpointsId": ("PATCH", "/v1/webhook-endpoints/{id}", ["id"], [], True, "json", "patch_webhook_endpoints_id"),
+    "postAccountClose": ("POST", "/v1/account/close", [], [], True, "json", "post_account_close"),
     "postAdminOrgsIdPlan": ("POST", "/v1/admin/orgs/{id}/plan", ["id"], [], True, "json", "post_admin_orgs_id_plan"),
     "postAdminOrgsIdSuspend": ("POST", "/v1/admin/orgs/{id}/suspend", ["id"], [], True, "json", "post_admin_orgs_id_suspend"),
     "postAdminOrgsIdUnsuspend": ("POST", "/v1/admin/orgs/{id}/unsuspend", ["id"], [], False, "json", "post_admin_orgs_id_unsuspend"),
@@ -8675,21 +9573,25 @@ OPERATIONS: Dict[str, tuple] = {
     "postApiKeys": ("POST", "/v1/api-keys", [], [], True, "json", "post_api_keys"),
     "postAssets": ("POST", "/v1/assets", [], [], True, "json", "post_assets"),
     "postAttributionReplay": ("POST", "/v1/attribution/replay", [], [], True, "json", "post_attribution_replay"),
+    "postAuthBackchannelLogout": ("POST", "/v1/auth/backchannel-logout", [], [], True, "json", "post_auth_backchannel_logout"),
     "postAuthConnections": ("POST", "/v1/auth/connections", [], [], True, "json", "post_auth_connections"),
     "postAuthConnectionsIdAliases": ("POST", "/v1/auth/connections/{id}/aliases", ["id"], [], True, "json", "post_auth_connections_id_aliases"),
     "postAuthConnectionsIdErase": ("POST", "/v1/auth/connections/{id}/erase", ["id"], [], True, "json", "post_auth_connections_id_erase"),
+    "postAuthConnectionsIdPartners": ("POST", "/v1/auth/connections/{id}/partners", ["id"], [], True, "json", "post_auth_connections_id_partners"),
     "postAuthConnectionsIdPing": ("POST", "/v1/auth/connections/{id}/ping", ["id"], [], True, "json", "post_auth_connections_id_ping"),
     "postAuthConnectionsIdRevokePreviousSecret": ("POST", "/v1/auth/connections/{id}/revoke-previous-secret", ["id"], [], False, "json", "post_auth_connections_id_revoke_previous_secret"),
     "postAuthConnectionsIdRotateSecret": ("POST", "/v1/auth/connections/{id}/rotate-secret", ["id"], [], False, "json", "post_auth_connections_id_rotate_secret"),
     "postAuthConnectionsIdSignals": ("POST", "/v1/auth/connections/{id}/signals", ["id"], [], True, "json", "post_auth_connections_id_signals"),
     "postAuthConnectionsIdSignups": ("POST", "/v1/auth/connections/{id}/signups", ["id"], [], True, "json", "post_auth_connections_id_signups"),
     "postAuthConnectionsIdUsers": ("POST", "/v1/auth/connections/{id}/users", ["id"], [], True, "json", "post_auth_connections_id_users"),
+    "postAuthConnectionsInstall": ("POST", "/v1/auth/connections/install", [], [], True, "json", "post_auth_connections_install"),
     "postAuthLogout": ("POST", "/v1/auth/logout", [], [], False, "json", "post_auth_logout"),
     "postBillingActivate": ("POST", "/v1/billing/activate", [], [], True, "json", "post_billing_activate"),
     "postBillingCheckout": ("POST", "/v1/billing/checkout", [], [], True, "json", "post_billing_checkout"),
     "postBillingConnections": ("POST", "/v1/billing/connections", [], [], True, "json", "post_billing_connections"),
     "postBillingConnectionsIdRotateSecret": ("POST", "/v1/billing/connections/{id}/rotate-secret", ["id"], [], False, "json", "post_billing_connections_id_rotate_secret"),
     "postBillingConnectionsIdValueMappingPreview": ("POST", "/v1/billing/connections/{id}/value-mapping/preview", ["id"], [], True, "json", "post_billing_connections_id_value_mapping_preview"),
+    "postBillingInternalCustomers": ("POST", "/v1/billing/internal-customers", [], [], True, "json", "post_billing_internal_customers"),
     "postBillingPortal": ("POST", "/v1/billing/portal", [], [], False, "json", "post_billing_portal"),
     "postBrandingDomain": ("POST", "/v1/branding/domain", [], [], True, "json", "post_branding_domain"),
     "postBrandingDomainVerify": ("POST", "/v1/branding/domain/verify", [], [], False, "json", "post_branding_domain_verify"),
@@ -8734,9 +9636,13 @@ OPERATIONS: Dict[str, tuple] = {
     "postLinks": ("POST", "/v1/links", [], [], True, "json", "post_links"),
     "postMobilePurchases": ("POST", "/v1/mobile/purchases", [], [], True, "json", "post_mobile_purchases"),
     "postNotificationsIdRead": ("POST", "/v1/notifications/{id}/read", ["id"], [], False, "json", "post_notifications_id_read"),
+    "postOauthToken": ("POST", "/v1/oauth/token", [], [], True, "json", "post_oauth_token"),
     "postOnchainConnections": ("POST", "/v1/onchain/connections", [], [], True, "json", "post_onchain_connections"),
+    "postOrgHostedPagesCheck": ("POST", "/v1/org/hosted-pages/check", [], [], False, "json", "post_org_hosted_pages_check"),
     "postOrgMembers": ("POST", "/v1/org/members", [], [], True, "json", "post_org_members"),
+    "postOrgPortalAuthTest": ("POST", "/v1/org/portal-auth/test", [], [], False, "json", "post_org_portal_auth_test"),
     "postOrgs": ("POST", "/v1/orgs", [], [], True, "json", "post_orgs"),
+    "postOrgSsoDirectTest": ("POST", "/v1/org/sso/direct/test", [], [], False, "json", "post_org_sso_direct_test"),
     "postOrgSsoLink": ("POST", "/v1/org/sso/link", [], [], False, "json", "post_org_sso_link"),
     "postOrgSsoTickets": ("POST", "/v1/org/sso/tickets", [], [], True, "json", "post_org_sso_tickets"),
     "postOrgSsoTicketsIdRevoke": ("POST", "/v1/org/sso/tickets/{id}/revoke", ["id"], [], False, "json", "post_org_sso_tickets_id_revoke"),
@@ -8769,6 +9675,8 @@ OPERATIONS: Dict[str, tuple] = {
     "postPayoutRunsIdCancel": ("POST", "/v1/payout-runs/{id}/cancel", ["id"], [], False, "json", "post_payout_runs_id_cancel"),
     "postPayoutRunsIdExecute": ("POST", "/v1/payout-runs/{id}/execute", ["id"], [], False, "json", "post_payout_runs_id_execute"),
     "postPayoutRunsRunScheduled": ("POST", "/v1/payout-runs/run-scheduled", [], [], False, "json", "post_payout_runs_run_scheduled"),
+    "postPrivacyExecutorKeys": ("POST", "/v1/privacy/executor-keys", [], [], True, "json", "post_privacy_executor_keys"),
+    "postPrivacyExecutorsAdapterCheck": ("POST", "/v1/privacy/executors/{adapter}/check", ["adapter"], [], False, "json", "post_privacy_executors_adapter_check"),
     "postPrivacyForget": ("POST", "/v1/privacy/forget", [], [], True, "json", "post_privacy_forget"),
     "postPrivacyLookup": ("POST", "/v1/privacy/lookup", [], [], True, "json", "post_privacy_lookup"),
     "postPrivacyRequests": ("POST", "/v1/privacy/requests", [], [], True, "json", "post_privacy_requests"),
@@ -8788,10 +9696,13 @@ OPERATIONS: Dict[str, tuple] = {
     "postReferralsIdApprove": ("POST", "/v1/referrals/{id}/approve", ["id"], [], False, "json", "post_referrals_id_approve"),
     "postReferralsIdReassign": ("POST", "/v1/referrals/{id}/reassign", ["id"], [], True, "json", "post_referrals_id_reassign"),
     "postReferralsIdVoid": ("POST", "/v1/referrals/{id}/void", ["id"], [], False, "json", "post_referrals_id_void"),
+    "postRewards": ("POST", "/v1/rewards", [], [], True, "json", "post_rewards"),
     "postRewardsIdRedeem": ("POST", "/v1/rewards/{id}/redeem", ["id"], [], True, "json", "post_rewards_id_redeem"),
     "postRewardsRedeemByCode": ("POST", "/v1/rewards/redeem-by-code", [], [], True, "json", "post_rewards_redeem_by_code"),
     "postRoiPatternsPatternReview": ("POST", "/v1/roi/patterns/{pattern}/review", ["pattern"], [], True, "json", "post_roi_patterns_pattern_review"),
     "postSandboxSimulate": ("POST", "/v1/sandbox/simulate", [], [], True, "json", "post_sandbox_simulate"),
+    "postSupportAppsAdapterTest": ("POST", "/v1/support/apps/{adapter}/test", ["adapter"], [], True, "json", "post_support_apps_adapter_test"),
+    "postSupportCardsOrgIdAdapter": ("POST", "/v1/support/cards/{orgId}/{adapter}", ["orgId","adapter"], [], True, "json", "post_support_cards_org_id_adapter"),
     "postTax1099DocumentsIdCorrect": ("POST", "/v1/tax/1099/documents/{id}/correct", ["id"], [], False, "json", "post_tax1099_documents_id_correct"),
     "postTax1099Filings": ("POST", "/v1/tax/1099/filings", [], [], True, "json", "post_tax1099_filings"),
     "postTax1099FilingsIdRefresh": ("POST", "/v1/tax/1099/filings/{id}/refresh", ["id"], [], False, "json", "post_tax1099_filings_id_refresh"),
@@ -8802,10 +9713,12 @@ OPERATIONS: Dict[str, tuple] = {
     "postValueImport": ("POST", "/v1/value/import", [], [], True, "json", "post_value_import"),
     "postWebhookDeliveriesIdReplay": ("POST", "/v1/webhook-deliveries/{id}/replay", ["id"], [], False, "json", "post_webhook_deliveries_id_replay"),
     "postWebhookEndpoints": ("POST", "/v1/webhook-endpoints", [], [], True, "json", "post_webhook_endpoints"),
+    "postWebhookEndpointsIdReplay": ("POST", "/v1/webhook-endpoints/{id}/replay", ["id"], [["since","since"]], False, "json", "post_webhook_endpoints_id_replay"),
     "postWebhookEndpointsIdRotateSecret": ("POST", "/v1/webhook-endpoints/{id}/rotate-secret", ["id"], [], False, "json", "post_webhook_endpoints_id_rotate_secret"),
     "postWidgetTokens": ("POST", "/v1/widget/tokens", [], [], True, "json", "post_widget_tokens"),
     "postZapierConversions": ("POST", "/v1/zapier/conversions", [], [], True, "json", "post_zapier_conversions"),
     "postZapierHooks": ("POST", "/v1/zapier/hooks", [], [], True, "json", "post_zapier_hooks"),
+    "putAuthConnectionsIdSecret": ("PUT", "/v1/auth/connections/{id}/secret", ["id"], [], True, "json", "put_auth_connections_id_secret"),
     "putBillingConnectionsIdCredentials": ("PUT", "/v1/billing/connections/{id}/credentials", ["id"], [], True, "json", "put_billing_connections_id_credentials"),
     "putBillingConnectionsIdSecret": ("PUT", "/v1/billing/connections/{id}/secret", ["id"], [], True, "json", "put_billing_connections_id_secret"),
     "putBillingConnectionsIdValueMapping": ("PUT", "/v1/billing/connections/{id}/value-mapping", ["id"], [], True, "json", "put_billing_connections_id_value_mapping"),
@@ -8819,11 +9732,15 @@ OPERATIONS: Dict[str, tuple] = {
     "putMeRoiDigest": ("PUT", "/v1/me/roi-digest", [], [], True, "json", "put_me_roi_digest"),
     "putNetworkSettings": ("PUT", "/v1/network/settings", [], [], True, "json", "put_network_settings"),
     "putOrgFxFeed": ("PUT", "/v1/org/fx-feed", [], [], True, "json", "put_org_fx_feed"),
+    "putOrgHostedPages": ("PUT", "/v1/org/hosted-pages", [], [], True, "json", "put_org_hosted_pages"),
     "putOrgPayoutSchedule": ("PUT", "/v1/org/payout-schedule", [], [], True, "json", "put_org_payout_schedule"),
+    "putOrgPortalAuth": ("PUT", "/v1/org/portal-auth", [], [], True, "json", "put_org_portal_auth"),
     "putOrgReferralParams": ("PUT", "/v1/org/referral-params", [], [], True, "json", "put_org_referral_params"),
     "putOrgRetention": ("PUT", "/v1/org/retention", [], [], True, "json", "put_org_retention"),
+    "putOrgSsoDirect": ("PUT", "/v1/org/sso/direct", [], [], True, "json", "put_org_sso_direct"),
     "putOrgTaxFiling": ("PUT", "/v1/org/tax-filing", [], [], True, "json", "put_org_tax_filing"),
     "putOrgTaxProfile": ("PUT", "/v1/org/tax-profile", [], [], True, "json", "put_org_tax_profile"),
+    "putOrgTrackingConsent": ("PUT", "/v1/org/tracking-consent", [], [], True, "json", "put_org_tracking_consent"),
     "putPartnerLocale": ("PUT", "/v1/partner/locale", [], [], True, "json", "put_partner_locale"),
     "putPartnerOrgsOrgIdPayoutProfile": ("PUT", "/v1/partner/orgs/{orgId}/payout-profile", ["orgId"], [], True, "json", "put_partner_orgs_org_id_payout_profile"),
     "putPartnerOrgsOrgIdPostback": ("PUT", "/v1/partner/orgs/{orgId}/postback", ["orgId"], [], True, "json", "put_partner_orgs_org_id_postback"),
@@ -8840,4 +9757,6 @@ OPERATIONS: Dict[str, tuple] = {
     "putProgramsIdPartnersPartnerIdGroup": ("PUT", "/v1/programs/{id}/partners/{partnerId}/group", ["id","partnerId"], [], True, "json", "put_programs_id_partners_partner_id_group"),
     "putProgramsIdPayoutSchedule": ("PUT", "/v1/programs/{id}/payout-schedule", ["id"], [], True, "json", "put_programs_id_payout_schedule"),
     "putProgramsIdRefereeReward": ("PUT", "/v1/programs/{id}/referee-reward", ["id"], [], True, "json", "put_programs_id_referee_reward"),
+    "putRewardsRulesKey": ("PUT", "/v1/rewards/rules/{key}", ["key"], [], True, "json", "put_rewards_rules_key"),
+    "putSupportAppsAdapter": ("PUT", "/v1/support/apps/{adapter}", ["adapter"], [], True, "json", "put_support_apps_adapter"),
 }

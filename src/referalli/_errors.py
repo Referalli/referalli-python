@@ -56,6 +56,10 @@ class StepUpRequiredError(ApiError):
     """``step_up_required`` (HTTP 401)."""
 
 
+class ReauthRequiredError(ApiError):
+    """``reauth_required`` (HTTP 401)."""
+
+
 class PaymentRequiredError(ApiError):
     """``payment_required`` (HTTP 402)."""
 
@@ -146,6 +150,7 @@ ERROR_CLASSES: Dict[str, Type[ApiError]] = {
     "bad_request": BadRequestError,
     "unauthorized": AuthenticationError,
     "step_up_required": StepUpRequiredError,
+    "reauth_required": ReauthRequiredError,
     "payment_required": PaymentRequiredError,
     "forbidden": PermissionDeniedError,
     "webhooks_disabled": WebhooksDisabledError,
