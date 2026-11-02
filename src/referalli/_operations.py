@@ -130,6 +130,15 @@ class Operations:
         """
         return self._request("DELETE", f"/v1/org/sso/direct", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    def delete_partner_api_tokens_id(self, id: str, *, idempotency_key: Optional[str] = None) -> DeletePartnerApiTokensIdResponse:
+        """Revoke a partner API token. DELETE /v1/partner/api-tokens/{id}
+
+        Stops the token at once. Portal session only.
+
+        **Auth:** a partner session.
+        """
+        return self._request("DELETE", f"/v1/partner/api-tokens/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     def delete_partners_id(self, id: str, *, idempotency_key: Optional[str] = None) -> Ok:
         """Delete a partner. DELETE /v1/partners/{id}
 
@@ -148,6 +157,15 @@ class Operations:
         """
         return self._request("DELETE", f"/v1/payout-connections/{_seg(provider)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    def delete_portal_theme_draft(self, *, idempotency_key: Optional[str] = None) -> GetPortalThemeResponse:
+        """Discard the portal design draft. DELETE /v1/portal/theme/draft
+
+        Drops the draft and its preview link. What partners see is unchanged. Owner or admin.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("DELETE", f"/v1/portal/theme/draft", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     def delete_privacy_executors_adapter(self, adapter: str, *, idempotency_key: Optional[str] = None) -> DeletePrivacyExecutorsAdapterResponse:
         """Disconnect a DSAR tool. DELETE /v1/privacy/executors/{adapter}
 
@@ -156,6 +174,15 @@ class Operations:
         **Auth:** an API key with `privacy:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return self._request("DELETE", f"/v1/privacy/executors/{_seg(adapter)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def delete_product_links_id(self, id: str, *, idempotency_key: Optional[str] = None) -> DeleteProductLinksIdResponse:
+        """Revoke a partner link. DELETE /v1/product-links/{id}
+
+        The link and every token issued from it stop at once. A root action (see create).
+
+        **Auth:** an API key with `team:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("DELETE", f"/v1/product-links/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def delete_profitability_products_product_ref(self, product_ref: str, *, idempotency_key: Optional[str] = None) -> OkStatus:
         """Delete a product margin. DELETE /v1/profitability/products/{productRef}
@@ -174,6 +201,15 @@ class Operations:
         **Auth:** an API key with `commissions:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return self._request("DELETE", f"/v1/rewards/rules/{_seg(key)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def delete_stripe_credits_connection(self, *, idempotency_key: Optional[str] = None) -> GetStripeCreditsConnectionResponse:
+        """Remove the Stripe balance credit key. DELETE /v1/stripe-credits/connection
+
+        Deletes the rail's own key. A Stripe payout connection, if any, is then used instead; with neither, queued credits fail until a key is connected. Owner or admin. Audited.
+
+        **Auth:** an API key with `payouts:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("DELETE", f"/v1/stripe-credits/connection", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def delete_support_apps_adapter(self, adapter: str, *, idempotency_key: Optional[str] = None) -> DeleteSupportAppsAdapterResponse:
         """Disconnect a support tool. DELETE /v1/support/apps/{adapter}
@@ -600,7 +636,7 @@ class Operations:
     def get_chatly_identity(self, *, idempotency_key: Optional[str] = None) -> GetChatlyIdentityResponse:
         """Get the support-chat identity. GET /v1/chatly/identity
 
-        The signed-in merchant user or partner as a Chatly widget identity: `externalId` (`merchant:<id>` or `partner:<id>`), email, name and `userHash`, the HMAC-SHA256 of `externalId` with Referalli's identity secret. `identity` is null when signed out or when identity verification isn't configured. Never cached.
+        The signed-in merchant user or partner as a Chatly widget identity: `userToken`, an Atlas token minted for the Atlas session behind this one (audience `chatly:<channel>`, at most 120 s), which the page passes to the widget, and `externalId` (`merchant:<id>` or `partner:<id>`), which stays on the page to notice an account switch. `identity` is null when signed out, when the session has no Atlas session behind it, or when Atlas isn't configured. Never cached.
 
         **Auth:** none.
         """
@@ -861,17 +897,6 @@ class Operations:
         """Every item of ``get_email_templates``, following the pages."""
         return self._paginate(lambda cursor: self.get_email_templates(limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
-    def get_embed(self, *, token: str, idempotency_key: Optional[str] = None) -> GetWellKnownForgedeckEmbedJsonResponse:
-        """Get one org's embed manifest. GET /v1/embed
-
-        The embed manifest for the org that owns `token` (its public tracking token): its link domain in the CSP origins, its longest program cookie window as the storage lifetime, and its consent default. Public, CORS `*`.
-
-        **Auth:** none.
-
-        token: The org's public tracking token.
-        """
-        return self._request("GET", f"/v1/embed", query={"token": token}, body=None, idempotency_key=idempotency_key, kind="json")
-
     def get_embed_summary(self, *, idempotency_key: Optional[str] = None) -> GetEmbedSummaryResponse:
         """Read embedded partner stats. GET /v1/embed/summary
 
@@ -968,23 +993,32 @@ class Operations:
         """
         return self._request("GET", f"/v1/health", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
-    def get_hosts_current(self, *, idempotency_key: Optional[str] = None) -> GetHostsCurrentResponse:
+    def get_hosts_current(self, *, theme_preview: Optional[str] = None, idempotency_key: Optional[str] = None) -> GetHostsCurrentResponse:
         """Describe the current host. GET /v1/hosts/current
 
         What the request's host is: a merchant's verified portal domain (with the org's name, branding and public programs), a merchant link domain, or Referalli's own app. Used by the web app before anyone signs in.
 
         **Auth:** none.
         """
-        return self._request("GET", f"/v1/hosts/current", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+        return self._request("GET", f"/v1/hosts/current", query={"themePreview": theme_preview}, body=None, idempotency_key=idempotency_key, kind="json")
 
-    def get_hosts_current_theme_css(self, *, idempotency_key: Optional[str] = None) -> str:
+    def get_hosts_current_chat_identity(self, *, idempotency_key: Optional[str] = None) -> GetHostsCurrentChatIdentityResponse:
+        """Identify the signed-in partner to the chat. GET /v1/hosts/current/chat-identity
+
+        On a merchant's portal domain, for the signed-in partner of that merchant: the head tags that tell the merchant's chat who they are (partner id, email, name) and, when the merchant saved its chat vendor's identity-verification secret, the vendor's proof (Intercom `user_hash`, a Zendesk messaging JWT, a HubSpot visitor token…). The secret itself never leaves the API. Elsewhere, or for someone who isn't this merchant's partner, `tags` is empty. Partner session; `private, no-store`.
+
+        **Auth:** an API key with `partners:read` (or `full`), or a session of any role.
+        """
+        return self._request("GET", f"/v1/hosts/current/chat-identity", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_hosts_current_theme_css(self, *, theme_preview: Optional[str] = None, idempotency_key: Optional[str] = None) -> str:
         """Get the current host's theme stylesheet. GET /v1/hosts/current/theme.css
 
         On a merchant's portal domain, the org's theme tokens as a `:root` stylesheet; empty elsewhere.
 
         **Auth:** none.
         """
-        return self._request("GET", f"/v1/hosts/current/theme.css", query={}, body=None, idempotency_key=idempotency_key, kind="text")
+        return self._request("GET", f"/v1/hosts/current/theme.css", query={"themePreview": theme_preview}, body=None, idempotency_key=idempotency_key, kind="text")
 
     def get_incrementality(self, *, program_id: str, idempotency_key: Optional[str] = None) -> GetIncrementalityResponse:
         """Get incrementality results. GET /v1/incrementality
@@ -1210,6 +1244,26 @@ class Operations:
         """
         return self._request("GET", f"/v1/org", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    def get_org_consent_partners_cookiemunch(self, *, idempotency_key: Optional[str] = None) -> GetOrgConsentPartnersCookiemunchResponse:
+        """Get the Cookie Munch consent-event link. GET /v1/org/consent-partners/cookiemunch
+
+        What to enter in Cookie Munch to send your site's consent events to Referalli: link partner `referalli` with `externalId` (your org id); deliveries go to `receiverUrl`. `sites` are the Cookie Munch sites (cbids) whose events this org accepts, and `grants` says, per site, whether its owner granted Referalli that site in Cookie Munch (`granted`, `waiting_on_partner`, `revoked`, `expired`, `none`, or `unknown` when Cookie Munch couldn't be asked; `grantCheck` says why). `stampCheck.status` is `live` when Referalli checks visitors' consent stamps with Cookie Munch, else `not_configured`.
+
+        **Auth:** an API key with `org:read` (or `full`), or a session of any role.
+        """
+        return self._request("GET", f"/v1/org/consent-partners/cookiemunch", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_org_consent_partners_cookiemunch_events(self, *, stamp: Optional[str] = None, limit: Optional[int] = None, idempotency_key: Optional[str] = None) -> GetOrgConsentPartnersCookiemunchEventsResponse:
+        """List received Cookie Munch consent events. GET /v1/org/consent-partners/cookiemunch/events
+
+        Consent evidence from Cookie Munch, newest first: each `consent.recorded` and `consent.withdrawn` event for your registered sites, with the visitor's consent `stamp`, the `choices` (and for a withdrawal, the `withdrawn` categories), and the id of the key that signed it. Filter by `stamp` to see one visitor's history; with `stamp`, `checks` lists what Cookie Munch said about it (newest first, `credited` only for `consented`). Append-only.
+
+        **Auth:** an API key with `org:read` (or `full`), or a session of any role.
+
+        stamp: Only this visitor's consent stamp.
+        """
+        return self._request("GET", f"/v1/org/consent-partners/cookiemunch/events", query={"stamp": stamp, "limit": limit}, body=None, idempotency_key=idempotency_key, kind="json")
+
     def get_org_fx_feed(self, *, idempotency_key: Optional[str] = None) -> GetOrgFxFeedResponse:
         """Get the FX feed setting. GET /v1/org/fx-feed
 
@@ -1222,7 +1276,7 @@ class Operations:
     def get_org_hosted_pages(self, *, idempotency_key: Optional[str] = None) -> GetOrgHostedPagesResponse:
         """Get the hosted-page consent and chat. GET /v1/org/hosted-pages
 
-        What runs on the pages Referalli hosts for you on your own portal domain (the partner portal and `/join`): your consent banner (Cookie Munch, OneTrust, Cookiebot, Usercentrics, Didomi, Osano, Termly, iubenda, a custom CMP, a built-in necessary-only notice, or none) and your support chat (Chatly, Intercom, Crisp or custom). `served` is exactly what visitors get: the head tags, the "Cookie settings" link and the Content-Security-Policy built from these adapters. Referalli's own banner and chat never run on your domain.
+        What runs on the pages Referalli hosts for you on your own portal domain (the partner portal and `/join`): your consent banner (Cookie Munch, OneTrust, Cookiebot, Usercentrics, Didomi, Osano, Termly, iubenda, CookieYes, TrustArc, Ketch, Transcend, CookieFirst, consentmanager, Cookie Information, CookieScript, CookieHub, Google Privacy & messaging, Axeptio, Sourcepoint, InMobi Choice, Securiti, Enzuzo, CookiePro, TrustCommander, Klaro, Civic Cookie Control, a custom CMP, a built-in necessary-only notice, or none) and your support chat (Chatly, Intercom, Crisp, Zendesk Messaging, HubSpot, Drift, LiveChat, Tawk.to, Freshchat, Tidio, Help Scout Beacon, Front, Chatwoot, Olark, Smartsupp, JivoChat, Gorgias, Pylon, Plain, Userlike, Zoho SalesIQ, Re:amaze, Chatra, Kustomer, Gladly, Brevo, Trengo, Dixa, Gist, Freshdesk, LiveAgent, Chatbase, Voiceflow, Botpress, Salesforce, Dynamics 365 or custom). `adapters.consent[].fields` are the `config.params` a CMP's inline snippet needs. `adapters.chat[].fields` lists each chat's config keys; `chat.hasIdentitySecret` says whether an identity-verification secret is saved (never the secret). `served` is exactly what visitors get: the head tags, the "Cookie settings" link and the Content-Security-Policy built from these adapters. Referalli's own banner and chat never run on your domain.
 
         **Auth:** an API key with `org:read` (or `full`), or a session of any role.
         """
@@ -1384,6 +1438,15 @@ class Operations:
         **Auth:** a partner session.
         """
         return self._request("GET", f"/v1/partner/advance/offer", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_partner_api_tokens(self, *, idempotency_key: Optional[str] = None) -> GetPartnerApiTokensResponse:
+        """List your partner API tokens. GET /v1/partner/api-tokens
+
+        Your active `rpt_` tokens (never the token itself). Portal session only: a token cannot list tokens.
+
+        **Auth:** a partner session.
+        """
+        return self._request("GET", f"/v1/partner/api-tokens", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def get_partner_assets(self, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetPartnerAssetsResponseDataItem]:
         """List marketing assets. GET /v1/partner/assets
@@ -1740,14 +1803,14 @@ class Operations:
         """
         return self._request("GET", f"/v1/partner/security", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
-    def get_partners_id(self, id: str, *, idempotency_key: Optional[str] = None) -> GetPartnersIdResponse:
+    def get_partners_id(self, id: str, *, program_id: Optional[str] = None, idempotency_key: Optional[str] = None) -> GetPartnersIdResponse:
         """Get a partner. GET /v1/partners/{id}
 
-        One partner, with a cross-network warning when the same account is flagged or banned by other merchants (it never says which).
+        One partner, with a cross-network warning when the same account is flagged or banned by other merchants (it never says which). With `programId`, `externalRef` is the one that program knows them by: its own externalRef for them when it has one, else the partner's.
 
         **Auth:** an API key with `partners:read` (or `full`), or a session of any role.
         """
-        return self._request("GET", f"/v1/partners/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+        return self._request("GET", f"/v1/partners/{_seg(id)}", query={"programId": program_id}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def get_partners_id_balances(self, id: str, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[Balance]:
         """Get a partner's balances. GET /v1/partners/{id}/balances
@@ -1771,7 +1834,7 @@ class Operations:
     def get_partners_id_enrollments(self, id: str, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetPartnersIdEnrollmentsResponseDataItem]:
         """List a partner's enrollments. GET /v1/partners/{id}/enrollments
 
-        The programs a partner is enrolled in or applied to, with status and group.
+        The programs a partner is enrolled in or applied to, with status, group and `externalRef` (that program's own id for the partner, or null when the partner's own applies).
 
         **Auth:** an API key with `partners:read` (or `full`), or a session of any role.
 
@@ -1804,6 +1867,24 @@ class Operations:
         **Auth:** an API key with `partners:read` (or `full`), or a session of any role.
         """
         return self._request("GET", f"/v1/partners/{_seg(id)}/quality", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_partners_id_stats(self, id: str, *, program_id: Optional[str] = None, idempotency_key: Optional[str] = None) -> GetPartnersIdStatsResponse:
+        """Get a partner's stats. GET /v1/partners/{id}/stats
+
+        What the partner brought in, in one call: eligible clicks, referrals by status, converted customers (referred, not void, with at least one payment) and balances per currency. Pass `programId` to count one program only (an org shared by several products).
+
+        **Auth:** an API key with `commissions:read` (or `full`), or a session of any role.
+        """
+        return self._request("GET", f"/v1/partners/{_seg(id)}/stats", query={"programId": program_id}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_partners_id_summary(self, id: str, *, program_id: str, idempotency_key: Optional[str] = None) -> GetPartnersIdSummaryResponse:
+        """Get a partner's referrer summary. GET /v1/partners/{id}/summary
+
+        Everything a referrer panel shows, in one call: the stats for one program (`programId` is required) plus the partner's current `code` there (the newest coupon, else the newest link's code) and `linkUrl` (null when they have only a coupon).
+
+        **Auth:** an API key with `commissions:read` (or `full`), or a session of any role.
+        """
+        return self._request("GET", f"/v1/partners/{_seg(id)}/summary", query={"programId": program_id}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def get_partner_stats(self, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetPartnerStatsResponseDataItem]:
         """Get my stats. GET /v1/partner/stats
@@ -1964,6 +2045,42 @@ class Operations:
         """
         return self._request("GET", f"/v1/portal-auth/current", query={"org": org}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    def get_portal_theme(self, *, idempotency_key: Optional[str] = None) -> GetPortalThemeResponse:
+        """Get the portal design. GET /v1/portal/theme
+
+        The partner portal's look and layout on your portal domain: `published` (what partners see) and `draft` (what you are editing, or null). Colours with a separate dark palette, the colour scheme, widths and density, fonts (a stylesheet URL, `@font-face` files, a family per role, the type scale), the logo set and favicon, component shape (radius, shadow, buttons, inputs, focus ring, links), an announcement, the header and footer, the home sections and navigation, the sign-in page, interface string overrides, typed theme settings, CSS snippets, custom CSS, phone tuning and embedding. Every key is optional; an unset key keeps the built-in look.
+
+        **Auth:** an API key with `org:read` (or `full`), or a session of any role.
+        """
+        return self._request("GET", f"/v1/portal/theme", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_portal_theme_compiled(self, *, which: Optional[Literal["draft", "published"]] = None, idempotency_key: Optional[str] = None) -> GetPortalThemeCompiledResponse:
+        """Preview the compiled portal design. GET /v1/portal/theme/compiled
+
+        The draft (or `?which=published`) compiled: `css`, the stylesheet partners load, and `view`, the layout, brand and text the portal draws. For a live preview in your own editor.
+
+        **Auth:** an API key with `org:read` (or `full`), or a session of any role.
+        """
+        return self._request("GET", f"/v1/portal/theme/compiled", query={"which": which}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_portal_theme_schema(self, *, idempotency_key: Optional[str] = None) -> GetPortalThemeSchemaResponse:
+        """Get the portal design schema. GET /v1/portal/theme/schema
+
+        Every key the portal design takes, as JSON Schema (draft 2020-12): build an editor or validate a theme file before you send it.
+
+        **Auth:** an API key with `org:read` (or `full`), or a session of any role.
+        """
+        return self._request("GET", f"/v1/portal/theme/schema", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_portal_theme_versions(self, *, idempotency_key: Optional[str] = None) -> GetPortalThemeVersionsResponse:
+        """List published portal designs. GET /v1/portal/theme/versions
+
+        The last 50 published versions, newest first.
+
+        **Auth:** an API key with `org:read` (or `full`), or a session of any role.
+        """
+        return self._request("GET", f"/v1/portal/theme/versions", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     def get_privacy_executor_requests(self, *, idempotency_key: Optional[str] = None) -> GetPrivacyExecutorRequestsResponse:
         """List DSAR tool requests. GET /v1/privacy/executor-requests
 
@@ -2028,6 +2145,15 @@ class Operations:
         """
         return self._request("GET", f"/v1/privacy/requests/{_seg(id)}/result", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    def get_product_links(self, *, idempotency_key: Optional[str] = None) -> GetProductLinksResponse:
+        """List partner links. GET /v1/product-links
+
+        Other products allowed to call this organization's API (REF-S28), newest first, with status, scopes and last use. Secrets are never shown again. Owners and admins, or a key with team:read.
+
+        **Auth:** an API key with `team:read` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("GET", f"/v1/product-links", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     def get_profitability_products(self, *, idempotency_key: Optional[str] = None) -> GetProfitabilityProductsResponse:
         """List product margins. GET /v1/profitability/products
 
@@ -2064,10 +2190,10 @@ class Operations:
         """
         return self._request("GET", f"/v1/profitability/settings", query={"programId": program_id}, body=None, idempotency_key=idempotency_key, kind="json")
 
-    def get_programs(self, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[Program]:
+    def get_programs(self, *, slug: Optional[str] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[Program]:
         """List programs. GET /v1/programs
 
-        The org's programs, oldest first, with their settings.
+        The org's programs, oldest first, with their settings. `slug` returns just that program.
 
         **Auth:** an API key with `programs:read` (or `full`), or a session of any role.
 
@@ -2077,11 +2203,11 @@ class Operations:
         created[gte]: Only items created at or after this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
         created[lte]: Only items created at or before this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
         """
-        return self._request("GET", f"/v1/programs", query={"limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
+        return self._request("GET", f"/v1/programs", query={"slug": slug, "limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
 
-    def get_programs_iter(self, *, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Iterator[Program]:
+    def get_programs_iter(self, *, slug: Optional[str] = None, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Iterator[Program]:
         """Every item of ``get_programs``, following the pages."""
-        return self._paginate(lambda cursor: self.get_programs(limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
+        return self._paginate(lambda cursor: self.get_programs(slug=slug, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
     def get_programs_id(self, id: str, *, idempotency_key: Optional[str] = None) -> Program:
         """Get a program. GET /v1/programs/{id}
@@ -2101,10 +2227,10 @@ class Operations:
         """
         return self._request("GET", f"/v1/programs/{_seg(id)}/autopricing", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
-    def get_programs_id_enrollments(self, id: str, *, status: Optional[Literal["applied", "approved", "rejected", "removed"]] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetProgramsIdEnrollmentsResponseDataItem]:
+    def get_programs_id_enrollments(self, id: str, *, status: Optional[Literal["applied", "approved", "rejected", "removed"]] = None, partner_id: Optional[str] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetProgramsIdEnrollmentsResponseDataItem]:
         """List program enrollments. GET /v1/programs/{id}/enrollments
 
-        The program's enrollments and applications, newest first, each with the partner and a cross-network warning when other merchants banned the same account. Filter with `status`.
+        The program's enrollments and applications, newest first, each with the partner and a cross-network warning when other merchants banned the same account and `externalRef` (this program's own id for the partner, or null). Filter with `status` or `partnerId`.
 
         **Auth:** an API key with `programs:read` (or `full`), or a session of any role.
 
@@ -2114,11 +2240,11 @@ class Operations:
         created[gte]: Only items created at or after this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
         created[lte]: Only items created at or before this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
         """
-        return self._request("GET", f"/v1/programs/{_seg(id)}/enrollments", query={"status": status, "limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
+        return self._request("GET", f"/v1/programs/{_seg(id)}/enrollments", query={"status": status, "partnerId": partner_id, "limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
 
-    def get_programs_id_enrollments_iter(self, id: str, *, status: Optional[Literal["applied", "approved", "rejected", "removed"]] = None, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Iterator[GetProgramsIdEnrollmentsResponseDataItem]:
+    def get_programs_id_enrollments_iter(self, id: str, *, status: Optional[Literal["applied", "approved", "rejected", "removed"]] = None, partner_id: Optional[str] = None, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Iterator[GetProgramsIdEnrollmentsResponseDataItem]:
         """Every item of ``get_programs_id_enrollments``, following the pages."""
-        return self._paginate(lambda cursor: self.get_programs_id_enrollments(id, status=status, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
+        return self._paginate(lambda cursor: self.get_programs_id_enrollments(id, status=status, partner_id=partner_id, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
     def get_programs_id_graph(self, id: str, *, root: str, depth: Optional[int] = None, idempotency_key: Optional[str] = None) -> GetProgramsIdGraphResponse:
         """Get the referral tree. GET /v1/programs/{id}/graph
@@ -2185,6 +2311,34 @@ class Operations:
         **Auth:** an API key with `programs:read` (or `full`), or a session of any role.
         """
         return self._request("GET", f"/v1/programs/{_seg(id)}/referee-reward", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_programs_id_stripe_credits(self, id: str, *, idempotency_key: Optional[str] = None) -> GetProgramsIdStripeCreditsResponse:
+        """Get a program's Stripe balance credit settings. GET /v1/programs/{id}/stripe-credits
+
+        Whether settled lines of this program are credited to the partner's Stripe customer balance, how that customer is found (`referrerMatch`), and whether store-credit referee rewards are credited too. `keyConnected` says whether a Stripe key is available.
+
+        **Auth:** an API key with `payouts:read` (or `full`), or a session of any role.
+        """
+        return self._request("GET", f"/v1/programs/{_seg(id)}/stripe-credits", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_programs_id_stripe_credits_log(self, id: str, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetProgramsIdStripeCreditsLogResponseDataItem]:
+        """List a program's Stripe balance credits. GET /v1/programs/{id}/stripe-credits/log
+
+        Every credit and debit the rail queued for this program, newest first: amount, Stripe customer, `status` (`pending`, `applied`, `no_customer`, `failed`, `canceled`), attempts, the Stripe balance transaction id once applied, and the last error. Unapplied rows are retried hourly, up to 24 tries.
+
+        **Auth:** an API key with `payouts:read` (or `full`), or a session of any role.
+
+        limit: Items per page, 1 to 100 (default 50). From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
+        starting_after: A cursor: the id of an item (the previous page's `next_cursor`); returns the items after it. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
+        ending_before: A cursor: returns the items before this item id (the previous page). Not with `starting_after`. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
+        created[gte]: Only items created at or after this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
+        created[lte]: Only items created at or before this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
+        """
+        return self._request("GET", f"/v1/programs/{_seg(id)}/stripe-credits/log", query={"limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
+
+    def get_programs_id_stripe_credits_log_iter(self, id: str, *, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Iterator[GetProgramsIdStripeCreditsLogResponseDataItem]:
+        """Every item of ``get_programs_id_stripe_credits_log``, following the pages."""
+        return self._paginate(lambda cursor: self.get_programs_id_stripe_credits_log(id, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
     def get_programs_id_terms_acceptances(self, id: str, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetProgramsIdTermsAcceptancesResponseDataItem]:
         """List terms acceptances. GET /v1/programs/{id}/terms-acceptances
@@ -2528,6 +2682,15 @@ class Operations:
         """
         return self._request("GET", f"/v1/status/incidents/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    def get_stripe_credits_connection(self, *, idempotency_key: Optional[str] = None) -> GetStripeCreditsConnectionResponse:
+        """Get the Stripe balance credit key status. GET /v1/stripe-credits/connection
+
+        Whether the Stripe balance credit rail has a key: its own (`source: "stripe_credits"`) or your Stripe payout connection (`source: "payout_connection"`). The key is never returned.
+
+        **Auth:** an API key with `payouts:read` (or `full`), or a session of any role.
+        """
+        return self._request("GET", f"/v1/stripe-credits/connection", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     def get_support_apps(self, *, idempotency_key: Optional[str] = None) -> GetSupportAppsResponse:
         """List support tool connections. GET /v1/support/apps
 
@@ -2537,7 +2700,7 @@ class Operations:
         """
         return self._request("GET", f"/v1/support/apps", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
-    def get_support_cards_org_id_adapter(self, org_id: str, adapter: str, *, email: Optional[str] = None, external_id: Optional[str] = None, idempotency_key: Optional[str] = None) -> PostSupportCardsOrgIdAdapterResponse:
+    def get_support_cards_org_id_adapter(self, org_id: str, adapter: str, *, email: Optional[str] = None, external_id: Optional[str] = None, idempotency_key: Optional[str] = None) -> GetSupportPlatformChatlyAnswersResponse:
         """Render a support card for a tool (GET). GET /v1/support/cards/{orgId}/{adapter}
 
         The same card for tools that fetch with GET (HubSpot legacy CRM cards pass the contact as query parameters). Signed as for the POST form; 404 otherwise.
@@ -2557,6 +2720,15 @@ class Operations:
         ext: A support tool's verified external id: matched as a partner externalRef, then as a customer ref.
         """
         return self._request("GET", f"/v1/support/context", query={"email": email, "customerRef": customer_ref, "partnerExternalRef": partner_external_ref, "ext": ext}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_support_platform_chatly_answers(self, *, subject: Optional[str] = None, principal: Optional[str] = None, question: Optional[str] = None, idempotency_key: Optional[str] = None) -> GetSupportPlatformChatlyAnswersResponse:
+        """Answer a partner's question for Referalli's own support desk. GET /v1/support/platform/chatly-answers
+
+        Called by Chatly's `referral_answers` preset, never by you: a signed GET (`x-chatly-signature: t=…,v1=…`, HMAC-SHA256 with `CHATLY_TOOL_SECRET` over `<t>.GET.<path and query>.`, 300 s window) with `question` (`referral_link`, `commission_status`, `next_payout`; others get the full answer), `subject` (the verified Atlas `sub`) and `principal` (`partner`, or absent when the tool was created over the API). Read-only: the partner's link, pending, approved and paid commission and next payout in every programme they're in. `{found: false}` when no partner account is linked; 403 without a verified partner identity; 404 for a bad or stale signature.
+
+        **Auth:** none.
+        """
+        return self._request("GET", f"/v1/support/platform/chatly-answers", query={"subject": subject, "principal": principal, "question": question}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def get_tax1099(self, *, year: int, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetTax1099ResponseDataItem]:
         """Export 1099-NEC data. GET /v1/tax/1099
@@ -2775,7 +2947,7 @@ class Operations:
     def patch_api_keys_id(self, id: str, body: PatchApiKeysIdBody, *, idempotency_key: Optional[str] = None) -> PatchApiKeysIdResponse:
         """Update an API key. PATCH /v1/api-keys/{id}
 
-        Changes a key's pinned `apiVersion`, `owner` or expiry (`expiresInDays` from now; `null` removes it). Revoked keys are 404. Needs an owner or admin session, or an API key with the `admin` scope. Audited.
+        Changes a key's pinned `apiVersion`, `owner`, expiry (`expiresInDays` from now; `null` removes it) or `programIds` (`null` makes it org-wide). Revoked keys are 404. Needs an owner or admin session, or an API key with the `admin` scope. Audited.
 
         **Auth:** an API key with `team:write` (or `full`), or a session of any role.
         """
@@ -2853,10 +3025,19 @@ class Operations:
         """
         return self._request("PATCH", f"/v1/partners/{_seg(id)}/payout-profile", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    def patch_portal_theme_draft(self, body: Dict[str, Any], *, idempotency_key: Optional[str] = None) -> GetPortalThemeResponse:
+        """Change part of the portal design draft. PATCH /v1/portal/theme/draft
+
+        Deep-merges into the draft (or, with no draft, into a copy of what is published): objects merge key by key, arrays and values replace, `null` deletes a key. The result is validated as a whole. Owner or admin.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("PATCH", f"/v1/portal/theme/draft", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     def patch_programs_id(self, id: str, body: PatchProgramsIdBody, *, idempotency_key: Optional[str] = None) -> Program:
         """Update a program. PATCH /v1/programs/{id}
 
-        Changes any program field or setting; omitted fields keep their value, and `publicPage` is merged. Changing `termsMd` records a new terms version. Setting `status` to `paused` or `archived` stops new attribution. `mobileApp` (iOS Team ID and bundle id, Android package and signing-certificate fingerprints) publishes the program's apps in the universal-links and App Links files on the org's link hosts. Audited.
+        Changes any program field or setting; omitted fields keep their value, and `publicPage` is merged. Changing `termsMd` records a new terms version. Setting `status` to `paused` or `archived` stops new attribution. `mobileApp` (iOS Team ID and bundle id, Android package and signing-certificate fingerprints) publishes the program's apps in the universal-links and App Links files on the org's link hosts. `destinationUrl` moves the program's default link destination: every link still on the old default (the widget's or a sign-in connection's) is repointed in the same call, custom destinations stay, and links already shared follow at click time; `{code}` in it becomes the link's code. Audited.
 
         **Auth:** an API key with `programs:write` (or `full`), or a session with role `owner`, `admin`.
         """
@@ -2973,7 +3154,7 @@ class Operations:
     def post_api_keys(self, body: PostApiKeysBody, *, idempotency_key: Optional[str] = None) -> PostApiKeysResponse:
         """Create an API key. POST /v1/api-keys
 
-        Mints a secret key (`rk_live_…` / `rk_test_…`), shown only in this response. `scopes` defaults to `full`; a key can't grant scopes it doesn't hold. `mode` picks live, test or a matching pair of both (`both` returns `{ pairId, live, test }`); a test-mode caller can mint test keys only. `publishable: true` mints a browser-safe `rk_pub_` key limited to `programs:read` and `events:write` from `allowedOrigins`. `apiVersion` pins the key (default: latest). Needs an owner or admin session, or an API key with the `admin` scope. Audited.
+        Mints a secret key (`rk_live_…` / `rk_test_…`), shown only in this response. `scopes` defaults to `full`; a key can't grant scopes it doesn't hold. `mode` picks live, test or a matching pair of both (`both` returns `{ pairId, live, test }`); a test-mode caller can mint test keys only. `publishable: true` mints a browser-safe `rk_pub_` key limited to `programs:read` and `events:write` from `allowedOrigins`. `apiVersion` pins the key (default: latest). `programIds` limits the key to those programs (their partners, links, referrals, commissions, enrollments, and webhook endpoints whose `programIds` are all within the key's, with their deliveries); a program-scoped key gets 403 `program_scoped_key` on org-wide endpoints (keys, team, org settings, billing, payouts, the event feed, analytics, creating programs). Needs an owner or admin session, or an API key with the `admin` scope. Audited.
 
         **Auth:** an API key with `team:write` (or `full`), or a session of any role.
         """
@@ -3045,7 +3226,7 @@ class Operations:
     def post_auth_connections_id_ping(self, id: str, body: Dict[str, Any], *, idempotency_key: Optional[str] = None) -> PostAuthConnectionsIdPingResponse:
         """Test an auth connection (signed protocol). POST /v1/auth/connections/{id}/ping
 
-        Proves the secret works: returns the connection, its program and org and the server time, to check clock skew. Signed with the connection secret in `x-referalli-signature: t=<unix>,v1=…,v2=…` (v2 also signs the request line; once a connection has seen v2 it requires it), with a unique `x-referalli-id` per call. The legacy header names from before the rename are also accepted, for existing integrations. Calls older than 5 minutes, reused ids (`409 replay`), paused connections (`423 connection_paused`) and unknown fields (`422`) are refused.
+        Proves the secret works: returns the connection, its program and org, the server time (to check clock skew) and `capabilities` (`{ partners: true }`: user-chosen referral codes through `/partners`). Signed with the connection secret in `x-referalli-signature: t=<unix>,v1=…,v2=…` (v2 also signs the request line; once a connection has seen v2 it requires it), with a unique `x-referalli-id` per call. The legacy header names from before the rename are also accepted, for existing integrations. Calls older than 5 minutes, reused ids (`409 replay`), paused connections (`423 connection_paused`) and unknown fields (`422`) are refused.
 
         **Auth:** a signature (see above); no API key.
         """
@@ -3564,10 +3745,10 @@ class Operations:
         """
         return self._request("POST", f"/v1/notifications/{_seg(id)}/read", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
-    def post_oauth_token(self, body: PostOauthTokenBody, *, idempotency_key: Optional[str] = None) -> PostOauthTokenResponse:
-        """Exchange an install code. POST /v1/oauth/token
+    def post_oauth_token(self, body: Union[PostOauthTokenBodyOption1, PostOauthTokenBodyOption2, PostOauthTokenBodyOption3], *, idempotency_key: Optional[str] = None) -> PostOauthTokenResponse:
+        """Token endpoint: install codes, partner links, Atlas operator token exchange. POST /v1/oauth/token
 
-        Server to server: the platform trades the single-use code and its PKCE `code_verifier` for a new signed-protocol connection and its signing secret (returned only here). Installing again for the same instance keeps the connection and issues a new secret, the old one verifying for 24 hours. 401 for an unknown, used, expired or mismatched code. No authentication.
+        Form-encoded or JSON, three grants. `authorization_code`: the platform trades the single-use one-click-install code and its PKCE `code_verifier` for a new signed-protocol connection and its signing secret (returned only here), plus a one-hour `access_token` scoped `connections:write webhooks:write` so the platform can require v2 signatures and register its sync webhook; installing again keeps the connection and issues a new secret, the old one verifying for 24 hours; 401 for an unknown, used, expired or mismatched code. `client_credentials`: a partner link's `client_id` and `client_secret` (HTTP Basic or the body), optional `scope` within the link's, for a one-hour `rat_…` bearer token. `urn:ietf:params:oauth:grant-type:token-exchange` (RFC 8693): `subject_token` = an Atlas operator access token from `atlas login` (issuer https://atlasauth.net, verified with its discovery document and JWKS, scope `atlas:operator`), `subject_token_type` access_token, `resource` = the org id; the Atlas account must sign in to a Referalli member of that org, and the token gets that role (owner: admin, admin: full, others: read), narrowed by `scope`. Errors follow RFC 6749 §5.2 (`{error, error_description}`). No authentication.
 
         **Auth:** none.
         """
@@ -3581,6 +3762,15 @@ class Operations:
         **Auth:** an API key with `billing:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return self._request("POST", f"/v1/onchain/connections", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def post_org_consent_partners_cookiemunch_stamps_check(self, body: PostOrgConsentPartnersCookiemunchStampsCheckBody, *, idempotency_key: Optional[str] = None) -> PostOrgConsentPartnersCookiemunchStampsCheckResponse:
+        """Check a visitor's consent stamp with Cookie Munch. POST /v1/org/consent-partners/cookiemunch/stamps/check
+
+        Asks Cookie Munch (`GET /v1/partner/sites/{cbid}/stamps/{stamp}`) what the visitor's consent stamp says on your registered site (`cbid`, or each registered site in turn) and keeps the answer. `verdict`: `consented` (found, with the `referrals` category on: the only verdict that credits a referral's consent), `not_consented`, `withdrawn` (a later decision turned `referrals` off: `withdrawnAt`), `not_found` (the site never recorded the stamp), `no_grant` (Cookie Munch's 403: the site has no live link to Referalli) or `error`. Clicks and consent events that carry a Cookie Munch stamp are checked the same way in the background. 409 when the partner token isn't configured or no site is registered. Owner or admin.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("POST", f"/v1/org/consent-partners/cookiemunch/stamps/check", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     def post_org_hosted_pages_check(self, *, idempotency_key: Optional[str] = None) -> PostOrgHostedPagesCheckResponse:
         """Check the hosted-page adapters. POST /v1/org/hosted-pages/check
@@ -3617,6 +3807,15 @@ class Operations:
         **Auth:** an API key with `team:write` (or `full`), or a session of any role.
         """
         return self._request("POST", f"/v1/orgs", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def post_orgs_org_id_privacy_executor_key(self, org_id: str, body: PostOrgsOrgIdPrivacyExecutorKeyBody, *, idempotency_key: Optional[str] = None) -> PostOrgsOrgIdPrivacyExecutorKeyResponse:
+        """Mint an executor key under a Cookie Munch partner link. POST /v1/orgs/{orgId}/privacy/executor-key
+
+        Called by Cookie Munch, not by you (CMU-X25): mints (or rotates) this org's cm-standard-v2 executor key so Cookie Munch's `referalli` executor preset can connect without a pasted key. The request must be signed by Cookie Munch's partner key exactly like its consent deliveries: `CookieMunch-Partner-Signature: t=<unix seconds>,kid=<key id>,ed25519=<base64url>` over `<t>.<raw body>`, with the key named in `https://api.cookiemunch.net/v1/partner/jwks.json` (300 s window; each signed request and each body `nonce` works once, a replay is 409; `partner` must be `referalli` and `externalId` the org in the path). Referalli then confirms the partner link with Cookie Munch over its own partner token (`GET /v1/partner/links`): it must be `active` or `waiting_on_partner`, name this org as `externalId`, sit on a site this org registered (`PUT /v1/org/consent-partners/cookiemunch`), and match `cbid`/`linkId` when sent; otherwise 403 `no_grant`. 201 `{secret, executorUrl, contract, orgId, linkId, cbid, rotated}`: `secret` is shown once and is the bearer key for `executorUrl` (`https://referalli.com/api`, the cm-standard-v2 baseUrl: calls go to `<executorUrl>/privacy/*`), where it reaches only this org's referred customers and partners. The old key stops working at once. Audited (`privacy.executor_key_minted`).
+
+        **Auth:** none.
+        """
+        return self._request("POST", f"/v1/orgs/{_seg(org_id)}/privacy/executor-key", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     def post_org_sso_direct_test(self, *, idempotency_key: Optional[str] = None) -> PostOrgPortalAuthTestResponse:
         """Test your identity provider. POST /v1/org/sso/direct/test
@@ -3689,6 +3888,15 @@ class Operations:
         **Auth:** a partner session.
         """
         return self._request("POST", f"/v1/partner/advance/accept", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def post_partner_api_tokens(self, body: PostPartnerApiTokensBody, *, idempotency_key: Optional[str] = None) -> PostPartnerApiTokensResponse:
+        """Create a partner API token. POST /v1/partner/api-tokens
+
+        A token for calling the partner API from your own code, across every programme you're in: `Authorization: Bearer rpt_…`. `read` reaches your profile, stats, links, referrals, payouts, achievements, assets, groups, contracts, deals, disputes, notifications, invitations, recruiting, terms and KYC status; `write` also creates links, deals and disputes and marks notifications read. Security, profile and payout details, KYC, contracts, advances and tax documents stay portal-only. Shown once. Portal session only, with `x-totp-code` when two-factor is on; at most 10 active.
+
+        **Auth:** a partner session.
+        """
+        return self._request("POST", f"/v1/partner/api-tokens", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     def post_partner_auth_wallet_nonce(self, body: PostPartnerAuthWalletNonceBody, *, idempotency_key: Optional[str] = None) -> PostPartnerAuthWalletNonceResponse:
         """Get a wallet sign-in nonce. POST /v1/partner/auth/wallet/nonce
@@ -3852,6 +4060,15 @@ class Operations:
         """
         return self._request("POST", f"/v1/partner/security/totp/setup", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    def post_partners_id_portal_link(self, id: str, body: PostPartnersIdPortalLinkBody, *, idempotency_key: Optional[str] = None) -> PostPartnersIdPortalLinkResponse:
+        """Create a portal sign-in link. POST /v1/partners/{id}/portal-link
+
+        A single-use `url` (valid 5 minutes) for a "View earnings" button in your app: opening it signs the partner in to the partner portal for `programId`, with no second account. The session is read-only and limited to this partner in your organization (never the partner's other merchants or account settings) and lasts 12 hours. `returnUrl` must be a path inside the portal, such as `/portal/earnings`. 404 for a partner outside your organization or not enrolled in the program. Owner or admin.
+
+        **Auth:** an API key with `partners:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("POST", f"/v1/partners/{_seg(id)}/portal-link", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     def post_partners_id_tax_form(self, id: str, body: PostPartnersIdTaxFormBody, *, idempotency_key: Optional[str] = None) -> Ok:
         """Record a partner's tax form. POST /v1/partners/{id}/tax-form
 
@@ -3915,6 +4132,42 @@ class Operations:
         """
         return self._request("POST", f"/v1/payout-runs/run-scheduled", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    def post_portal_theme_import_brand(self, body: PostPortalThemeImportBrandBody, *, idempotency_key: Optional[str] = None) -> PostPortalThemeImportBrandResponse:
+        """Import a brand file into the portal design. POST /v1/portal/theme/import-brand
+
+        A W3C design-tokens (DTCG) brand file, sent as `document` or fetched from an https `url`, merged into the draft: colours (`color.primary`, `color.background`, `color.surface`, `color.text`, `color.muted`, `color.border`, status colours), fonts (`font.body`, `font.heading`, `font.mono`, `font.url`), `radius.base`, `logo.url` and `brand.name`. `applied` lists the tokens used. Owner or admin.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("POST", f"/v1/portal/theme/import-brand", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def post_portal_theme_preview(self, *, idempotency_key: Optional[str] = None) -> PostPortalThemePreviewResponse:
+        """Get a preview link for the portal design draft. POST /v1/portal/theme/preview
+
+        A link that shows the draft on your verified portal domain (`?themePreview=rpv_…`) for 7 days, to anyone who has it; minting another retires the last. Partners without the link keep seeing the published design. Owner or admin.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("POST", f"/v1/portal/theme/preview", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def post_portal_theme_publish(self, body: PostPortalThemePublishBody, *, idempotency_key: Optional[str] = None) -> GetPortalThemeResponse:
+        """Publish the portal design. POST /v1/portal/theme/publish
+
+        Makes the draft what partners see (within a minute), keeps it as a version you can restore, and retires the preview link. Optional `note`. Owner or admin. Audited.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("POST", f"/v1/portal/theme/publish", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def post_portal_theme_versions_id_restore(self, id: str, *, idempotency_key: Optional[str] = None) -> GetPortalThemeResponse:
+        """Restore a portal design version. POST /v1/portal/theme/versions/{id}/restore
+
+        Copies a published version into the draft; publish it to make it live again. Owner or admin.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("POST", f"/v1/portal/theme/versions/{_seg(id)}/restore", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     def post_privacy_executor_keys(self, body: PostPrivacyExecutorKeysBody, *, idempotency_key: Optional[str] = None) -> PostPrivacyExecutorKeysResponse:
         """Mint a DSAR executor key. POST /v1/privacy/executor-keys
 
@@ -3960,6 +4213,15 @@ class Operations:
         """
         return self._request("POST", f"/v1/privacy/requests", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    def post_product_links(self, body: PostProductLinksBody, *, idempotency_key: Optional[str] = None) -> PostProductLinksResponse:
+        """Create a partner link. POST /v1/product-links
+
+        `{partner, name?, scopes[], expires_at?}` (Unix ms or ISO 8601, at most a year; default a year; never "never"). Scopes are resource scopes (`integrations:write`, `partners:read`, …) or `connections:read|write` (the auth-platform connection routes only, what Atlas asks for); never admin, full or team. Returns `client_id` and `client_secret` once; the partner swaps them at POST /v1/oauth/token (client_credentials) or sends the secret as a bearer. A root action: an API key cannot hand out more than it holds, and an Atlas operator token needs an MFA sign-in at most 5 minutes old (403 `step_up_required` otherwise).
+
+        **Auth:** an API key with `team:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("POST", f"/v1/product-links", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     def post_profitability_rebuild(self, *, idempotency_key: Optional[str] = None) -> PostProfitabilityRebuildResponse:
         """Rebuild ROI figures. POST /v1/profitability/rebuild
 
@@ -3999,7 +4261,7 @@ class Operations:
     def post_programs_id_enrollments(self, id: str, body: PostProgramsIdEnrollmentsBody, *, idempotency_key: Optional[str] = None) -> Enrollment:
         """Enroll a partner. POST /v1/programs/{id}/enrollments
 
-        Enrolls an existing partner in the program, approved at once. Publishes `partner.enrolled`. 409 when already enrolled.
+        Enrolls an existing partner in the program, approved at once. Publishes `partner.enrolled`. 409 when already enrolled. `externalRef` is this program's own id for the partner, when their partner `externalRef` belongs to another product sharing the org; this program's webhooks and `GET /v1/partners?externalRef=` then use it.
 
         **Auth:** an API key with `programs:write` (or `full`), or a session with role `owner`, `admin`.
         """
@@ -4040,6 +4302,15 @@ class Operations:
         **Auth:** an API key with `programs:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return self._request("POST", f"/v1/programs/{_seg(id)}/promotions", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def post_programs_id_referrers(self, id: str, body: PostProgramsIdReferrersBody, *, idempotency_key: Optional[str] = None) -> PostProgramsIdReferrersResponse:
+        """Make a user a referrer. POST /v1/programs/{id}/referrers
+
+        One idempotent call for one of your users: finds the partner by `externalRef` (or by `email`, enrolling them under this program's own `externalRef` when they refer for another product in the org), else creates it, then enrolls them and creates a coupon code and a link to the program's default destination when missing. `email` is needed only to create the partner (400 without it). 409 `email_taken` when that email is already enrolled in this program under another id.
+
+        **Auth:** an API key with `programs:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("POST", f"/v1/programs/{_seg(id)}/referrers", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     def post_promotions_id_end(self, id: str, *, idempotency_key: Optional[str] = None) -> Promotion:
         """End a promotion. POST /v1/promotions/{id}/end
@@ -4158,7 +4429,7 @@ class Operations:
         """
         return self._request("POST", f"/v1/support/apps/{_seg(adapter)}/test", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
-    def post_support_cards_org_id_adapter(self, org_id: str, adapter: str, body: Dict[str, Any], *, idempotency_key: Optional[str] = None) -> PostSupportCardsOrgIdAdapterResponse:
+    def post_support_cards_org_id_adapter(self, org_id: str, adapter: str, body: Dict[str, Any], *, idempotency_key: Optional[str] = None) -> GetSupportPlatformChatlyAnswersResponse:
         """Render a support card for a tool. POST /v1/support/cards/{orgId}/{adapter}
 
         Called by the support tool, signed in its own scheme (Chatly `x-chatly-signature`, Intercom `X-Body-Signature`, HubSpot v3, Front, Help Scout, a Zendesk app JWT, or the custom `X-Referalli-Signature`). Answers the tool's card format. An unknown org, a tool that is not connected, or a bad or stale signature all answer 404.
@@ -4166,6 +4437,15 @@ class Operations:
         **Auth:** none.
         """
         return self._request("POST", f"/v1/support/cards/{_seg(org_id)}/{_seg(adapter)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def post_support_platform_chatly_card(self, body: Dict[str, Any], *, idempotency_key: Optional[str] = None) -> GetSupportPlatformChatlyAnswersResponse:
+        """Render the card for Referalli's own support desk. POST /v1/support/platform/chatly-card
+
+        Called by Chatly for Referalli's own support workspace, signed `x-chatly-signature` with `CHATLY_PLATFORM_CARD_SECRET`. Names the person by the verified Atlas identity (`iss`, `sub`, `principal`), or by `contact.externalId` (`merchant:<user id>` / `partner:<account id>`), and answers one card across every programme they're in: a partner's status, balances and next payout per programme, or a merchant's organizations and roles. Unknown people get `blocks: null`; a bad or stale signature answers 404.
+
+        **Auth:** none.
+        """
+        return self._request("POST", f"/v1/support/platform/chatly-card", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     def post_tax1099_documents_id_correct(self, id: str, *, idempotency_key: Optional[str] = None) -> TaxFiling:
         """File a corrected 1099. POST /v1/tax/1099/documents/{id}/correct
@@ -4421,6 +4701,15 @@ class Operations:
         """
         return self._request("PUT", f"/v1/network/settings", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    def put_org_consent_partners_cookiemunch(self, body: PutOrgConsentPartnersCookiemunchBody, *, idempotency_key: Optional[str] = None) -> GetOrgConsentPartnersCookiemunchResponse:
+        """Set the Cookie Munch sites to accept consent events for. PUT /v1/org/consent-partners/cookiemunch
+
+        Replaces the list of Cookie Munch sites (cbids) whose signed consent events this org keeps. An event for any other site is acknowledged and dropped, since the org a delivery names is chosen by whoever made the link. Owner or admin. Audited.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("PUT", f"/v1/org/consent-partners/cookiemunch", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     def put_org_fx_feed(self, body: PutOrgFxFeedBody, *, idempotency_key: Optional[str] = None) -> PutOrgFxFeedResponse:
         """Turn the FX feed on or off. PUT /v1/org/fx-feed
 
@@ -4433,7 +4722,7 @@ class Operations:
     def put_org_hosted_pages(self, body: PutOrgHostedPagesBody, *, idempotency_key: Optional[str] = None) -> GetOrgHostedPagesResponse:
         """Set the hosted-page consent and chat. PUT /v1/org/hosted-pages
 
-        Validates and saves the adapters. A CMP's `scriptUrl` must be https on that vendor's own hosts; `custom` needs every origin listed. `customOrigins` adds origins per CSP directive (https or wss, no wildcards, no keywords). Owner or admin. Audited.
+        Validates and saves the adapters. A CMP's `scriptUrl` must be https on that vendor's own hosts; `custom` needs every origin listed; every chat vendor also takes `origins` for hosts its account needs beyond the documented list. `chat.identitySecret` (write-only, sealed) is your chat vendor's identity-verification secret, used to sign partners in to your chat: a string sets it, `null` removes it, absent keeps it, and switching vendors drops it. `customOrigins` adds origins per CSP directive (https or wss, no wildcards, no keywords). Owner or admin. Audited.
 
         **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
         """
@@ -4448,10 +4737,10 @@ class Operations:
         """
         return self._request("PUT", f"/v1/org/payout-schedule", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
-    def put_org_portal_auth(self, body: Union[PutOrgPortalAuthBodyOption1, PutOrgPortalAuthBodyOption2, PutOrgPortalAuthBodyOption3], *, idempotency_key: Optional[str] = None) -> PutOrgPortalAuthResponse:
+    def put_org_portal_auth(self, body: Union[PutOrgPortalAuthBodyOption1, PutOrgPortalAuthBodyOption2, PutOrgPortalAuthBodyOption3, PutOrgPortalAuthBodyOption4], *, idempotency_key: Optional[str] = None) -> PutOrgPortalAuthResponse:
         """Set partner sign-in. PUT /v1/org/portal-auth
 
-        Chooses the portal sign-in adapter and its settings. `custom`: `issuer`, `jwksUrl` (https), optional `loginUrl` (your page that mints the token) and `autoEnrollProgramId`. `oidc`: `issuer`, `clientId`, `clientSecret`. `referalli` removes any configuration. Owner only.
+        Chooses the portal sign-in adapter and its settings. `custom`: `issuer` and `jwksUrl` (https), or `preset` + `tenant` for a known platform (`jwtPresets` in the GET lists them: Clerk, Supabase, Firebase, Auth0, Cognito, Stytch, Kinde, Okta, Entra ID, Google, Keycloak, Descope, FusionAuth), or `keyType: hs256` with a write-only `sharedSecret` (≥ 32 characters, sealed); optional `audience` (default `referalli:<org>`), `maxAgeS` (30 to 3600, default 300), `claims` (where `sub`, `email`, `name`, `emailVerified` live, by name or dot path), `loginUrl` (your page that mints the token) and `autoEnrollProgramId`. `oidc`: `issuer`, `clientId`, `clientSecret`. `referalli` removes any configuration. Owner only.
 
         **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`.
         """
@@ -4583,6 +4872,15 @@ class Operations:
         """
         return self._request("PUT", f"/v1/payout-connections/{_seg(provider)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    def put_portal_theme_draft(self, body: Dict[str, Any], *, idempotency_key: Optional[str] = None) -> GetPortalThemeResponse:
+        """Replace the portal design draft. PUT /v1/portal/theme/draft
+
+        Replaces the whole draft: keys you leave out are gone. Unknown keys are refused with 422 naming each one by its full path. Owner or admin.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("PUT", f"/v1/portal/theme/draft", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     def put_profitability_products_product_ref(self, product_ref: str, body: PutProfitabilityProductsProductRefBody, *, idempotency_key: Optional[str] = None) -> GetProfitabilityProductsProductRefResponse:
         """Set a product margin. PUT /v1/profitability/products/{productRef}
 
@@ -4655,6 +4953,15 @@ class Operations:
         """
         return self._request("PUT", f"/v1/programs/{_seg(id)}/referee-reward", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    def put_programs_id_stripe_credits(self, id: str, body: PutProgramsIdStripeCreditsBody, *, idempotency_key: Optional[str] = None) -> GetProgramsIdStripeCreditsResponse:
+        """Set a program's Stripe balance credit settings. PUT /v1/programs/{id}/stripe-credits
+
+        Turns the rail on or off for a program. Each `commission.settled` line with method `merchant_credit` is credited to the referrer's Stripe customer balance; a later `commission.reversed` debits it back. `referrerMatch`: `billing_link` (the partner's externalRef is a `cus_…` id or is billing-linked to one), `metadata` (Stripe customer search on `metadata[metadataKey]` = the partner's externalRef) or `email` (the one Stripe customer with the partner's email). `refereeRewards: true` also credits `store_credit` referee rewards to the referred customer. Custom units (`x_…`) are never credited. Enabling needs a key (`409 stripe_key_required`). Owner or admin. Audited.
+
+        **Auth:** an API key with `payouts:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("PUT", f"/v1/programs/{_seg(id)}/stripe-credits", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     def put_rewards_rules_key(self, key: str, body: PutRewardsRulesKeyBody, *, idempotency_key: Optional[str] = None) -> PutRewardsRulesKeyResponse:
         """Save a reward rule. PUT /v1/rewards/rules/{key}
 
@@ -4663,6 +4970,15 @@ class Operations:
         **Auth:** an API key with `commissions:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return self._request("PUT", f"/v1/rewards/rules/{_seg(key)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def put_stripe_credits_connection(self, body: PutStripeCreditsConnectionBody, *, idempotency_key: Optional[str] = None) -> GetStripeCreditsConnectionResponse:
+        """Connect a Stripe key for balance credits. PUT /v1/stripe-credits/connection
+
+        Stores your own Stripe restricted key (`rk_…`, with Customers write) for the balance credit rail, encrypted and never echoed. Without one the rail uses the secret key of your Stripe payout connection, if any. Owner or admin, recent sign-in. Audited.
+
+        **Auth:** an API key with `payouts:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return self._request("PUT", f"/v1/stripe-credits/connection", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     def put_support_apps_adapter(self, adapter: str, body: PutSupportAppsAdapterBody, *, idempotency_key: Optional[str] = None) -> PutSupportAppsAdapterResponse:
         """Connect a support tool. PUT /v1/support/apps/{adapter}
@@ -4789,6 +5105,15 @@ class AsyncOperations:
         """
         return await self._request("DELETE", f"/v1/org/sso/direct", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    async def delete_partner_api_tokens_id(self, id: str, *, idempotency_key: Optional[str] = None) -> DeletePartnerApiTokensIdResponse:
+        """Revoke a partner API token. DELETE /v1/partner/api-tokens/{id}
+
+        Stops the token at once. Portal session only.
+
+        **Auth:** a partner session.
+        """
+        return await self._request("DELETE", f"/v1/partner/api-tokens/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     async def delete_partners_id(self, id: str, *, idempotency_key: Optional[str] = None) -> Ok:
         """Delete a partner. DELETE /v1/partners/{id}
 
@@ -4807,6 +5132,15 @@ class AsyncOperations:
         """
         return await self._request("DELETE", f"/v1/payout-connections/{_seg(provider)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    async def delete_portal_theme_draft(self, *, idempotency_key: Optional[str] = None) -> GetPortalThemeResponse:
+        """Discard the portal design draft. DELETE /v1/portal/theme/draft
+
+        Drops the draft and its preview link. What partners see is unchanged. Owner or admin.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("DELETE", f"/v1/portal/theme/draft", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     async def delete_privacy_executors_adapter(self, adapter: str, *, idempotency_key: Optional[str] = None) -> DeletePrivacyExecutorsAdapterResponse:
         """Disconnect a DSAR tool. DELETE /v1/privacy/executors/{adapter}
 
@@ -4815,6 +5149,15 @@ class AsyncOperations:
         **Auth:** an API key with `privacy:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return await self._request("DELETE", f"/v1/privacy/executors/{_seg(adapter)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def delete_product_links_id(self, id: str, *, idempotency_key: Optional[str] = None) -> DeleteProductLinksIdResponse:
+        """Revoke a partner link. DELETE /v1/product-links/{id}
+
+        The link and every token issued from it stop at once. A root action (see create).
+
+        **Auth:** an API key with `team:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("DELETE", f"/v1/product-links/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def delete_profitability_products_product_ref(self, product_ref: str, *, idempotency_key: Optional[str] = None) -> OkStatus:
         """Delete a product margin. DELETE /v1/profitability/products/{productRef}
@@ -4833,6 +5176,15 @@ class AsyncOperations:
         **Auth:** an API key with `commissions:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return await self._request("DELETE", f"/v1/rewards/rules/{_seg(key)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def delete_stripe_credits_connection(self, *, idempotency_key: Optional[str] = None) -> GetStripeCreditsConnectionResponse:
+        """Remove the Stripe balance credit key. DELETE /v1/stripe-credits/connection
+
+        Deletes the rail's own key. A Stripe payout connection, if any, is then used instead; with neither, queued credits fail until a key is connected. Owner or admin. Audited.
+
+        **Auth:** an API key with `payouts:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("DELETE", f"/v1/stripe-credits/connection", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def delete_support_apps_adapter(self, adapter: str, *, idempotency_key: Optional[str] = None) -> DeleteSupportAppsAdapterResponse:
         """Disconnect a support tool. DELETE /v1/support/apps/{adapter}
@@ -5259,7 +5611,7 @@ class AsyncOperations:
     async def get_chatly_identity(self, *, idempotency_key: Optional[str] = None) -> GetChatlyIdentityResponse:
         """Get the support-chat identity. GET /v1/chatly/identity
 
-        The signed-in merchant user or partner as a Chatly widget identity: `externalId` (`merchant:<id>` or `partner:<id>`), email, name and `userHash`, the HMAC-SHA256 of `externalId` with Referalli's identity secret. `identity` is null when signed out or when identity verification isn't configured. Never cached.
+        The signed-in merchant user or partner as a Chatly widget identity: `userToken`, an Atlas token minted for the Atlas session behind this one (audience `chatly:<channel>`, at most 120 s), which the page passes to the widget, and `externalId` (`merchant:<id>` or `partner:<id>`), which stays on the page to notice an account switch. `identity` is null when signed out, when the session has no Atlas session behind it, or when Atlas isn't configured. Never cached.
 
         **Auth:** none.
         """
@@ -5520,17 +5872,6 @@ class AsyncOperations:
         """Every item of ``get_email_templates``, following the pages (use ``async for``)."""
         return self._paginate(lambda cursor: self.get_email_templates(limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
-    async def get_embed(self, *, token: str, idempotency_key: Optional[str] = None) -> GetWellKnownForgedeckEmbedJsonResponse:
-        """Get one org's embed manifest. GET /v1/embed
-
-        The embed manifest for the org that owns `token` (its public tracking token): its link domain in the CSP origins, its longest program cookie window as the storage lifetime, and its consent default. Public, CORS `*`.
-
-        **Auth:** none.
-
-        token: The org's public tracking token.
-        """
-        return await self._request("GET", f"/v1/embed", query={"token": token}, body=None, idempotency_key=idempotency_key, kind="json")
-
     async def get_embed_summary(self, *, idempotency_key: Optional[str] = None) -> GetEmbedSummaryResponse:
         """Read embedded partner stats. GET /v1/embed/summary
 
@@ -5627,23 +5968,32 @@ class AsyncOperations:
         """
         return await self._request("GET", f"/v1/health", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
-    async def get_hosts_current(self, *, idempotency_key: Optional[str] = None) -> GetHostsCurrentResponse:
+    async def get_hosts_current(self, *, theme_preview: Optional[str] = None, idempotency_key: Optional[str] = None) -> GetHostsCurrentResponse:
         """Describe the current host. GET /v1/hosts/current
 
         What the request's host is: a merchant's verified portal domain (with the org's name, branding and public programs), a merchant link domain, or Referalli's own app. Used by the web app before anyone signs in.
 
         **Auth:** none.
         """
-        return await self._request("GET", f"/v1/hosts/current", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+        return await self._request("GET", f"/v1/hosts/current", query={"themePreview": theme_preview}, body=None, idempotency_key=idempotency_key, kind="json")
 
-    async def get_hosts_current_theme_css(self, *, idempotency_key: Optional[str] = None) -> str:
+    async def get_hosts_current_chat_identity(self, *, idempotency_key: Optional[str] = None) -> GetHostsCurrentChatIdentityResponse:
+        """Identify the signed-in partner to the chat. GET /v1/hosts/current/chat-identity
+
+        On a merchant's portal domain, for the signed-in partner of that merchant: the head tags that tell the merchant's chat who they are (partner id, email, name) and, when the merchant saved its chat vendor's identity-verification secret, the vendor's proof (Intercom `user_hash`, a Zendesk messaging JWT, a HubSpot visitor token…). The secret itself never leaves the API. Elsewhere, or for someone who isn't this merchant's partner, `tags` is empty. Partner session; `private, no-store`.
+
+        **Auth:** an API key with `partners:read` (or `full`), or a session of any role.
+        """
+        return await self._request("GET", f"/v1/hosts/current/chat-identity", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_hosts_current_theme_css(self, *, theme_preview: Optional[str] = None, idempotency_key: Optional[str] = None) -> str:
         """Get the current host's theme stylesheet. GET /v1/hosts/current/theme.css
 
         On a merchant's portal domain, the org's theme tokens as a `:root` stylesheet; empty elsewhere.
 
         **Auth:** none.
         """
-        return await self._request("GET", f"/v1/hosts/current/theme.css", query={}, body=None, idempotency_key=idempotency_key, kind="text")
+        return await self._request("GET", f"/v1/hosts/current/theme.css", query={"themePreview": theme_preview}, body=None, idempotency_key=idempotency_key, kind="text")
 
     async def get_incrementality(self, *, program_id: str, idempotency_key: Optional[str] = None) -> GetIncrementalityResponse:
         """Get incrementality results. GET /v1/incrementality
@@ -5869,6 +6219,26 @@ class AsyncOperations:
         """
         return await self._request("GET", f"/v1/org", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    async def get_org_consent_partners_cookiemunch(self, *, idempotency_key: Optional[str] = None) -> GetOrgConsentPartnersCookiemunchResponse:
+        """Get the Cookie Munch consent-event link. GET /v1/org/consent-partners/cookiemunch
+
+        What to enter in Cookie Munch to send your site's consent events to Referalli: link partner `referalli` with `externalId` (your org id); deliveries go to `receiverUrl`. `sites` are the Cookie Munch sites (cbids) whose events this org accepts, and `grants` says, per site, whether its owner granted Referalli that site in Cookie Munch (`granted`, `waiting_on_partner`, `revoked`, `expired`, `none`, or `unknown` when Cookie Munch couldn't be asked; `grantCheck` says why). `stampCheck.status` is `live` when Referalli checks visitors' consent stamps with Cookie Munch, else `not_configured`.
+
+        **Auth:** an API key with `org:read` (or `full`), or a session of any role.
+        """
+        return await self._request("GET", f"/v1/org/consent-partners/cookiemunch", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_org_consent_partners_cookiemunch_events(self, *, stamp: Optional[str] = None, limit: Optional[int] = None, idempotency_key: Optional[str] = None) -> GetOrgConsentPartnersCookiemunchEventsResponse:
+        """List received Cookie Munch consent events. GET /v1/org/consent-partners/cookiemunch/events
+
+        Consent evidence from Cookie Munch, newest first: each `consent.recorded` and `consent.withdrawn` event for your registered sites, with the visitor's consent `stamp`, the `choices` (and for a withdrawal, the `withdrawn` categories), and the id of the key that signed it. Filter by `stamp` to see one visitor's history; with `stamp`, `checks` lists what Cookie Munch said about it (newest first, `credited` only for `consented`). Append-only.
+
+        **Auth:** an API key with `org:read` (or `full`), or a session of any role.
+
+        stamp: Only this visitor's consent stamp.
+        """
+        return await self._request("GET", f"/v1/org/consent-partners/cookiemunch/events", query={"stamp": stamp, "limit": limit}, body=None, idempotency_key=idempotency_key, kind="json")
+
     async def get_org_fx_feed(self, *, idempotency_key: Optional[str] = None) -> GetOrgFxFeedResponse:
         """Get the FX feed setting. GET /v1/org/fx-feed
 
@@ -5881,7 +6251,7 @@ class AsyncOperations:
     async def get_org_hosted_pages(self, *, idempotency_key: Optional[str] = None) -> GetOrgHostedPagesResponse:
         """Get the hosted-page consent and chat. GET /v1/org/hosted-pages
 
-        What runs on the pages Referalli hosts for you on your own portal domain (the partner portal and `/join`): your consent banner (Cookie Munch, OneTrust, Cookiebot, Usercentrics, Didomi, Osano, Termly, iubenda, a custom CMP, a built-in necessary-only notice, or none) and your support chat (Chatly, Intercom, Crisp or custom). `served` is exactly what visitors get: the head tags, the "Cookie settings" link and the Content-Security-Policy built from these adapters. Referalli's own banner and chat never run on your domain.
+        What runs on the pages Referalli hosts for you on your own portal domain (the partner portal and `/join`): your consent banner (Cookie Munch, OneTrust, Cookiebot, Usercentrics, Didomi, Osano, Termly, iubenda, CookieYes, TrustArc, Ketch, Transcend, CookieFirst, consentmanager, Cookie Information, CookieScript, CookieHub, Google Privacy & messaging, Axeptio, Sourcepoint, InMobi Choice, Securiti, Enzuzo, CookiePro, TrustCommander, Klaro, Civic Cookie Control, a custom CMP, a built-in necessary-only notice, or none) and your support chat (Chatly, Intercom, Crisp, Zendesk Messaging, HubSpot, Drift, LiveChat, Tawk.to, Freshchat, Tidio, Help Scout Beacon, Front, Chatwoot, Olark, Smartsupp, JivoChat, Gorgias, Pylon, Plain, Userlike, Zoho SalesIQ, Re:amaze, Chatra, Kustomer, Gladly, Brevo, Trengo, Dixa, Gist, Freshdesk, LiveAgent, Chatbase, Voiceflow, Botpress, Salesforce, Dynamics 365 or custom). `adapters.consent[].fields` are the `config.params` a CMP's inline snippet needs. `adapters.chat[].fields` lists each chat's config keys; `chat.hasIdentitySecret` says whether an identity-verification secret is saved (never the secret). `served` is exactly what visitors get: the head tags, the "Cookie settings" link and the Content-Security-Policy built from these adapters. Referalli's own banner and chat never run on your domain.
 
         **Auth:** an API key with `org:read` (or `full`), or a session of any role.
         """
@@ -6043,6 +6413,15 @@ class AsyncOperations:
         **Auth:** a partner session.
         """
         return await self._request("GET", f"/v1/partner/advance/offer", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_partner_api_tokens(self, *, idempotency_key: Optional[str] = None) -> GetPartnerApiTokensResponse:
+        """List your partner API tokens. GET /v1/partner/api-tokens
+
+        Your active `rpt_` tokens (never the token itself). Portal session only: a token cannot list tokens.
+
+        **Auth:** a partner session.
+        """
+        return await self._request("GET", f"/v1/partner/api-tokens", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def get_partner_assets(self, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetPartnerAssetsResponseDataItem]:
         """List marketing assets. GET /v1/partner/assets
@@ -6399,14 +6778,14 @@ class AsyncOperations:
         """
         return await self._request("GET", f"/v1/partner/security", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
-    async def get_partners_id(self, id: str, *, idempotency_key: Optional[str] = None) -> GetPartnersIdResponse:
+    async def get_partners_id(self, id: str, *, program_id: Optional[str] = None, idempotency_key: Optional[str] = None) -> GetPartnersIdResponse:
         """Get a partner. GET /v1/partners/{id}
 
-        One partner, with a cross-network warning when the same account is flagged or banned by other merchants (it never says which).
+        One partner, with a cross-network warning when the same account is flagged or banned by other merchants (it never says which). With `programId`, `externalRef` is the one that program knows them by: its own externalRef for them when it has one, else the partner's.
 
         **Auth:** an API key with `partners:read` (or `full`), or a session of any role.
         """
-        return await self._request("GET", f"/v1/partners/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+        return await self._request("GET", f"/v1/partners/{_seg(id)}", query={"programId": program_id}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def get_partners_id_balances(self, id: str, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[Balance]:
         """Get a partner's balances. GET /v1/partners/{id}/balances
@@ -6430,7 +6809,7 @@ class AsyncOperations:
     async def get_partners_id_enrollments(self, id: str, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetPartnersIdEnrollmentsResponseDataItem]:
         """List a partner's enrollments. GET /v1/partners/{id}/enrollments
 
-        The programs a partner is enrolled in or applied to, with status and group.
+        The programs a partner is enrolled in or applied to, with status, group and `externalRef` (that program's own id for the partner, or null when the partner's own applies).
 
         **Auth:** an API key with `partners:read` (or `full`), or a session of any role.
 
@@ -6463,6 +6842,24 @@ class AsyncOperations:
         **Auth:** an API key with `partners:read` (or `full`), or a session of any role.
         """
         return await self._request("GET", f"/v1/partners/{_seg(id)}/quality", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_partners_id_stats(self, id: str, *, program_id: Optional[str] = None, idempotency_key: Optional[str] = None) -> GetPartnersIdStatsResponse:
+        """Get a partner's stats. GET /v1/partners/{id}/stats
+
+        What the partner brought in, in one call: eligible clicks, referrals by status, converted customers (referred, not void, with at least one payment) and balances per currency. Pass `programId` to count one program only (an org shared by several products).
+
+        **Auth:** an API key with `commissions:read` (or `full`), or a session of any role.
+        """
+        return await self._request("GET", f"/v1/partners/{_seg(id)}/stats", query={"programId": program_id}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_partners_id_summary(self, id: str, *, program_id: str, idempotency_key: Optional[str] = None) -> GetPartnersIdSummaryResponse:
+        """Get a partner's referrer summary. GET /v1/partners/{id}/summary
+
+        Everything a referrer panel shows, in one call: the stats for one program (`programId` is required) plus the partner's current `code` there (the newest coupon, else the newest link's code) and `linkUrl` (null when they have only a coupon).
+
+        **Auth:** an API key with `commissions:read` (or `full`), or a session of any role.
+        """
+        return await self._request("GET", f"/v1/partners/{_seg(id)}/summary", query={"programId": program_id}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def get_partner_stats(self, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetPartnerStatsResponseDataItem]:
         """Get my stats. GET /v1/partner/stats
@@ -6623,6 +7020,42 @@ class AsyncOperations:
         """
         return await self._request("GET", f"/v1/portal-auth/current", query={"org": org}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    async def get_portal_theme(self, *, idempotency_key: Optional[str] = None) -> GetPortalThemeResponse:
+        """Get the portal design. GET /v1/portal/theme
+
+        The partner portal's look and layout on your portal domain: `published` (what partners see) and `draft` (what you are editing, or null). Colours with a separate dark palette, the colour scheme, widths and density, fonts (a stylesheet URL, `@font-face` files, a family per role, the type scale), the logo set and favicon, component shape (radius, shadow, buttons, inputs, focus ring, links), an announcement, the header and footer, the home sections and navigation, the sign-in page, interface string overrides, typed theme settings, CSS snippets, custom CSS, phone tuning and embedding. Every key is optional; an unset key keeps the built-in look.
+
+        **Auth:** an API key with `org:read` (or `full`), or a session of any role.
+        """
+        return await self._request("GET", f"/v1/portal/theme", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_portal_theme_compiled(self, *, which: Optional[Literal["draft", "published"]] = None, idempotency_key: Optional[str] = None) -> GetPortalThemeCompiledResponse:
+        """Preview the compiled portal design. GET /v1/portal/theme/compiled
+
+        The draft (or `?which=published`) compiled: `css`, the stylesheet partners load, and `view`, the layout, brand and text the portal draws. For a live preview in your own editor.
+
+        **Auth:** an API key with `org:read` (or `full`), or a session of any role.
+        """
+        return await self._request("GET", f"/v1/portal/theme/compiled", query={"which": which}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_portal_theme_schema(self, *, idempotency_key: Optional[str] = None) -> GetPortalThemeSchemaResponse:
+        """Get the portal design schema. GET /v1/portal/theme/schema
+
+        Every key the portal design takes, as JSON Schema (draft 2020-12): build an editor or validate a theme file before you send it.
+
+        **Auth:** an API key with `org:read` (or `full`), or a session of any role.
+        """
+        return await self._request("GET", f"/v1/portal/theme/schema", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_portal_theme_versions(self, *, idempotency_key: Optional[str] = None) -> GetPortalThemeVersionsResponse:
+        """List published portal designs. GET /v1/portal/theme/versions
+
+        The last 50 published versions, newest first.
+
+        **Auth:** an API key with `org:read` (or `full`), or a session of any role.
+        """
+        return await self._request("GET", f"/v1/portal/theme/versions", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     async def get_privacy_executor_requests(self, *, idempotency_key: Optional[str] = None) -> GetPrivacyExecutorRequestsResponse:
         """List DSAR tool requests. GET /v1/privacy/executor-requests
 
@@ -6687,6 +7120,15 @@ class AsyncOperations:
         """
         return await self._request("GET", f"/v1/privacy/requests/{_seg(id)}/result", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    async def get_product_links(self, *, idempotency_key: Optional[str] = None) -> GetProductLinksResponse:
+        """List partner links. GET /v1/product-links
+
+        Other products allowed to call this organization's API (REF-S28), newest first, with status, scopes and last use. Secrets are never shown again. Owners and admins, or a key with team:read.
+
+        **Auth:** an API key with `team:read` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("GET", f"/v1/product-links", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     async def get_profitability_products(self, *, idempotency_key: Optional[str] = None) -> GetProfitabilityProductsResponse:
         """List product margins. GET /v1/profitability/products
 
@@ -6723,10 +7165,10 @@ class AsyncOperations:
         """
         return await self._request("GET", f"/v1/profitability/settings", query={"programId": program_id}, body=None, idempotency_key=idempotency_key, kind="json")
 
-    async def get_programs(self, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[Program]:
+    async def get_programs(self, *, slug: Optional[str] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[Program]:
         """List programs. GET /v1/programs
 
-        The org's programs, oldest first, with their settings.
+        The org's programs, oldest first, with their settings. `slug` returns just that program.
 
         **Auth:** an API key with `programs:read` (or `full`), or a session of any role.
 
@@ -6736,11 +7178,11 @@ class AsyncOperations:
         created[gte]: Only items created at or after this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
         created[lte]: Only items created at or before this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
         """
-        return await self._request("GET", f"/v1/programs", query={"limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
+        return await self._request("GET", f"/v1/programs", query={"slug": slug, "limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
 
-    def get_programs_iter(self, *, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> AsyncIterator[Program]:
+    def get_programs_iter(self, *, slug: Optional[str] = None, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> AsyncIterator[Program]:
         """Every item of ``get_programs``, following the pages (use ``async for``)."""
-        return self._paginate(lambda cursor: self.get_programs(limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
+        return self._paginate(lambda cursor: self.get_programs(slug=slug, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
     async def get_programs_id(self, id: str, *, idempotency_key: Optional[str] = None) -> Program:
         """Get a program. GET /v1/programs/{id}
@@ -6760,10 +7202,10 @@ class AsyncOperations:
         """
         return await self._request("GET", f"/v1/programs/{_seg(id)}/autopricing", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
-    async def get_programs_id_enrollments(self, id: str, *, status: Optional[Literal["applied", "approved", "rejected", "removed"]] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetProgramsIdEnrollmentsResponseDataItem]:
+    async def get_programs_id_enrollments(self, id: str, *, status: Optional[Literal["applied", "approved", "rejected", "removed"]] = None, partner_id: Optional[str] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetProgramsIdEnrollmentsResponseDataItem]:
         """List program enrollments. GET /v1/programs/{id}/enrollments
 
-        The program's enrollments and applications, newest first, each with the partner and a cross-network warning when other merchants banned the same account. Filter with `status`.
+        The program's enrollments and applications, newest first, each with the partner and a cross-network warning when other merchants banned the same account and `externalRef` (this program's own id for the partner, or null). Filter with `status` or `partnerId`.
 
         **Auth:** an API key with `programs:read` (or `full`), or a session of any role.
 
@@ -6773,11 +7215,11 @@ class AsyncOperations:
         created[gte]: Only items created at or after this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
         created[lte]: Only items created at or before this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
         """
-        return await self._request("GET", f"/v1/programs/{_seg(id)}/enrollments", query={"status": status, "limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
+        return await self._request("GET", f"/v1/programs/{_seg(id)}/enrollments", query={"status": status, "partnerId": partner_id, "limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
 
-    def get_programs_id_enrollments_iter(self, id: str, *, status: Optional[Literal["applied", "approved", "rejected", "removed"]] = None, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> AsyncIterator[GetProgramsIdEnrollmentsResponseDataItem]:
+    def get_programs_id_enrollments_iter(self, id: str, *, status: Optional[Literal["applied", "approved", "rejected", "removed"]] = None, partner_id: Optional[str] = None, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> AsyncIterator[GetProgramsIdEnrollmentsResponseDataItem]:
         """Every item of ``get_programs_id_enrollments``, following the pages (use ``async for``)."""
-        return self._paginate(lambda cursor: self.get_programs_id_enrollments(id, status=status, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
+        return self._paginate(lambda cursor: self.get_programs_id_enrollments(id, status=status, partner_id=partner_id, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
     async def get_programs_id_graph(self, id: str, *, root: str, depth: Optional[int] = None, idempotency_key: Optional[str] = None) -> GetProgramsIdGraphResponse:
         """Get the referral tree. GET /v1/programs/{id}/graph
@@ -6844,6 +7286,34 @@ class AsyncOperations:
         **Auth:** an API key with `programs:read` (or `full`), or a session of any role.
         """
         return await self._request("GET", f"/v1/programs/{_seg(id)}/referee-reward", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_programs_id_stripe_credits(self, id: str, *, idempotency_key: Optional[str] = None) -> GetProgramsIdStripeCreditsResponse:
+        """Get a program's Stripe balance credit settings. GET /v1/programs/{id}/stripe-credits
+
+        Whether settled lines of this program are credited to the partner's Stripe customer balance, how that customer is found (`referrerMatch`), and whether store-credit referee rewards are credited too. `keyConnected` says whether a Stripe key is available.
+
+        **Auth:** an API key with `payouts:read` (or `full`), or a session of any role.
+        """
+        return await self._request("GET", f"/v1/programs/{_seg(id)}/stripe-credits", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_programs_id_stripe_credits_log(self, id: str, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetProgramsIdStripeCreditsLogResponseDataItem]:
+        """List a program's Stripe balance credits. GET /v1/programs/{id}/stripe-credits/log
+
+        Every credit and debit the rail queued for this program, newest first: amount, Stripe customer, `status` (`pending`, `applied`, `no_customer`, `failed`, `canceled`), attempts, the Stripe balance transaction id once applied, and the last error. Unapplied rows are retried hourly, up to 24 tries.
+
+        **Auth:** an API key with `payouts:read` (or `full`), or a session of any role.
+
+        limit: Items per page, 1 to 100 (default 50). From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
+        starting_after: A cursor: the id of an item (the previous page's `next_cursor`); returns the items after it. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
+        ending_before: A cursor: returns the items before this item id (the previous page). Not with `starting_after`. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
+        created[gte]: Only items created at or after this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
+        created[lte]: Only items created at or before this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
+        """
+        return await self._request("GET", f"/v1/programs/{_seg(id)}/stripe-credits/log", query={"limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
+
+    def get_programs_id_stripe_credits_log_iter(self, id: str, *, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> AsyncIterator[GetProgramsIdStripeCreditsLogResponseDataItem]:
+        """Every item of ``get_programs_id_stripe_credits_log``, following the pages (use ``async for``)."""
+        return self._paginate(lambda cursor: self.get_programs_id_stripe_credits_log(id, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
     async def get_programs_id_terms_acceptances(self, id: str, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetProgramsIdTermsAcceptancesResponseDataItem]:
         """List terms acceptances. GET /v1/programs/{id}/terms-acceptances
@@ -7187,6 +7657,15 @@ class AsyncOperations:
         """
         return await self._request("GET", f"/v1/status/incidents/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    async def get_stripe_credits_connection(self, *, idempotency_key: Optional[str] = None) -> GetStripeCreditsConnectionResponse:
+        """Get the Stripe balance credit key status. GET /v1/stripe-credits/connection
+
+        Whether the Stripe balance credit rail has a key: its own (`source: "stripe_credits"`) or your Stripe payout connection (`source: "payout_connection"`). The key is never returned.
+
+        **Auth:** an API key with `payouts:read` (or `full`), or a session of any role.
+        """
+        return await self._request("GET", f"/v1/stripe-credits/connection", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     async def get_support_apps(self, *, idempotency_key: Optional[str] = None) -> GetSupportAppsResponse:
         """List support tool connections. GET /v1/support/apps
 
@@ -7196,7 +7675,7 @@ class AsyncOperations:
         """
         return await self._request("GET", f"/v1/support/apps", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
-    async def get_support_cards_org_id_adapter(self, org_id: str, adapter: str, *, email: Optional[str] = None, external_id: Optional[str] = None, idempotency_key: Optional[str] = None) -> PostSupportCardsOrgIdAdapterResponse:
+    async def get_support_cards_org_id_adapter(self, org_id: str, adapter: str, *, email: Optional[str] = None, external_id: Optional[str] = None, idempotency_key: Optional[str] = None) -> GetSupportPlatformChatlyAnswersResponse:
         """Render a support card for a tool (GET). GET /v1/support/cards/{orgId}/{adapter}
 
         The same card for tools that fetch with GET (HubSpot legacy CRM cards pass the contact as query parameters). Signed as for the POST form; 404 otherwise.
@@ -7216,6 +7695,15 @@ class AsyncOperations:
         ext: A support tool's verified external id: matched as a partner externalRef, then as a customer ref.
         """
         return await self._request("GET", f"/v1/support/context", query={"email": email, "customerRef": customer_ref, "partnerExternalRef": partner_external_ref, "ext": ext}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_support_platform_chatly_answers(self, *, subject: Optional[str] = None, principal: Optional[str] = None, question: Optional[str] = None, idempotency_key: Optional[str] = None) -> GetSupportPlatformChatlyAnswersResponse:
+        """Answer a partner's question for Referalli's own support desk. GET /v1/support/platform/chatly-answers
+
+        Called by Chatly's `referral_answers` preset, never by you: a signed GET (`x-chatly-signature: t=…,v1=…`, HMAC-SHA256 with `CHATLY_TOOL_SECRET` over `<t>.GET.<path and query>.`, 300 s window) with `question` (`referral_link`, `commission_status`, `next_payout`; others get the full answer), `subject` (the verified Atlas `sub`) and `principal` (`partner`, or absent when the tool was created over the API). Read-only: the partner's link, pending, approved and paid commission and next payout in every programme they're in. `{found: false}` when no partner account is linked; 403 without a verified partner identity; 404 for a bad or stale signature.
+
+        **Auth:** none.
+        """
+        return await self._request("GET", f"/v1/support/platform/chatly-answers", query={"subject": subject, "principal": principal, "question": question}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def get_tax1099(self, *, year: int, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetTax1099ResponseDataItem]:
         """Export 1099-NEC data. GET /v1/tax/1099
@@ -7434,7 +7922,7 @@ class AsyncOperations:
     async def patch_api_keys_id(self, id: str, body: PatchApiKeysIdBody, *, idempotency_key: Optional[str] = None) -> PatchApiKeysIdResponse:
         """Update an API key. PATCH /v1/api-keys/{id}
 
-        Changes a key's pinned `apiVersion`, `owner` or expiry (`expiresInDays` from now; `null` removes it). Revoked keys are 404. Needs an owner or admin session, or an API key with the `admin` scope. Audited.
+        Changes a key's pinned `apiVersion`, `owner`, expiry (`expiresInDays` from now; `null` removes it) or `programIds` (`null` makes it org-wide). Revoked keys are 404. Needs an owner or admin session, or an API key with the `admin` scope. Audited.
 
         **Auth:** an API key with `team:write` (or `full`), or a session of any role.
         """
@@ -7512,10 +8000,19 @@ class AsyncOperations:
         """
         return await self._request("PATCH", f"/v1/partners/{_seg(id)}/payout-profile", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    async def patch_portal_theme_draft(self, body: Dict[str, Any], *, idempotency_key: Optional[str] = None) -> GetPortalThemeResponse:
+        """Change part of the portal design draft. PATCH /v1/portal/theme/draft
+
+        Deep-merges into the draft (or, with no draft, into a copy of what is published): objects merge key by key, arrays and values replace, `null` deletes a key. The result is validated as a whole. Owner or admin.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("PATCH", f"/v1/portal/theme/draft", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     async def patch_programs_id(self, id: str, body: PatchProgramsIdBody, *, idempotency_key: Optional[str] = None) -> Program:
         """Update a program. PATCH /v1/programs/{id}
 
-        Changes any program field or setting; omitted fields keep their value, and `publicPage` is merged. Changing `termsMd` records a new terms version. Setting `status` to `paused` or `archived` stops new attribution. `mobileApp` (iOS Team ID and bundle id, Android package and signing-certificate fingerprints) publishes the program's apps in the universal-links and App Links files on the org's link hosts. Audited.
+        Changes any program field or setting; omitted fields keep their value, and `publicPage` is merged. Changing `termsMd` records a new terms version. Setting `status` to `paused` or `archived` stops new attribution. `mobileApp` (iOS Team ID and bundle id, Android package and signing-certificate fingerprints) publishes the program's apps in the universal-links and App Links files on the org's link hosts. `destinationUrl` moves the program's default link destination: every link still on the old default (the widget's or a sign-in connection's) is repointed in the same call, custom destinations stay, and links already shared follow at click time; `{code}` in it becomes the link's code. Audited.
 
         **Auth:** an API key with `programs:write` (or `full`), or a session with role `owner`, `admin`.
         """
@@ -7632,7 +8129,7 @@ class AsyncOperations:
     async def post_api_keys(self, body: PostApiKeysBody, *, idempotency_key: Optional[str] = None) -> PostApiKeysResponse:
         """Create an API key. POST /v1/api-keys
 
-        Mints a secret key (`rk_live_…` / `rk_test_…`), shown only in this response. `scopes` defaults to `full`; a key can't grant scopes it doesn't hold. `mode` picks live, test or a matching pair of both (`both` returns `{ pairId, live, test }`); a test-mode caller can mint test keys only. `publishable: true` mints a browser-safe `rk_pub_` key limited to `programs:read` and `events:write` from `allowedOrigins`. `apiVersion` pins the key (default: latest). Needs an owner or admin session, or an API key with the `admin` scope. Audited.
+        Mints a secret key (`rk_live_…` / `rk_test_…`), shown only in this response. `scopes` defaults to `full`; a key can't grant scopes it doesn't hold. `mode` picks live, test or a matching pair of both (`both` returns `{ pairId, live, test }`); a test-mode caller can mint test keys only. `publishable: true` mints a browser-safe `rk_pub_` key limited to `programs:read` and `events:write` from `allowedOrigins`. `apiVersion` pins the key (default: latest). `programIds` limits the key to those programs (their partners, links, referrals, commissions, enrollments, and webhook endpoints whose `programIds` are all within the key's, with their deliveries); a program-scoped key gets 403 `program_scoped_key` on org-wide endpoints (keys, team, org settings, billing, payouts, the event feed, analytics, creating programs). Needs an owner or admin session, or an API key with the `admin` scope. Audited.
 
         **Auth:** an API key with `team:write` (or `full`), or a session of any role.
         """
@@ -7704,7 +8201,7 @@ class AsyncOperations:
     async def post_auth_connections_id_ping(self, id: str, body: Dict[str, Any], *, idempotency_key: Optional[str] = None) -> PostAuthConnectionsIdPingResponse:
         """Test an auth connection (signed protocol). POST /v1/auth/connections/{id}/ping
 
-        Proves the secret works: returns the connection, its program and org and the server time, to check clock skew. Signed with the connection secret in `x-referalli-signature: t=<unix>,v1=…,v2=…` (v2 also signs the request line; once a connection has seen v2 it requires it), with a unique `x-referalli-id` per call. The legacy header names from before the rename are also accepted, for existing integrations. Calls older than 5 minutes, reused ids (`409 replay`), paused connections (`423 connection_paused`) and unknown fields (`422`) are refused.
+        Proves the secret works: returns the connection, its program and org, the server time (to check clock skew) and `capabilities` (`{ partners: true }`: user-chosen referral codes through `/partners`). Signed with the connection secret in `x-referalli-signature: t=<unix>,v1=…,v2=…` (v2 also signs the request line; once a connection has seen v2 it requires it), with a unique `x-referalli-id` per call. The legacy header names from before the rename are also accepted, for existing integrations. Calls older than 5 minutes, reused ids (`409 replay`), paused connections (`423 connection_paused`) and unknown fields (`422`) are refused.
 
         **Auth:** a signature (see above); no API key.
         """
@@ -8223,10 +8720,10 @@ class AsyncOperations:
         """
         return await self._request("POST", f"/v1/notifications/{_seg(id)}/read", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
-    async def post_oauth_token(self, body: PostOauthTokenBody, *, idempotency_key: Optional[str] = None) -> PostOauthTokenResponse:
-        """Exchange an install code. POST /v1/oauth/token
+    async def post_oauth_token(self, body: Union[PostOauthTokenBodyOption1, PostOauthTokenBodyOption2, PostOauthTokenBodyOption3], *, idempotency_key: Optional[str] = None) -> PostOauthTokenResponse:
+        """Token endpoint: install codes, partner links, Atlas operator token exchange. POST /v1/oauth/token
 
-        Server to server: the platform trades the single-use code and its PKCE `code_verifier` for a new signed-protocol connection and its signing secret (returned only here). Installing again for the same instance keeps the connection and issues a new secret, the old one verifying for 24 hours. 401 for an unknown, used, expired or mismatched code. No authentication.
+        Form-encoded or JSON, three grants. `authorization_code`: the platform trades the single-use one-click-install code and its PKCE `code_verifier` for a new signed-protocol connection and its signing secret (returned only here), plus a one-hour `access_token` scoped `connections:write webhooks:write` so the platform can require v2 signatures and register its sync webhook; installing again keeps the connection and issues a new secret, the old one verifying for 24 hours; 401 for an unknown, used, expired or mismatched code. `client_credentials`: a partner link's `client_id` and `client_secret` (HTTP Basic or the body), optional `scope` within the link's, for a one-hour `rat_…` bearer token. `urn:ietf:params:oauth:grant-type:token-exchange` (RFC 8693): `subject_token` = an Atlas operator access token from `atlas login` (issuer https://atlasauth.net, verified with its discovery document and JWKS, scope `atlas:operator`), `subject_token_type` access_token, `resource` = the org id; the Atlas account must sign in to a Referalli member of that org, and the token gets that role (owner: admin, admin: full, others: read), narrowed by `scope`. Errors follow RFC 6749 §5.2 (`{error, error_description}`). No authentication.
 
         **Auth:** none.
         """
@@ -8240,6 +8737,15 @@ class AsyncOperations:
         **Auth:** an API key with `billing:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return await self._request("POST", f"/v1/onchain/connections", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def post_org_consent_partners_cookiemunch_stamps_check(self, body: PostOrgConsentPartnersCookiemunchStampsCheckBody, *, idempotency_key: Optional[str] = None) -> PostOrgConsentPartnersCookiemunchStampsCheckResponse:
+        """Check a visitor's consent stamp with Cookie Munch. POST /v1/org/consent-partners/cookiemunch/stamps/check
+
+        Asks Cookie Munch (`GET /v1/partner/sites/{cbid}/stamps/{stamp}`) what the visitor's consent stamp says on your registered site (`cbid`, or each registered site in turn) and keeps the answer. `verdict`: `consented` (found, with the `referrals` category on: the only verdict that credits a referral's consent), `not_consented`, `withdrawn` (a later decision turned `referrals` off: `withdrawnAt`), `not_found` (the site never recorded the stamp), `no_grant` (Cookie Munch's 403: the site has no live link to Referalli) or `error`. Clicks and consent events that carry a Cookie Munch stamp are checked the same way in the background. 409 when the partner token isn't configured or no site is registered. Owner or admin.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("POST", f"/v1/org/consent-partners/cookiemunch/stamps/check", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     async def post_org_hosted_pages_check(self, *, idempotency_key: Optional[str] = None) -> PostOrgHostedPagesCheckResponse:
         """Check the hosted-page adapters. POST /v1/org/hosted-pages/check
@@ -8276,6 +8782,15 @@ class AsyncOperations:
         **Auth:** an API key with `team:write` (or `full`), or a session of any role.
         """
         return await self._request("POST", f"/v1/orgs", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def post_orgs_org_id_privacy_executor_key(self, org_id: str, body: PostOrgsOrgIdPrivacyExecutorKeyBody, *, idempotency_key: Optional[str] = None) -> PostOrgsOrgIdPrivacyExecutorKeyResponse:
+        """Mint an executor key under a Cookie Munch partner link. POST /v1/orgs/{orgId}/privacy/executor-key
+
+        Called by Cookie Munch, not by you (CMU-X25): mints (or rotates) this org's cm-standard-v2 executor key so Cookie Munch's `referalli` executor preset can connect without a pasted key. The request must be signed by Cookie Munch's partner key exactly like its consent deliveries: `CookieMunch-Partner-Signature: t=<unix seconds>,kid=<key id>,ed25519=<base64url>` over `<t>.<raw body>`, with the key named in `https://api.cookiemunch.net/v1/partner/jwks.json` (300 s window; each signed request and each body `nonce` works once, a replay is 409; `partner` must be `referalli` and `externalId` the org in the path). Referalli then confirms the partner link with Cookie Munch over its own partner token (`GET /v1/partner/links`): it must be `active` or `waiting_on_partner`, name this org as `externalId`, sit on a site this org registered (`PUT /v1/org/consent-partners/cookiemunch`), and match `cbid`/`linkId` when sent; otherwise 403 `no_grant`. 201 `{secret, executorUrl, contract, orgId, linkId, cbid, rotated}`: `secret` is shown once and is the bearer key for `executorUrl` (`https://referalli.com/api`, the cm-standard-v2 baseUrl: calls go to `<executorUrl>/privacy/*`), where it reaches only this org's referred customers and partners. The old key stops working at once. Audited (`privacy.executor_key_minted`).
+
+        **Auth:** none.
+        """
+        return await self._request("POST", f"/v1/orgs/{_seg(org_id)}/privacy/executor-key", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     async def post_org_sso_direct_test(self, *, idempotency_key: Optional[str] = None) -> PostOrgPortalAuthTestResponse:
         """Test your identity provider. POST /v1/org/sso/direct/test
@@ -8348,6 +8863,15 @@ class AsyncOperations:
         **Auth:** a partner session.
         """
         return await self._request("POST", f"/v1/partner/advance/accept", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def post_partner_api_tokens(self, body: PostPartnerApiTokensBody, *, idempotency_key: Optional[str] = None) -> PostPartnerApiTokensResponse:
+        """Create a partner API token. POST /v1/partner/api-tokens
+
+        A token for calling the partner API from your own code, across every programme you're in: `Authorization: Bearer rpt_…`. `read` reaches your profile, stats, links, referrals, payouts, achievements, assets, groups, contracts, deals, disputes, notifications, invitations, recruiting, terms and KYC status; `write` also creates links, deals and disputes and marks notifications read. Security, profile and payout details, KYC, contracts, advances and tax documents stay portal-only. Shown once. Portal session only, with `x-totp-code` when two-factor is on; at most 10 active.
+
+        **Auth:** a partner session.
+        """
+        return await self._request("POST", f"/v1/partner/api-tokens", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     async def post_partner_auth_wallet_nonce(self, body: PostPartnerAuthWalletNonceBody, *, idempotency_key: Optional[str] = None) -> PostPartnerAuthWalletNonceResponse:
         """Get a wallet sign-in nonce. POST /v1/partner/auth/wallet/nonce
@@ -8511,6 +9035,15 @@ class AsyncOperations:
         """
         return await self._request("POST", f"/v1/partner/security/totp/setup", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    async def post_partners_id_portal_link(self, id: str, body: PostPartnersIdPortalLinkBody, *, idempotency_key: Optional[str] = None) -> PostPartnersIdPortalLinkResponse:
+        """Create a portal sign-in link. POST /v1/partners/{id}/portal-link
+
+        A single-use `url` (valid 5 minutes) for a "View earnings" button in your app: opening it signs the partner in to the partner portal for `programId`, with no second account. The session is read-only and limited to this partner in your organization (never the partner's other merchants or account settings) and lasts 12 hours. `returnUrl` must be a path inside the portal, such as `/portal/earnings`. 404 for a partner outside your organization or not enrolled in the program. Owner or admin.
+
+        **Auth:** an API key with `partners:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("POST", f"/v1/partners/{_seg(id)}/portal-link", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     async def post_partners_id_tax_form(self, id: str, body: PostPartnersIdTaxFormBody, *, idempotency_key: Optional[str] = None) -> Ok:
         """Record a partner's tax form. POST /v1/partners/{id}/tax-form
 
@@ -8574,6 +9107,42 @@ class AsyncOperations:
         """
         return await self._request("POST", f"/v1/payout-runs/run-scheduled", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    async def post_portal_theme_import_brand(self, body: PostPortalThemeImportBrandBody, *, idempotency_key: Optional[str] = None) -> PostPortalThemeImportBrandResponse:
+        """Import a brand file into the portal design. POST /v1/portal/theme/import-brand
+
+        A W3C design-tokens (DTCG) brand file, sent as `document` or fetched from an https `url`, merged into the draft: colours (`color.primary`, `color.background`, `color.surface`, `color.text`, `color.muted`, `color.border`, status colours), fonts (`font.body`, `font.heading`, `font.mono`, `font.url`), `radius.base`, `logo.url` and `brand.name`. `applied` lists the tokens used. Owner or admin.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("POST", f"/v1/portal/theme/import-brand", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def post_portal_theme_preview(self, *, idempotency_key: Optional[str] = None) -> PostPortalThemePreviewResponse:
+        """Get a preview link for the portal design draft. POST /v1/portal/theme/preview
+
+        A link that shows the draft on your verified portal domain (`?themePreview=rpv_…`) for 7 days, to anyone who has it; minting another retires the last. Partners without the link keep seeing the published design. Owner or admin.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("POST", f"/v1/portal/theme/preview", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def post_portal_theme_publish(self, body: PostPortalThemePublishBody, *, idempotency_key: Optional[str] = None) -> GetPortalThemeResponse:
+        """Publish the portal design. POST /v1/portal/theme/publish
+
+        Makes the draft what partners see (within a minute), keeps it as a version you can restore, and retires the preview link. Optional `note`. Owner or admin. Audited.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("POST", f"/v1/portal/theme/publish", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def post_portal_theme_versions_id_restore(self, id: str, *, idempotency_key: Optional[str] = None) -> GetPortalThemeResponse:
+        """Restore a portal design version. POST /v1/portal/theme/versions/{id}/restore
+
+        Copies a published version into the draft; publish it to make it live again. Owner or admin.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("POST", f"/v1/portal/theme/versions/{_seg(id)}/restore", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     async def post_privacy_executor_keys(self, body: PostPrivacyExecutorKeysBody, *, idempotency_key: Optional[str] = None) -> PostPrivacyExecutorKeysResponse:
         """Mint a DSAR executor key. POST /v1/privacy/executor-keys
 
@@ -8619,6 +9188,15 @@ class AsyncOperations:
         """
         return await self._request("POST", f"/v1/privacy/requests", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    async def post_product_links(self, body: PostProductLinksBody, *, idempotency_key: Optional[str] = None) -> PostProductLinksResponse:
+        """Create a partner link. POST /v1/product-links
+
+        `{partner, name?, scopes[], expires_at?}` (Unix ms or ISO 8601, at most a year; default a year; never "never"). Scopes are resource scopes (`integrations:write`, `partners:read`, …) or `connections:read|write` (the auth-platform connection routes only, what Atlas asks for); never admin, full or team. Returns `client_id` and `client_secret` once; the partner swaps them at POST /v1/oauth/token (client_credentials) or sends the secret as a bearer. A root action: an API key cannot hand out more than it holds, and an Atlas operator token needs an MFA sign-in at most 5 minutes old (403 `step_up_required` otherwise).
+
+        **Auth:** an API key with `team:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("POST", f"/v1/product-links", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     async def post_profitability_rebuild(self, *, idempotency_key: Optional[str] = None) -> PostProfitabilityRebuildResponse:
         """Rebuild ROI figures. POST /v1/profitability/rebuild
 
@@ -8658,7 +9236,7 @@ class AsyncOperations:
     async def post_programs_id_enrollments(self, id: str, body: PostProgramsIdEnrollmentsBody, *, idempotency_key: Optional[str] = None) -> Enrollment:
         """Enroll a partner. POST /v1/programs/{id}/enrollments
 
-        Enrolls an existing partner in the program, approved at once. Publishes `partner.enrolled`. 409 when already enrolled.
+        Enrolls an existing partner in the program, approved at once. Publishes `partner.enrolled`. 409 when already enrolled. `externalRef` is this program's own id for the partner, when their partner `externalRef` belongs to another product sharing the org; this program's webhooks and `GET /v1/partners?externalRef=` then use it.
 
         **Auth:** an API key with `programs:write` (or `full`), or a session with role `owner`, `admin`.
         """
@@ -8699,6 +9277,15 @@ class AsyncOperations:
         **Auth:** an API key with `programs:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return await self._request("POST", f"/v1/programs/{_seg(id)}/promotions", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def post_programs_id_referrers(self, id: str, body: PostProgramsIdReferrersBody, *, idempotency_key: Optional[str] = None) -> PostProgramsIdReferrersResponse:
+        """Make a user a referrer. POST /v1/programs/{id}/referrers
+
+        One idempotent call for one of your users: finds the partner by `externalRef` (or by `email`, enrolling them under this program's own `externalRef` when they refer for another product in the org), else creates it, then enrolls them and creates a coupon code and a link to the program's default destination when missing. `email` is needed only to create the partner (400 without it). 409 `email_taken` when that email is already enrolled in this program under another id.
+
+        **Auth:** an API key with `programs:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("POST", f"/v1/programs/{_seg(id)}/referrers", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     async def post_promotions_id_end(self, id: str, *, idempotency_key: Optional[str] = None) -> Promotion:
         """End a promotion. POST /v1/promotions/{id}/end
@@ -8817,7 +9404,7 @@ class AsyncOperations:
         """
         return await self._request("POST", f"/v1/support/apps/{_seg(adapter)}/test", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
-    async def post_support_cards_org_id_adapter(self, org_id: str, adapter: str, body: Dict[str, Any], *, idempotency_key: Optional[str] = None) -> PostSupportCardsOrgIdAdapterResponse:
+    async def post_support_cards_org_id_adapter(self, org_id: str, adapter: str, body: Dict[str, Any], *, idempotency_key: Optional[str] = None) -> GetSupportPlatformChatlyAnswersResponse:
         """Render a support card for a tool. POST /v1/support/cards/{orgId}/{adapter}
 
         Called by the support tool, signed in its own scheme (Chatly `x-chatly-signature`, Intercom `X-Body-Signature`, HubSpot v3, Front, Help Scout, a Zendesk app JWT, or the custom `X-Referalli-Signature`). Answers the tool's card format. An unknown org, a tool that is not connected, or a bad or stale signature all answer 404.
@@ -8825,6 +9412,15 @@ class AsyncOperations:
         **Auth:** none.
         """
         return await self._request("POST", f"/v1/support/cards/{_seg(org_id)}/{_seg(adapter)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def post_support_platform_chatly_card(self, body: Dict[str, Any], *, idempotency_key: Optional[str] = None) -> GetSupportPlatformChatlyAnswersResponse:
+        """Render the card for Referalli's own support desk. POST /v1/support/platform/chatly-card
+
+        Called by Chatly for Referalli's own support workspace, signed `x-chatly-signature` with `CHATLY_PLATFORM_CARD_SECRET`. Names the person by the verified Atlas identity (`iss`, `sub`, `principal`), or by `contact.externalId` (`merchant:<user id>` / `partner:<account id>`), and answers one card across every programme they're in: a partner's status, balances and next payout per programme, or a merchant's organizations and roles. Unknown people get `blocks: null`; a bad or stale signature answers 404.
+
+        **Auth:** none.
+        """
+        return await self._request("POST", f"/v1/support/platform/chatly-card", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     async def post_tax1099_documents_id_correct(self, id: str, *, idempotency_key: Optional[str] = None) -> TaxFiling:
         """File a corrected 1099. POST /v1/tax/1099/documents/{id}/correct
@@ -9080,6 +9676,15 @@ class AsyncOperations:
         """
         return await self._request("PUT", f"/v1/network/settings", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    async def put_org_consent_partners_cookiemunch(self, body: PutOrgConsentPartnersCookiemunchBody, *, idempotency_key: Optional[str] = None) -> GetOrgConsentPartnersCookiemunchResponse:
+        """Set the Cookie Munch sites to accept consent events for. PUT /v1/org/consent-partners/cookiemunch
+
+        Replaces the list of Cookie Munch sites (cbids) whose signed consent events this org keeps. An event for any other site is acknowledged and dropped, since the org a delivery names is chosen by whoever made the link. Owner or admin. Audited.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("PUT", f"/v1/org/consent-partners/cookiemunch", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     async def put_org_fx_feed(self, body: PutOrgFxFeedBody, *, idempotency_key: Optional[str] = None) -> PutOrgFxFeedResponse:
         """Turn the FX feed on or off. PUT /v1/org/fx-feed
 
@@ -9092,7 +9697,7 @@ class AsyncOperations:
     async def put_org_hosted_pages(self, body: PutOrgHostedPagesBody, *, idempotency_key: Optional[str] = None) -> GetOrgHostedPagesResponse:
         """Set the hosted-page consent and chat. PUT /v1/org/hosted-pages
 
-        Validates and saves the adapters. A CMP's `scriptUrl` must be https on that vendor's own hosts; `custom` needs every origin listed. `customOrigins` adds origins per CSP directive (https or wss, no wildcards, no keywords). Owner or admin. Audited.
+        Validates and saves the adapters. A CMP's `scriptUrl` must be https on that vendor's own hosts; `custom` needs every origin listed; every chat vendor also takes `origins` for hosts its account needs beyond the documented list. `chat.identitySecret` (write-only, sealed) is your chat vendor's identity-verification secret, used to sign partners in to your chat: a string sets it, `null` removes it, absent keeps it, and switching vendors drops it. `customOrigins` adds origins per CSP directive (https or wss, no wildcards, no keywords). Owner or admin. Audited.
 
         **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
         """
@@ -9107,10 +9712,10 @@ class AsyncOperations:
         """
         return await self._request("PUT", f"/v1/org/payout-schedule", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
-    async def put_org_portal_auth(self, body: Union[PutOrgPortalAuthBodyOption1, PutOrgPortalAuthBodyOption2, PutOrgPortalAuthBodyOption3], *, idempotency_key: Optional[str] = None) -> PutOrgPortalAuthResponse:
+    async def put_org_portal_auth(self, body: Union[PutOrgPortalAuthBodyOption1, PutOrgPortalAuthBodyOption2, PutOrgPortalAuthBodyOption3, PutOrgPortalAuthBodyOption4], *, idempotency_key: Optional[str] = None) -> PutOrgPortalAuthResponse:
         """Set partner sign-in. PUT /v1/org/portal-auth
 
-        Chooses the portal sign-in adapter and its settings. `custom`: `issuer`, `jwksUrl` (https), optional `loginUrl` (your page that mints the token) and `autoEnrollProgramId`. `oidc`: `issuer`, `clientId`, `clientSecret`. `referalli` removes any configuration. Owner only.
+        Chooses the portal sign-in adapter and its settings. `custom`: `issuer` and `jwksUrl` (https), or `preset` + `tenant` for a known platform (`jwtPresets` in the GET lists them: Clerk, Supabase, Firebase, Auth0, Cognito, Stytch, Kinde, Okta, Entra ID, Google, Keycloak, Descope, FusionAuth), or `keyType: hs256` with a write-only `sharedSecret` (≥ 32 characters, sealed); optional `audience` (default `referalli:<org>`), `maxAgeS` (30 to 3600, default 300), `claims` (where `sub`, `email`, `name`, `emailVerified` live, by name or dot path), `loginUrl` (your page that mints the token) and `autoEnrollProgramId`. `oidc`: `issuer`, `clientId`, `clientSecret`. `referalli` removes any configuration. Owner only.
 
         **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`.
         """
@@ -9242,6 +9847,15 @@ class AsyncOperations:
         """
         return await self._request("PUT", f"/v1/payout-connections/{_seg(provider)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    async def put_portal_theme_draft(self, body: Dict[str, Any], *, idempotency_key: Optional[str] = None) -> GetPortalThemeResponse:
+        """Replace the portal design draft. PUT /v1/portal/theme/draft
+
+        Replaces the whole draft: keys you leave out are gone. Unknown keys are refused with 422 naming each one by its full path. Owner or admin.
+
+        **Auth:** an API key with `org:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("PUT", f"/v1/portal/theme/draft", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     async def put_profitability_products_product_ref(self, product_ref: str, body: PutProfitabilityProductsProductRefBody, *, idempotency_key: Optional[str] = None) -> GetProfitabilityProductsProductRefResponse:
         """Set a product margin. PUT /v1/profitability/products/{productRef}
 
@@ -9314,6 +9928,15 @@ class AsyncOperations:
         """
         return await self._request("PUT", f"/v1/programs/{_seg(id)}/referee-reward", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    async def put_programs_id_stripe_credits(self, id: str, body: PutProgramsIdStripeCreditsBody, *, idempotency_key: Optional[str] = None) -> GetProgramsIdStripeCreditsResponse:
+        """Set a program's Stripe balance credit settings. PUT /v1/programs/{id}/stripe-credits
+
+        Turns the rail on or off for a program. Each `commission.settled` line with method `merchant_credit` is credited to the referrer's Stripe customer balance; a later `commission.reversed` debits it back. `referrerMatch`: `billing_link` (the partner's externalRef is a `cus_…` id or is billing-linked to one), `metadata` (Stripe customer search on `metadata[metadataKey]` = the partner's externalRef) or `email` (the one Stripe customer with the partner's email). `refereeRewards: true` also credits `store_credit` referee rewards to the referred customer. Custom units (`x_…`) are never credited. Enabling needs a key (`409 stripe_key_required`). Owner or admin. Audited.
+
+        **Auth:** an API key with `payouts:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("PUT", f"/v1/programs/{_seg(id)}/stripe-credits", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     async def put_rewards_rules_key(self, key: str, body: PutRewardsRulesKeyBody, *, idempotency_key: Optional[str] = None) -> PutRewardsRulesKeyResponse:
         """Save a reward rule. PUT /v1/rewards/rules/{key}
 
@@ -9322,6 +9945,15 @@ class AsyncOperations:
         **Auth:** an API key with `commissions:write` (or `full`), or a session with role `owner`, `admin`.
         """
         return await self._request("PUT", f"/v1/rewards/rules/{_seg(key)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def put_stripe_credits_connection(self, body: PutStripeCreditsConnectionBody, *, idempotency_key: Optional[str] = None) -> GetStripeCreditsConnectionResponse:
+        """Connect a Stripe key for balance credits. PUT /v1/stripe-credits/connection
+
+        Stores your own Stripe restricted key (`rk_…`, with Customers write) for the balance credit rail, encrypted and never echoed. Without one the rail uses the secret key of your Stripe payout connection, if any. Owner or admin, recent sign-in. Audited.
+
+        **Auth:** an API key with `payouts:write` (or `full`), or a session with role `owner`, `admin`.
+        """
+        return await self._request("PUT", f"/v1/stripe-credits/connection", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     async def put_support_apps_adapter(self, adapter: str, body: PutSupportAppsAdapterBody, *, idempotency_key: Optional[str] = None) -> PutSupportAppsAdapterResponse:
         """Connect a support tool. PUT /v1/support/apps/{adapter}
@@ -9347,11 +9979,15 @@ OPERATIONS: Dict[str, tuple] = {
     "deleteIntegrationsKind": ("DELETE", "/v1/integrations/{kind}", ["kind"], [], False, "json", "delete_integrations_kind"),
     "deleteOrgMembersUserId": ("DELETE", "/v1/org/members/{userId}", ["userId"], [], False, "json", "delete_org_members_user_id"),
     "deleteOrgSsoDirect": ("DELETE", "/v1/org/sso/direct", [], [], False, "json", "delete_org_sso_direct"),
+    "deletePartnerApiTokensId": ("DELETE", "/v1/partner/api-tokens/{id}", ["id"], [], False, "json", "delete_partner_api_tokens_id"),
     "deletePartnersId": ("DELETE", "/v1/partners/{id}", ["id"], [], False, "json", "delete_partners_id"),
     "deletePayoutConnectionsProvider": ("DELETE", "/v1/payout-connections/{provider}", ["provider"], [], False, "json", "delete_payout_connections_provider"),
+    "deletePortalThemeDraft": ("DELETE", "/v1/portal/theme/draft", [], [], False, "json", "delete_portal_theme_draft"),
     "deletePrivacyExecutorsAdapter": ("DELETE", "/v1/privacy/executors/{adapter}", ["adapter"], [], False, "json", "delete_privacy_executors_adapter"),
+    "deleteProductLinksId": ("DELETE", "/v1/product-links/{id}", ["id"], [], False, "json", "delete_product_links_id"),
     "deleteProfitabilityProductsProductRef": ("DELETE", "/v1/profitability/products/{productRef}", ["productRef"], [], False, "json", "delete_profitability_products_product_ref"),
     "deleteRewardsRulesKey": ("DELETE", "/v1/rewards/rules/{key}", ["key"], [], False, "json", "delete_rewards_rules_key"),
+    "deleteStripeCreditsConnection": ("DELETE", "/v1/stripe-credits/connection", [], [], False, "json", "delete_stripe_credits_connection"),
     "deleteSupportAppsAdapter": ("DELETE", "/v1/support/apps/{adapter}", ["adapter"], [], False, "json", "delete_support_apps_adapter"),
     "deleteWebhookEndpointsId": ("DELETE", "/v1/webhook-endpoints/{id}", ["id"], [], False, "json", "delete_webhook_endpoints_id"),
     "deleteZapierHooksId": ("DELETE", "/v1/zapier/hooks/{id}", ["id"], [], False, "json", "delete_zapier_hooks_id"),
@@ -9401,7 +10037,6 @@ OPERATIONS: Dict[str, tuple] = {
     "getDisputes": ("GET", "/v1/disputes", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_disputes"),
     "getEmailSettings": ("GET", "/v1/email/settings", [], [], False, "json", "get_email_settings"),
     "getEmailTemplates": ("GET", "/v1/email/templates", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_email_templates"),
-    "getEmbed": ("GET", "/v1/embed", [], [["token","token"]], False, "json", "get_embed"),
     "getEmbedSummary": ("GET", "/v1/embed/summary", [], [], False, "json", "get_embed_summary"),
     "getEvents": ("GET", "/v1/events", [], [["since","since"],["topics","topics"],["after","after"],["limit","limit"]], False, "json", "get_events"),
     "getExportAccounting": ("GET", "/v1/export/accounting", [], [["format","format_"],["year","year"]], False, "text", "get_export_accounting"),
@@ -9410,8 +10045,9 @@ OPERATIONS: Dict[str, tuple] = {
     "getFxRates": ("GET", "/v1/fx-rates", [], [["base","base"],["quote","quote"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_fx_rates"),
     "getGraphql": ("GET", "/v1/graphql", [], [], False, "json", "get_graphql"),
     "getHealth": ("GET", "/v1/health", [], [], False, "json", "get_health"),
-    "getHostsCurrent": ("GET", "/v1/hosts/current", [], [], False, "json", "get_hosts_current"),
-    "getHostsCurrentThemeCss": ("GET", "/v1/hosts/current/theme.css", [], [], False, "text", "get_hosts_current_theme_css"),
+    "getHostsCurrent": ("GET", "/v1/hosts/current", [], [["themePreview","theme_preview"]], False, "json", "get_hosts_current"),
+    "getHostsCurrentChatIdentity": ("GET", "/v1/hosts/current/chat-identity", [], [], False, "json", "get_hosts_current_chat_identity"),
+    "getHostsCurrentThemeCss": ("GET", "/v1/hosts/current/theme.css", [], [["themePreview","theme_preview"]], False, "text", "get_hosts_current_theme_css"),
     "getIncrementality": ("GET", "/v1/incrementality", [], [["programId","program_id"]], False, "json", "get_incrementality"),
     "getIntegrationHealth": ("GET", "/v1/integration-health", [], [], False, "json", "get_integration_health"),
     "getIntegrations": ("GET", "/v1/integrations", [], [], False, "json", "get_integrations"),
@@ -9429,6 +10065,8 @@ OPERATIONS: Dict[str, tuple] = {
     "getOpenapiJson": ("GET", "/v1/openapi.json", [], [], False, "json", "get_openapi_json"),
     "getOpenapiYaml": ("GET", "/v1/openapi.yaml", [], [], False, "text", "get_openapi_yaml"),
     "getOrg": ("GET", "/v1/org", [], [], False, "json", "get_org"),
+    "getOrgConsentPartnersCookiemunch": ("GET", "/v1/org/consent-partners/cookiemunch", [], [], False, "json", "get_org_consent_partners_cookiemunch"),
+    "getOrgConsentPartnersCookiemunchEvents": ("GET", "/v1/org/consent-partners/cookiemunch/events", [], [["stamp","stamp"],["limit","limit"]], False, "json", "get_org_consent_partners_cookiemunch_events"),
     "getOrgFxFeed": ("GET", "/v1/org/fx-feed", [], [], False, "json", "get_org_fx_feed"),
     "getOrgHostedPages": ("GET", "/v1/org/hosted-pages", [], [], False, "json", "get_org_hosted_pages"),
     "getOrgMembers": ("GET", "/v1/org/members", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_org_members"),
@@ -9444,6 +10082,7 @@ OPERATIONS: Dict[str, tuple] = {
     "getPartnerAchievements": ("GET", "/v1/partner/achievements", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_partner_achievements"),
     "getPartnerAdvance": ("GET", "/v1/partner/advance", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_partner_advance"),
     "getPartnerAdvanceOffer": ("GET", "/v1/partner/advance/offer", [], [], False, "json", "get_partner_advance_offer"),
+    "getPartnerApiTokens": ("GET", "/v1/partner/api-tokens", [], [], False, "json", "get_partner_api_tokens"),
     "getPartnerAssets": ("GET", "/v1/partner/assets", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_partner_assets"),
     "getPartnerContracts": ("GET", "/v1/partner/contracts", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_partner_contracts"),
     "getPartnerDeals": ("GET", "/v1/partner/deals", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_partner_deals"),
@@ -9469,11 +10108,13 @@ OPERATIONS: Dict[str, tuple] = {
     "getPartnerReferralsIdTransparency": ("GET", "/v1/partner/referrals/{id}/transparency", ["id"], [], False, "json", "get_partner_referrals_id_transparency"),
     "getPartners": ("GET", "/v1/partners", [], [["email","email"],["externalRef","external_ref"],["status","status"],["includeArchived","include_archived"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_partners"),
     "getPartnerSecurity": ("GET", "/v1/partner/security", [], [], False, "json", "get_partner_security"),
-    "getPartnersId": ("GET", "/v1/partners/{id}", ["id"], [], False, "json", "get_partners_id"),
+    "getPartnersId": ("GET", "/v1/partners/{id}", ["id"], [["programId","program_id"]], False, "json", "get_partners_id"),
     "getPartnersIdBalances": ("GET", "/v1/partners/{id}/balances", ["id"], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_partners_id_balances"),
     "getPartnersIdEnrollments": ("GET", "/v1/partners/{id}/enrollments", ["id"], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_partners_id_enrollments"),
     "getPartnersIdPayoutProfile": ("GET", "/v1/partners/{id}/payout-profile", ["id"], [], False, "json", "get_partners_id_payout_profile"),
     "getPartnersIdQuality": ("GET", "/v1/partners/{id}/quality", ["id"], [], False, "json", "get_partners_id_quality"),
+    "getPartnersIdStats": ("GET", "/v1/partners/{id}/stats", ["id"], [["programId","program_id"]], False, "json", "get_partners_id_stats"),
+    "getPartnersIdSummary": ("GET", "/v1/partners/{id}/summary", ["id"], [["programId","program_id"]], False, "json", "get_partners_id_summary"),
     "getPartnerStats": ("GET", "/v1/partner/stats", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_partner_stats"),
     "getPartnerTaxDocuments": ("GET", "/v1/partner/tax-documents", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_partner_tax_documents"),
     "getPartnerTaxDocumentsId": ("GET", "/v1/partner/tax-documents/{id}", ["id"], [], False, "text", "get_partner_tax_documents_id"),
@@ -9485,25 +10126,32 @@ OPERATIONS: Dict[str, tuple] = {
     "getPayoutsIdInvoice": ("GET", "/v1/payouts/{id}/invoice", ["id"], [["format","format_"]], False, "json", "get_payouts_id_invoice"),
     "getPlans": ("GET", "/v1/plans", [], [], False, "json", "get_plans"),
     "getPortalAuthCurrent": ("GET", "/v1/portal-auth/current", [], [["org","org"]], False, "json", "get_portal_auth_current"),
+    "getPortalTheme": ("GET", "/v1/portal/theme", [], [], False, "json", "get_portal_theme"),
+    "getPortalThemeCompiled": ("GET", "/v1/portal/theme/compiled", [], [["which","which"]], False, "json", "get_portal_theme_compiled"),
+    "getPortalThemeSchema": ("GET", "/v1/portal/theme/schema", [], [], False, "json", "get_portal_theme_schema"),
+    "getPortalThemeVersions": ("GET", "/v1/portal/theme/versions", [], [], False, "json", "get_portal_theme_versions"),
     "getPrivacyExecutorRequests": ("GET", "/v1/privacy/executor-requests", [], [], False, "json", "get_privacy_executor_requests"),
     "getPrivacyExecutors": ("GET", "/v1/privacy/executors", [], [], False, "json", "get_privacy_executors"),
     "getPrivacyExport": ("GET", "/v1/privacy/export", [], [["customerRef","customer_ref"]], False, "json", "get_privacy_export"),
     "getPrivacyRequests": ("GET", "/v1/privacy/requests", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_privacy_requests"),
     "getPrivacyRequestsId": ("GET", "/v1/privacy/requests/{id}", ["id"], [], False, "json", "get_privacy_requests_id"),
     "getPrivacyRequestsIdResult": ("GET", "/v1/privacy/requests/{id}/result", ["id"], [], False, "json", "get_privacy_requests_id_result"),
+    "getProductLinks": ("GET", "/v1/product-links", [], [], False, "json", "get_product_links"),
     "getProfitabilityProducts": ("GET", "/v1/profitability/products", [], [], False, "json", "get_profitability_products"),
     "getProfitabilityProductsProductRef": ("GET", "/v1/profitability/products/{productRef}", ["productRef"], [], False, "json", "get_profitability_products_product_ref"),
     "getProfitabilityRebuildJobId": ("GET", "/v1/profitability/rebuild/{jobId}", ["jobId"], [], False, "json", "get_profitability_rebuild_job_id"),
     "getProfitabilitySettings": ("GET", "/v1/profitability/settings", [], [["programId","program_id"]], False, "json", "get_profitability_settings"),
-    "getPrograms": ("GET", "/v1/programs", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_programs"),
+    "getPrograms": ("GET", "/v1/programs", [], [["slug","slug"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_programs"),
     "getProgramsId": ("GET", "/v1/programs/{id}", ["id"], [], False, "json", "get_programs_id"),
     "getProgramsIdAutopricing": ("GET", "/v1/programs/{id}/autopricing", ["id"], [], False, "json", "get_programs_id_autopricing"),
-    "getProgramsIdEnrollments": ("GET", "/v1/programs/{id}/enrollments", ["id"], [["status","status"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_programs_id_enrollments"),
+    "getProgramsIdEnrollments": ("GET", "/v1/programs/{id}/enrollments", ["id"], [["status","status"],["partnerId","partner_id"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_programs_id_enrollments"),
     "getProgramsIdGraph": ("GET", "/v1/programs/{id}/graph", ["id"], [["root","root"],["depth","depth"]], False, "json", "get_programs_id_graph"),
     "getProgramsIdGroups": ("GET", "/v1/programs/{id}/groups", ["id"], [["includeArchived","include_archived"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_programs_id_groups"),
     "getProgramsIdNegotiationPolicy": ("GET", "/v1/programs/{id}/negotiation-policy", ["id"], [], False, "json", "get_programs_id_negotiation_policy"),
     "getProgramsIdPromotions": ("GET", "/v1/programs/{id}/promotions", ["id"], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_programs_id_promotions"),
     "getProgramsIdRefereeReward": ("GET", "/v1/programs/{id}/referee-reward", ["id"], [], False, "json", "get_programs_id_referee_reward"),
+    "getProgramsIdStripeCredits": ("GET", "/v1/programs/{id}/stripe-credits", ["id"], [], False, "json", "get_programs_id_stripe_credits"),
+    "getProgramsIdStripeCreditsLog": ("GET", "/v1/programs/{id}/stripe-credits/log", ["id"], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_programs_id_stripe_credits_log"),
     "getProgramsIdTermsAcceptances": ("GET", "/v1/programs/{id}/terms-acceptances", ["id"], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_programs_id_terms_acceptances"),
     "getProspects": ("GET", "/v1/prospects", [], [["status","status"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_prospects"),
     "getPublicProgramsHandle": ("GET", "/v1/public/programs/{handle}", ["handle"], [], False, "json", "get_public_programs_handle"),
@@ -9529,9 +10177,11 @@ OPERATIONS: Dict[str, tuple] = {
     "getStatusIncidents": ("GET", "/v1/status/incidents", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_status_incidents"),
     "getStatusIncidentsAtom": ("GET", "/v1/status/incidents.atom", [], [], False, "text", "get_status_incidents_atom"),
     "getStatusIncidentsId": ("GET", "/v1/status/incidents/{id}", ["id"], [], False, "json", "get_status_incidents_id"),
+    "getStripeCreditsConnection": ("GET", "/v1/stripe-credits/connection", [], [], False, "json", "get_stripe_credits_connection"),
     "getSupportApps": ("GET", "/v1/support/apps", [], [], False, "json", "get_support_apps"),
     "getSupportCardsOrgIdAdapter": ("GET", "/v1/support/cards/{orgId}/{adapter}", ["orgId","adapter"], [["email","email"],["externalId","external_id"]], False, "json", "get_support_cards_org_id_adapter"),
     "getSupportContext": ("GET", "/v1/support/context", [], [["email","email"],["customerRef","customer_ref"],["partnerExternalRef","partner_external_ref"],["ext","ext"]], False, "json", "get_support_context"),
+    "getSupportPlatformChatlyAnswers": ("GET", "/v1/support/platform/chatly-answers", [], [["subject","subject"],["principal","principal"],["question","question"]], False, "json", "get_support_platform_chatly_answers"),
     "getTax1099": ("GET", "/v1/tax/1099", [], [["year","year"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_tax1099"),
     "getTax1099Filings": ("GET", "/v1/tax/1099/filings", [], [["year","year"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_tax1099_filings"),
     "getTax1099Preview": ("GET", "/v1/tax/1099/preview", [], [["year","year"]], False, "json", "get_tax1099_preview"),
@@ -9557,6 +10207,7 @@ OPERATIONS: Dict[str, tuple] = {
     "patchPartnerGroupsId": ("PATCH", "/v1/partner-groups/{id}", ["id"], [], True, "json", "patch_partner_groups_id"),
     "patchPartnersId": ("PATCH", "/v1/partners/{id}", ["id"], [], True, "json", "patch_partners_id"),
     "patchPartnersIdPayoutProfile": ("PATCH", "/v1/partners/{id}/payout-profile", ["id"], [], True, "json", "patch_partners_id_payout_profile"),
+    "patchPortalThemeDraft": ("PATCH", "/v1/portal/theme/draft", [], [], True, "json", "patch_portal_theme_draft"),
     "patchProgramsId": ("PATCH", "/v1/programs/{id}", ["id"], [], True, "json", "patch_programs_id"),
     "patchReferralsId": ("PATCH", "/v1/referrals/{id}", ["id"], [], True, "json", "patch_referrals_id"),
     "patchWebhookEndpointsId": ("PATCH", "/v1/webhook-endpoints/{id}", ["id"], [], True, "json", "patch_webhook_endpoints_id"),
@@ -9638,10 +10289,12 @@ OPERATIONS: Dict[str, tuple] = {
     "postNotificationsIdRead": ("POST", "/v1/notifications/{id}/read", ["id"], [], False, "json", "post_notifications_id_read"),
     "postOauthToken": ("POST", "/v1/oauth/token", [], [], True, "json", "post_oauth_token"),
     "postOnchainConnections": ("POST", "/v1/onchain/connections", [], [], True, "json", "post_onchain_connections"),
+    "postOrgConsentPartnersCookiemunchStampsCheck": ("POST", "/v1/org/consent-partners/cookiemunch/stamps/check", [], [], True, "json", "post_org_consent_partners_cookiemunch_stamps_check"),
     "postOrgHostedPagesCheck": ("POST", "/v1/org/hosted-pages/check", [], [], False, "json", "post_org_hosted_pages_check"),
     "postOrgMembers": ("POST", "/v1/org/members", [], [], True, "json", "post_org_members"),
     "postOrgPortalAuthTest": ("POST", "/v1/org/portal-auth/test", [], [], False, "json", "post_org_portal_auth_test"),
     "postOrgs": ("POST", "/v1/orgs", [], [], True, "json", "post_orgs"),
+    "postOrgsOrgIdPrivacyExecutorKey": ("POST", "/v1/orgs/{orgId}/privacy/executor-key", ["orgId"], [], True, "json", "post_orgs_org_id_privacy_executor_key"),
     "postOrgSsoDirectTest": ("POST", "/v1/org/sso/direct/test", [], [], False, "json", "post_org_sso_direct_test"),
     "postOrgSsoLink": ("POST", "/v1/org/sso/link", [], [], False, "json", "post_org_sso_link"),
     "postOrgSsoTickets": ("POST", "/v1/org/sso/tickets", [], [], True, "json", "post_org_sso_tickets"),
@@ -9650,6 +10303,7 @@ OPERATIONS: Dict[str, tuple] = {
     "postOutreachIdApprove": ("POST", "/v1/outreach/{id}/approve", ["id"], [], False, "json", "post_outreach_id_approve"),
     "postOutreachSendDue": ("POST", "/v1/outreach/send-due", [], [], False, "json", "post_outreach_send_due"),
     "postPartnerAdvanceAccept": ("POST", "/v1/partner/advance/accept", [], [], True, "json", "post_partner_advance_accept"),
+    "postPartnerApiTokens": ("POST", "/v1/partner/api-tokens", [], [], True, "json", "post_partner_api_tokens"),
     "postPartnerAuthWalletNonce": ("POST", "/v1/partner/auth/wallet/nonce", [], [], True, "json", "post_partner_auth_wallet_nonce"),
     "postPartnerAuthWalletVerify": ("POST", "/v1/partner/auth/wallet/verify", [], [], True, "json", "post_partner_auth_wallet_verify"),
     "postPartnerContractsIdAccept": ("POST", "/v1/partner/contracts/{id}/accept", ["id"], [], False, "json", "post_partner_contracts_id_accept"),
@@ -9668,6 +10322,7 @@ OPERATIONS: Dict[str, tuple] = {
     "postPartnerSecurityTotpDisable": ("POST", "/v1/partner/security/totp/disable", [], [], True, "json", "post_partner_security_totp_disable"),
     "postPartnerSecurityTotpEnable": ("POST", "/v1/partner/security/totp/enable", [], [], True, "json", "post_partner_security_totp_enable"),
     "postPartnerSecurityTotpSetup": ("POST", "/v1/partner/security/totp/setup", [], [], False, "json", "post_partner_security_totp_setup"),
+    "postPartnersIdPortalLink": ("POST", "/v1/partners/{id}/portal-link", ["id"], [], True, "json", "post_partners_id_portal_link"),
     "postPartnersIdTaxForm": ("POST", "/v1/partners/{id}/tax-form", ["id"], [], True, "json", "post_partners_id_tax_form"),
     "postPartnerTermsVersionIdAccept": ("POST", "/v1/partner/terms/{versionId}/accept", ["versionId"], [], False, "json", "post_partner_terms_version_id_accept"),
     "postPassportVerify": ("POST", "/v1/passport/verify", [], [], True, "json", "post_passport_verify"),
@@ -9675,11 +10330,16 @@ OPERATIONS: Dict[str, tuple] = {
     "postPayoutRunsIdCancel": ("POST", "/v1/payout-runs/{id}/cancel", ["id"], [], False, "json", "post_payout_runs_id_cancel"),
     "postPayoutRunsIdExecute": ("POST", "/v1/payout-runs/{id}/execute", ["id"], [], False, "json", "post_payout_runs_id_execute"),
     "postPayoutRunsRunScheduled": ("POST", "/v1/payout-runs/run-scheduled", [], [], False, "json", "post_payout_runs_run_scheduled"),
+    "postPortalThemeImportBrand": ("POST", "/v1/portal/theme/import-brand", [], [], True, "json", "post_portal_theme_import_brand"),
+    "postPortalThemePreview": ("POST", "/v1/portal/theme/preview", [], [], False, "json", "post_portal_theme_preview"),
+    "postPortalThemePublish": ("POST", "/v1/portal/theme/publish", [], [], True, "json", "post_portal_theme_publish"),
+    "postPortalThemeVersionsIdRestore": ("POST", "/v1/portal/theme/versions/{id}/restore", ["id"], [], False, "json", "post_portal_theme_versions_id_restore"),
     "postPrivacyExecutorKeys": ("POST", "/v1/privacy/executor-keys", [], [], True, "json", "post_privacy_executor_keys"),
     "postPrivacyExecutorsAdapterCheck": ("POST", "/v1/privacy/executors/{adapter}/check", ["adapter"], [], False, "json", "post_privacy_executors_adapter_check"),
     "postPrivacyForget": ("POST", "/v1/privacy/forget", [], [], True, "json", "post_privacy_forget"),
     "postPrivacyLookup": ("POST", "/v1/privacy/lookup", [], [], True, "json", "post_privacy_lookup"),
     "postPrivacyRequests": ("POST", "/v1/privacy/requests", [], [], True, "json", "post_privacy_requests"),
+    "postProductLinks": ("POST", "/v1/product-links", [], [], True, "json", "post_product_links"),
     "postProfitabilityRebuild": ("POST", "/v1/profitability/rebuild", [], [], False, "json", "post_profitability_rebuild"),
     "postPrograms": ("POST", "/v1/programs", [], [], True, "json", "post_programs"),
     "postProgramsIdApplyLeveling": ("POST", "/v1/programs/{id}/apply-leveling", ["id"], [], False, "json", "post_programs_id_apply_leveling"),
@@ -9689,6 +10349,7 @@ OPERATIONS: Dict[str, tuple] = {
     "postProgramsIdEnrollmentsEnrollmentIdReject": ("POST", "/v1/programs/{id}/enrollments/{enrollmentId}/reject", ["id","enrollmentId"], [], False, "json", "post_programs_id_enrollments_enrollment_id_reject"),
     "postProgramsIdGroups": ("POST", "/v1/programs/{id}/groups", ["id"], [], True, "json", "post_programs_id_groups"),
     "postProgramsIdPromotions": ("POST", "/v1/programs/{id}/promotions", ["id"], [], True, "json", "post_programs_id_promotions"),
+    "postProgramsIdReferrers": ("POST", "/v1/programs/{id}/referrers", ["id"], [], True, "json", "post_programs_id_referrers"),
     "postPromotionsIdEnd": ("POST", "/v1/promotions/{id}/end", ["id"], [], False, "json", "post_promotions_id_end"),
     "postPublicProgramsHandleJoin": ("POST", "/v1/public/programs/{handle}/join", ["handle"], [], True, "json", "post_public_programs_handle_join"),
     "postQualityRecompute": ("POST", "/v1/quality/recompute", [], [], False, "json", "post_quality_recompute"),
@@ -9703,6 +10364,7 @@ OPERATIONS: Dict[str, tuple] = {
     "postSandboxSimulate": ("POST", "/v1/sandbox/simulate", [], [], True, "json", "post_sandbox_simulate"),
     "postSupportAppsAdapterTest": ("POST", "/v1/support/apps/{adapter}/test", ["adapter"], [], True, "json", "post_support_apps_adapter_test"),
     "postSupportCardsOrgIdAdapter": ("POST", "/v1/support/cards/{orgId}/{adapter}", ["orgId","adapter"], [], True, "json", "post_support_cards_org_id_adapter"),
+    "postSupportPlatformChatlyCard": ("POST", "/v1/support/platform/chatly-card", [], [], True, "json", "post_support_platform_chatly_card"),
     "postTax1099DocumentsIdCorrect": ("POST", "/v1/tax/1099/documents/{id}/correct", ["id"], [], False, "json", "post_tax1099_documents_id_correct"),
     "postTax1099Filings": ("POST", "/v1/tax/1099/filings", [], [], True, "json", "post_tax1099_filings"),
     "postTax1099FilingsIdRefresh": ("POST", "/v1/tax/1099/filings/{id}/refresh", ["id"], [], False, "json", "post_tax1099_filings_id_refresh"),
@@ -9731,6 +10393,7 @@ OPERATIONS: Dict[str, tuple] = {
     "putMeLocale": ("PUT", "/v1/me/locale", [], [], True, "json", "put_me_locale"),
     "putMeRoiDigest": ("PUT", "/v1/me/roi-digest", [], [], True, "json", "put_me_roi_digest"),
     "putNetworkSettings": ("PUT", "/v1/network/settings", [], [], True, "json", "put_network_settings"),
+    "putOrgConsentPartnersCookiemunch": ("PUT", "/v1/org/consent-partners/cookiemunch", [], [], True, "json", "put_org_consent_partners_cookiemunch"),
     "putOrgFxFeed": ("PUT", "/v1/org/fx-feed", [], [], True, "json", "put_org_fx_feed"),
     "putOrgHostedPages": ("PUT", "/v1/org/hosted-pages", [], [], True, "json", "put_org_hosted_pages"),
     "putOrgPayoutSchedule": ("PUT", "/v1/org/payout-schedule", [], [], True, "json", "put_org_payout_schedule"),
@@ -9749,6 +10412,7 @@ OPERATIONS: Dict[str, tuple] = {
     "putPartnersIdPayoutProfile": ("PUT", "/v1/partners/{id}/payout-profile", ["id"], [], True, "json", "put_partners_id_payout_profile"),
     "putPartnersIdVat": ("PUT", "/v1/partners/{id}/vat", ["id"], [], True, "json", "put_partners_id_vat"),
     "putPayoutConnectionsProvider": ("PUT", "/v1/payout-connections/{provider}", ["provider"], [], True, "json", "put_payout_connections_provider"),
+    "putPortalThemeDraft": ("PUT", "/v1/portal/theme/draft", [], [], True, "json", "put_portal_theme_draft"),
     "putProfitabilityProductsProductRef": ("PUT", "/v1/profitability/products/{productRef}", ["productRef"], [], True, "json", "put_profitability_products_product_ref"),
     "putProfitabilitySettings": ("PUT", "/v1/profitability/settings", [], [], True, "json", "put_profitability_settings"),
     "putProgramsIdAutopricing": ("PUT", "/v1/programs/{id}/autopricing", ["id"], [], True, "json", "put_programs_id_autopricing"),
@@ -9757,6 +10421,8 @@ OPERATIONS: Dict[str, tuple] = {
     "putProgramsIdPartnersPartnerIdGroup": ("PUT", "/v1/programs/{id}/partners/{partnerId}/group", ["id","partnerId"], [], True, "json", "put_programs_id_partners_partner_id_group"),
     "putProgramsIdPayoutSchedule": ("PUT", "/v1/programs/{id}/payout-schedule", ["id"], [], True, "json", "put_programs_id_payout_schedule"),
     "putProgramsIdRefereeReward": ("PUT", "/v1/programs/{id}/referee-reward", ["id"], [], True, "json", "put_programs_id_referee_reward"),
+    "putProgramsIdStripeCredits": ("PUT", "/v1/programs/{id}/stripe-credits", ["id"], [], True, "json", "put_programs_id_stripe_credits"),
     "putRewardsRulesKey": ("PUT", "/v1/rewards/rules/{key}", ["key"], [], True, "json", "put_rewards_rules_key"),
+    "putStripeCreditsConnection": ("PUT", "/v1/stripe-credits/connection", [], [], True, "json", "put_stripe_credits_connection"),
     "putSupportAppsAdapter": ("PUT", "/v1/support/apps/{adapter}", ["adapter"], [], True, "json", "put_support_apps_adapter"),
 }

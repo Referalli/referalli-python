@@ -117,6 +117,7 @@ Enrollment = TypedDict("Enrollment", {
     "id": str,
     "programId": str,
     "partnerId": str,
+    "externalRef": Optional[str],
     "status": Literal["applied", "approved", "rejected", "removed"],
 })
 
@@ -398,6 +399,7 @@ BillingConnection = TypedDict("BillingConnection", {
     "hasCredentials": bool,
     "valueMapping": Optional["ValueMapping"],
     "filter": Optional["BillingFilter"],
+    "customerRefMetadataKey": NotRequired[Optional[str]],
     "rotation": "BillingConnectionRotation",
 })
 
@@ -407,6 +409,7 @@ CreatedBillingConnection = TypedDict("CreatedBillingConnection", {
     "webhookSecret": str,
     "webhookUrl": str,
     "filter": Optional["BillingFilter"],
+    "customerRefMetadataKey": NotRequired[Optional[str]],
 })
 
 BillingEvent = TypedDict("BillingEvent", {
@@ -662,6 +665,18 @@ FxRate = TypedDict("FxRate", {
     "retiredAt": Optional[str],
 })
 
+# The plan's caps (null: unlimited). A test org runs on its live org's plan.
+OrgLimits = TypedDict("OrgLimits", {
+    "programs": Optional[int],
+    "partners": Optional[int],
+})
+
+# What counts against the caps: programs that are not archived, and partners.
+OrgUsage = TypedDict("OrgUsage", {
+    "programs": int,
+    "partners": int,
+})
+
 Org = TypedDict("Org", {
     "id": str,
     "name": str,
@@ -670,6 +685,9 @@ Org = TypedDict("Org", {
     "trackingToken": str,
     "payoutKycRequired": bool,
     "livemode": bool,
+    "limits": "OrgLimits",
+    "usage": "OrgUsage",
+    "portalUrl": str,
     "liveOrgId": NotRequired[str],
 })
 
@@ -691,6 +709,7 @@ IssuedApiKey = TypedDict("IssuedApiKey", {
     "owner": Optional[str],
     "expiresAt": Optional[str],
     "pairId": Optional[str],
+    "programIds": Optional[List[str]],
 })
 
 ApiKeyCreatedByOption1 = TypedDict("ApiKeyCreatedByOption1", {
@@ -709,6 +728,7 @@ ApiKey = TypedDict("ApiKey", {
     "livemode": bool,
     "owner": Optional[str],
     "pairId": Optional[str],
+    "programIds": Optional[List[str]],
     "createdBy": Optional["ApiKeyCreatedByOption1"],
     "expiresAt": Optional[str],
     "expired": bool,
@@ -731,6 +751,7 @@ AuthConnection = TypedDict("AuthConnection", {
     "createdAt": str,
     "rotation": "AuthConnectionRotation",
     "instanceId": NotRequired[Optional[str]],
+    "appId": NotRequired[Optional[str]],
     "autoEnrollUsers": NotRequired[bool],
     "destinationUrl": NotRequired[Optional[str]],
     "signatureVersion": NotRequired[Literal["v1+v2", "v2"]],
@@ -746,6 +767,7 @@ CreatedAuthConnection = TypedDict("CreatedAuthConnection", {
     "metadataKeys": NotRequired[Dict[str, str]],
     "programId": NotRequired[str],
     "instanceId": NotRequired[str],
+    "appId": NotRequired[str],
     "autoEnrollUsers": NotRequired[bool],
     "destinationUrl": NotRequired[Optional[str]],
     "signupsUrl": NotRequired[str],
@@ -1543,6 +1565,12 @@ CommissionSettledEventData = TypedDict("CommissionSettledEventData", {
     "currency": str,
     "method": Literal["store_credit", "merchant_credit"],
     "reference": str,
+    "customerRef": Optional[str],
+    "billingEventId": Optional[str],
+    "providerEventId": Optional[str],
+    "invoiceRef": Optional[str],
+    "customerExternalRef": Optional[str],
+    "partnerExternalRef": Optional[str],
 })
 
 # A commission line was settled by the merchant: the `commission.settled` delivery body.
@@ -1943,6 +1971,66 @@ WebhookEndpointFailingEvent = TypedDict("WebhookEndpointFailingEvent", {
     "data": "WebhookEndpointFailingEventData",
 })
 
+# `data` of a `stripe_credit.applied` event: The Stripe balance credit rail applied a credit (or a reversal debit) to a Stripe customer balance with your key. `stripeBalanceTransactionId` is the Stripe balance transaction.
+StripeCreditAppliedEventData = TypedDict("StripeCreditAppliedEventData", {
+    "id": str,
+    "programId": str,
+    "sourceEventId": str,
+    "kind": Literal["referrer_credit", "referrer_debit", "referee_credit"],
+    "commissionId": Optional[str],
+    "partnerId": Optional[str],
+    "customerRef": Optional[str],
+    "amountMinor": int,
+    "currency": str,
+    "stripeCustomerId": Optional[str],
+    "status": Literal["pending", "applied", "failed", "no_customer", "canceled"],
+    "attempts": int,
+    "stripeBalanceTransactionId": Optional[str],
+    "lastError": Optional[str],
+    "createdAt": str,
+    "updatedAt": str,
+})
+
+# A Stripe balance credit or debit was applied: the `stripe_credit.applied` delivery body.
+StripeCreditAppliedEvent = TypedDict("StripeCreditAppliedEvent", {
+    "id": str,
+    "topic": Literal["stripe_credit.applied"],
+    "orgId": str,
+    "livemode": bool,
+    "createdAt": str,
+    "data": "StripeCreditAppliedEventData",
+})
+
+# `data` of a `stripe_credit.failed` event: The Stripe balance credit rail stopped retrying a credit or debit after its last attempt: no Stripe customer matched (`no_customer`) or Stripe refused it (`failed`). `lastError` says why.
+StripeCreditFailedEventData = TypedDict("StripeCreditFailedEventData", {
+    "id": str,
+    "programId": str,
+    "sourceEventId": str,
+    "kind": Literal["referrer_credit", "referrer_debit", "referee_credit"],
+    "commissionId": Optional[str],
+    "partnerId": Optional[str],
+    "customerRef": Optional[str],
+    "amountMinor": int,
+    "currency": str,
+    "stripeCustomerId": Optional[str],
+    "status": Literal["pending", "applied", "failed", "no_customer", "canceled"],
+    "attempts": int,
+    "stripeBalanceTransactionId": Optional[str],
+    "lastError": Optional[str],
+    "createdAt": str,
+    "updatedAt": str,
+})
+
+# A Stripe balance credit or debit gave up: the `stripe_credit.failed` delivery body.
+StripeCreditFailedEvent = TypedDict("StripeCreditFailedEvent", {
+    "id": str,
+    "topic": Literal["stripe_credit.failed"],
+    "orgId": str,
+    "livemode": bool,
+    "createdAt": str,
+    "data": "StripeCreditFailedEventData",
+})
+
 # `data` of a `webhook_endpoint.recovered` event: Sent to your active endpoints, including the recovered one, when a delivery succeeds after the endpoint was failing.
 WebhookEndpointRecoveredEventData = TypedDict("WebhookEndpointRecoveredEventData", {
     "endpointId": str,
@@ -2048,6 +2136,32 @@ PostTOrgTokenMobileInstallResponse = TypedDict("PostTOrgTokenMobileInstallRespon
     "programId": str,
 })
 
+GetWellKnownReferalliEmbedJsonResponseSurfacesValueStorageItem = TypedDict("GetWellKnownReferalliEmbedJsonResponseSurfacesValueStorageItem", {
+    "name": str,
+    "type": Literal["cookie", "localStorage", "sessionStorage", "indexedDB"],
+    "category": str,
+    "lifetime": str,
+    "purpose": Dict[str, str],
+})
+
+GetWellKnownReferalliEmbedJsonResponseSurfacesValue = TypedDict("GetWellKnownReferalliEmbedJsonResponseSurfacesValue", {
+    "csp": Dict[str, List[str]],
+    "consentCategory": str,
+    "storage": List["GetWellKnownReferalliEmbedJsonResponseSurfacesValueStorageItem"],
+})
+
+# An embed-v1 manifest (https://cookiemunch.net/schemas/embed-v1.json).
+GetWellKnownReferalliEmbedJsonResponse = TypedDict("GetWellKnownReferalliEmbedJsonResponse", {
+    "schema": Literal["https://cookiemunch.net/schemas/embed-v1.json"],
+    "product": Literal["referalli"],
+    "updated": str,
+    "openapi": str,
+    "status": str,
+    "docs": str,
+    "surfaces": Dict[str, "GetWellKnownReferalliEmbedJsonResponseSurfacesValue"],
+    "changes": List[Any],
+})
+
 GetWellKnownAppleAppSiteAssociationResponseApplinksDetailsItemComponentsItem = TypedDict("GetWellKnownAppleAppSiteAssociationResponseApplinksDetailsItemComponentsItem", {
     "/": str,
 })
@@ -2077,88 +2191,6 @@ GetWellKnownAssetlinksJsonResponseValueItem = TypedDict("GetWellKnownAssetlinksJ
 })
 
 GetWellKnownAssetlinksJsonResponse: TypeAlias = "List[GetWellKnownAssetlinksJsonResponseValueItem]"
-
-GetWellKnownForgedeckEmbedJsonResponseCheckers = TypedDict("GetWellKnownForgedeckEmbedJsonResponseCheckers", {
-    "userAgent": str,
-    "egress": List[str],
-})
-
-GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippetCookieDaysOption2 = TypedDict("GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippetCookieDaysOption2", {
-    "default": int,
-    "max": int,
-    "note": str,
-})
-
-GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippetStorageItemPurpose = TypedDict("GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippetStorageItemPurpose", {
-    "en": str,
-})
-
-GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippetStorageItem = TypedDict("GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippetStorageItem", {
-    "name": str,
-    "type": Literal["cookie", "localStorage"],
-    "category": str,
-    "lifetime": str,
-    "purpose": "GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippetStorageItemPurpose",
-    "legacy": NotRequired[bool],
-})
-
-GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippet = TypedDict("GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippet", {
-    "script": str,
-    "csp": Dict[str, List[str]],
-    "consentCategory": str,
-    "consentFallbackCategory": str,
-    "consentAdapters": List[str],
-    "consentDefault": NotRequired[Dict[str, Any]],
-    "cookieDays": Union[int, "GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippetCookieDaysOption2"],
-    "storage": List["GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippetStorageItem"],
-})
-
-GetWellKnownForgedeckEmbedJsonResponseSurfacesPortalEmbedStorageItemPurpose = TypedDict("GetWellKnownForgedeckEmbedJsonResponseSurfacesPortalEmbedStorageItemPurpose", {
-    "en": str,
-})
-
-GetWellKnownForgedeckEmbedJsonResponseSurfacesPortalEmbedStorageItem = TypedDict("GetWellKnownForgedeckEmbedJsonResponseSurfacesPortalEmbedStorageItem", {
-    "name": str,
-    "type": Literal["cookie", "localStorage"],
-    "category": str,
-    "lifetime": str,
-    "purpose": "GetWellKnownForgedeckEmbedJsonResponseSurfacesPortalEmbedStorageItemPurpose",
-    "legacy": NotRequired[bool],
-})
-
-GetWellKnownForgedeckEmbedJsonResponseSurfacesPortalEmbed = TypedDict("GetWellKnownForgedeckEmbedJsonResponseSurfacesPortalEmbed", {
-    "script": str,
-    "csp": Dict[str, List[str]],
-    "consentCategory": str,
-    "storage": List["GetWellKnownForgedeckEmbedJsonResponseSurfacesPortalEmbedStorageItem"],
-})
-
-GetWellKnownForgedeckEmbedJsonResponseSurfaces = TypedDict("GetWellKnownForgedeckEmbedJsonResponseSurfaces", {
-    "tracking-snippet": "GetWellKnownForgedeckEmbedJsonResponseSurfacesTrackingSnippet",
-    "portal-embed": "GetWellKnownForgedeckEmbedJsonResponseSurfacesPortalEmbed",
-})
-
-GetWellKnownForgedeckEmbedJsonResponseChangesItem = TypedDict("GetWellKnownForgedeckEmbedJsonResponseChangesItem", {
-    "effective": str,
-    "surface": str,
-    "add": NotRequired[List[str]],
-    "remove": NotRequired[List[str]],
-    "note": str,
-})
-
-GetWellKnownForgedeckEmbedJsonResponse = TypedDict("GetWellKnownForgedeckEmbedJsonResponse", {
-    "schema": str,
-    "product": Literal["referalli"],
-    "updated": str,
-    "openapi": str,
-    "llms": str,
-    "status": str,
-    "docs": str,
-    "checkers": "GetWellKnownForgedeckEmbedJsonResponseCheckers",
-    "org": NotRequired[str],
-    "surfaces": "GetWellKnownForgedeckEmbedJsonResponseSurfaces",
-    "changes": List["GetWellKnownForgedeckEmbedJsonResponseChangesItem"],
-})
 
 PostAgentsRegisterResponse = TypedDict("PostAgentsRegisterResponse", {
     "agentId": str,
@@ -2246,6 +2278,7 @@ GetMeResponseApiKey = TypedDict("GetMeResponseApiKey", {
     "publishable": bool,
     "owner": Optional[str],
     "expiresAt": Optional[str],
+    "programIds": Optional[List[str]],
 })
 
 GetMeResponseOrg = TypedDict("GetMeResponseOrg", {
@@ -2359,6 +2392,7 @@ GetHostsCurrentResponseValueOption1 = TypedDict("GetHostsCurrentResponseValueOpt
     "orgName": str,
     "branding": "GetHostsCurrentResponseValueOption1Branding",
     "programs": List["GetHostsCurrentResponseValueOption1ProgramsItem"],
+    "portalTheme": Dict[str, Any],
     "consent": "GetHostsCurrentResponseValueOption1Consent",
     "chat": Optional["GetHostsCurrentResponseValueOption1ChatOption1"],
     "csp": str,
@@ -2377,9 +2411,7 @@ GetHostsCurrentResponse: TypeAlias = "Union[GetHostsCurrentResponseValueOption1,
 
 GetChatlyIdentityResponseIdentityOption1 = TypedDict("GetChatlyIdentityResponseIdentityOption1", {
     "externalId": str,
-    "email": str,
-    "name": NotRequired[str],
-    "userHash": str,
+    "userToken": str,
 })
 
 GetChatlyIdentityResponse = TypedDict("GetChatlyIdentityResponse", {
@@ -2567,11 +2599,20 @@ GetProgramsResponse = TypedDict("GetProgramsResponse", {
     "next_cursor": Optional[str],
 })
 
+PostProgramsIdReferrersResponse = TypedDict("PostProgramsIdReferrersResponse", {
+    "partnerId": str,
+    "programId": str,
+    "externalRef": str,
+    "code": str,
+    "linkUrl": Optional[str],
+})
+
 GetProgramsIdEnrollmentsResponseDataItem = TypedDict("GetProgramsIdEnrollmentsResponseDataItem", {
     "id": str,
     "partnerId": str,
     "partnerEmail": str,
     "partnerName": str,
+    "externalRef": Optional[str],
     "status": str,
     "createdAt": str,
     "networkWarning": "NetworkWarning",
@@ -2609,6 +2650,7 @@ GetPartnersIdEnrollmentsResponseDataItem = TypedDict("GetPartnersIdEnrollmentsRe
     "programName": str,
     "status": str,
     "groupId": Optional[str],
+    "externalRef": Optional[str],
     "createdAt": str,
 })
 
@@ -2642,6 +2684,7 @@ PatchApiKeysIdResponse = TypedDict("PatchApiKeysIdResponse", {
     "apiVersion": str,
     "owner": Optional[str],
     "expiresAt": Optional[str],
+    "programIds": Optional[List[str]],
 })
 
 DeleteApiKeysIdResponse = TypedDict("DeleteApiKeysIdResponse", {
@@ -2877,6 +2920,42 @@ GetPartnersIdBalancesResponse = TypedDict("GetPartnersIdBalancesResponse", {
     "data": List["Balance"],
     "has_more": bool,
     "next_cursor": Optional[str],
+})
+
+GetPartnersIdStatsResponseReferrals = TypedDict("GetPartnersIdStatsResponseReferrals", {
+    "total": int,
+    "active": int,
+    "pendingReview": int,
+    "paused": int,
+    "void": int,
+})
+
+GetPartnersIdStatsResponse = TypedDict("GetPartnersIdStatsResponse", {
+    "partnerId": str,
+    "programId": Optional[str],
+    "clicks": int,
+    "referrals": "GetPartnersIdStatsResponseReferrals",
+    "convertedCustomers": int,
+    "balances": List["Balance"],
+})
+
+GetPartnersIdSummaryResponseReferrals = TypedDict("GetPartnersIdSummaryResponseReferrals", {
+    "total": int,
+    "active": int,
+    "pendingReview": int,
+    "paused": int,
+    "void": int,
+})
+
+GetPartnersIdSummaryResponse = TypedDict("GetPartnersIdSummaryResponse", {
+    "partnerId": str,
+    "programId": Optional[str],
+    "clicks": int,
+    "referrals": "GetPartnersIdSummaryResponseReferrals",
+    "convertedCustomers": int,
+    "balances": List["Balance"],
+    "code": Optional[str],
+    "linkUrl": Optional[str],
 })
 
 PostCommissionsApproveDueResponse = TypedDict("PostCommissionsApproveDueResponse", {
@@ -3411,6 +3490,15 @@ GetPartnerMeResponseAccount = TypedDict("GetPartnerMeResponseAccount", {
     "name": Optional[str],
 })
 
+GetPartnerMeResponseRestricted = TypedDict("GetPartnerMeResponseRestricted", {
+    "orgId": str,
+    "orgName": str,
+    "partnerId": str,
+    "partnerName": str,
+    "programId": str,
+    "programName": str,
+})
+
 GetPartnerMeResponseMembershipsItemProgramsItem = TypedDict("GetPartnerMeResponseMembershipsItemProgramsItem", {
     "programId": str,
     "name": str,
@@ -3428,6 +3516,7 @@ GetPartnerMeResponseMembershipsItem = TypedDict("GetPartnerMeResponseMemberships
 
 GetPartnerMeResponse = TypedDict("GetPartnerMeResponse", {
     "account": NotRequired["GetPartnerMeResponseAccount"],
+    "restricted": NotRequired["GetPartnerMeResponseRestricted"],
     "memberships": List["GetPartnerMeResponseMembershipsItem"],
 })
 
@@ -3579,6 +3668,43 @@ GetPartnerProgramsProgramIdLeaderboardResponse = TypedDict("GetPartnerProgramsPr
 PostPartnerProgramsProgramIdApplyResponse = TypedDict("PostPartnerProgramsProgramIdApplyResponse", {
     "enrollmentId": str,
     "status": Literal["applied"],
+})
+
+GetPartnerApiTokensResponseDataItem = TypedDict("GetPartnerApiTokensResponseDataItem", {
+    "id": str,
+    "name": str,
+    "prefix": str,
+    "scopes": List[Literal["read", "write"]],
+    "createdAt": str,
+    "lastUsedAt": Optional[str],
+    "expiresAt": Optional[str],
+})
+
+GetPartnerApiTokensResponse = TypedDict("GetPartnerApiTokensResponse", {
+    "object": Literal["list"],
+    "data": List["GetPartnerApiTokensResponseDataItem"],
+    "has_more": bool,
+})
+
+PostPartnerApiTokensResponse = TypedDict("PostPartnerApiTokensResponse", {
+    "id": str,
+    "name": str,
+    "prefix": str,
+    "scopes": List[Literal["read", "write"]],
+    "createdAt": str,
+    "lastUsedAt": Optional[str],
+    "expiresAt": Optional[str],
+    "token": str,
+})
+
+DeletePartnerApiTokensIdResponse = TypedDict("DeletePartnerApiTokensIdResponse", {
+    "id": str,
+    "revoked": bool,
+})
+
+PostPartnersIdPortalLinkResponse = TypedDict("PostPartnersIdPortalLinkResponse", {
+    "url": str,
+    "expiresAt": str,
 })
 
 PostWebhookEndpointsResponse = TypedDict("PostWebhookEndpointsResponse", {
@@ -4925,6 +5051,11 @@ GetAuthConnectionsIdExportResponse = TypedDict("GetAuthConnectionsIdExportRespon
     "partner": Optional["PartnerExport"],
 })
 
+# What the connection takes beyond sign-ups: `partners` is user-chosen referral codes through `/partners`.
+PostAuthConnectionsIdPingResponseCapabilities = TypedDict("PostAuthConnectionsIdPingResponseCapabilities", {
+    "partners": bool,
+})
+
 PostAuthConnectionsIdPingResponse = TypedDict("PostAuthConnectionsIdPingResponse", {
     "ok": bool,
     "connectionId": str,
@@ -4932,6 +5063,7 @@ PostAuthConnectionsIdPingResponse = TypedDict("PostAuthConnectionsIdPingResponse
     "orgName": str,
     "autoEnrollUsers": bool,
     "serverTime": str,
+    "capabilities": "PostAuthConnectionsIdPingResponseCapabilities",
 })
 
 PostAuthConnectionsIdAliasesResponse = TypedDict("PostAuthConnectionsIdAliasesResponse", {
@@ -4997,7 +5129,7 @@ PostAuthConnectionsInstallResponse = TypedDict("PostAuthConnectionsInstallRespon
     "redirectTo": str,
 })
 
-PostOauthTokenResponse = TypedDict("PostOauthTokenResponse", {
+PostOauthTokenResponseValueOption1 = TypedDict("PostOauthTokenResponseValueOption1", {
     "token_type": Literal["connection_secret"],
     "connectionId": str,
     "provider": str,
@@ -5009,6 +5141,61 @@ PostOauthTokenResponse = TypedDict("PostOauthTokenResponse", {
     "partnersUrl": str,
     "eraseUrl": str,
     "exportUrl": str,
+    "access_token": str,
+    "expires_in": int,
+    "scope": str,
+})
+
+PostOauthTokenResponseValueOption2 = TypedDict("PostOauthTokenResponseValueOption2", {
+    "access_token": str,
+    "token_type": Literal["Bearer"],
+    "expires_in": int,
+    "scope": str,
+    "issued_token_type": NotRequired[str],
+    "resource": NotRequired[str],
+})
+
+PostOauthTokenResponse: TypeAlias = "Union[PostOauthTokenResponseValueOption1, PostOauthTokenResponseValueOption2]"
+
+GetProductLinksResponse = TypedDict("GetProductLinksResponse", {
+    "object": Literal["list"],
+    "data": List["DeleteProductLinksIdResponse"],
+    "next_cursor": Optional[str],
+})
+
+PostProductLinksResponse = TypedDict("PostProductLinksResponse", {
+    "object": Literal["partner_link"],
+    "id": str,
+    "client_id": str,
+    "partner": str,
+    "name": Optional[str],
+    "scopes": List[str],
+    "client_secret_prefix": str,
+    "token_endpoint": str,
+    "auth_methods": List[str],
+    "status": Literal["active", "expired", "revoked"],
+    "expires_at": int,
+    "revoked_at": Optional[int],
+    "last_used_at": Optional[int],
+    "created_at": int,
+    "client_secret": str,
+})
+
+DeleteProductLinksIdResponse = TypedDict("DeleteProductLinksIdResponse", {
+    "object": Literal["partner_link"],
+    "id": str,
+    "client_id": str,
+    "partner": str,
+    "name": Optional[str],
+    "scopes": List[str],
+    "client_secret_prefix": str,
+    "token_endpoint": str,
+    "auth_methods": List[str],
+    "status": Literal["active", "expired", "revoked"],
+    "expires_at": int,
+    "revoked_at": Optional[int],
+    "last_used_at": Optional[int],
+    "created_at": int,
 })
 
 GetOrgSsoResponseProviderOption1 = TypedDict("GetOrgSsoResponseProviderOption1", {
@@ -5282,7 +5469,7 @@ PostSupportAppsAdapterTestResponse = TypedDict("PostSupportAppsAdapterTestRespon
     "rendered": Any,
 })
 
-PostSupportCardsOrgIdAdapterResponse: TypeAlias = "Dict[str, Any]"
+GetSupportPlatformChatlyAnswersResponse: TypeAlias = "Dict[str, Any]"
 
 GetPrivacyExecutorsResponseValueItemInstall = TypedDict("GetPrivacyExecutorsResponseValueItemInstall", {
     "kind": NotRequired[Literal["api", "manifest", "oauth"]],
@@ -5405,6 +5592,96 @@ GetOrgTrackingConsentResponse = TypedDict("GetOrgTrackingConsentResponse", {
     "adapters": List["GetOrgTrackingConsentResponseAdaptersItem"],
 })
 
+GetOrgConsentPartnersCookiemunchResponseStampCheck = TypedDict("GetOrgConsentPartnersCookiemunchResponseStampCheck", {
+    "status": Literal["live", "not_configured"],
+    "detail": str,
+})
+
+GetOrgConsentPartnersCookiemunchResponseGrantsItem = TypedDict("GetOrgConsentPartnersCookiemunchResponseGrantsItem", {
+    "cbid": str,
+    "state": Literal["granted", "waiting_on_partner", "revoked", "expired", "none", "unknown"],
+    "linkId": Optional[str],
+    "label": Optional[str],
+})
+
+GetOrgConsentPartnersCookiemunchResponseGrantCheck = TypedDict("GetOrgConsentPartnersCookiemunchResponseGrantCheck", {
+    "status": Literal["live", "not_configured", "error"],
+    "detail": Optional[str],
+})
+
+GetOrgConsentPartnersCookiemunchResponse = TypedDict("GetOrgConsentPartnersCookiemunchResponse", {
+    "provider": Literal["cookiemunch"],
+    "externalId": str,
+    "receiverUrl": str,
+    "sites": List[str],
+    "stampCheck": "GetOrgConsentPartnersCookiemunchResponseStampCheck",
+    "grants": List["GetOrgConsentPartnersCookiemunchResponseGrantsItem"],
+    "grantCheck": "GetOrgConsentPartnersCookiemunchResponseGrantCheck",
+})
+
+GetOrgConsentPartnersCookiemunchEventsResponseDataItem = TypedDict("GetOrgConsentPartnersCookiemunchEventsResponseDataItem", {
+    "id": str,
+    "eventId": str,
+    "type": Literal["consent.recorded", "consent.withdrawn"],
+    "cbid": str,
+    "stamp": Optional[str],
+    "choices": Dict[str, bool],
+    "withdrawn": List[str],
+    "region": Optional[str],
+    "keyId": str,
+    "occurredAt": str,
+    "receivedAt": str,
+})
+
+GetOrgConsentPartnersCookiemunchEventsResponseStampCheck = TypedDict("GetOrgConsentPartnersCookiemunchEventsResponseStampCheck", {
+    "status": Literal["live", "not_configured"],
+    "detail": str,
+})
+
+GetOrgConsentPartnersCookiemunchEventsResponseChecksItem = TypedDict("GetOrgConsentPartnersCookiemunchEventsResponseChecksItem", {
+    "cbid": str,
+    "verdict": Literal["consented", "not_consented", "withdrawn", "not_found", "no_grant", "error"],
+    "categories": Dict[str, bool],
+    "withdrawn": List[str],
+    "withdrawnAt": Optional[str],
+    "decidedAt": Optional[str],
+    "detail": Optional[str],
+    "checkedAt": str,
+    "stamp": str,
+    "credited": bool,
+    "clickId": Optional[str],
+    "eventId": Optional[str],
+})
+
+GetOrgConsentPartnersCookiemunchEventsResponse = TypedDict("GetOrgConsentPartnersCookiemunchEventsResponse", {
+    "data": List["GetOrgConsentPartnersCookiemunchEventsResponseDataItem"],
+    "stampCheck": "GetOrgConsentPartnersCookiemunchEventsResponseStampCheck",
+    "checks": NotRequired[List["GetOrgConsentPartnersCookiemunchEventsResponseChecksItem"]],
+})
+
+PostOrgConsentPartnersCookiemunchStampsCheckResponse = TypedDict("PostOrgConsentPartnersCookiemunchStampsCheckResponse", {
+    "stamp": str,
+    "credited": bool,
+    "cbid": str,
+    "verdict": Literal["consented", "not_consented", "withdrawn", "not_found", "no_grant", "error"],
+    "categories": Dict[str, bool],
+    "withdrawn": List[str],
+    "withdrawnAt": Optional[str],
+    "decidedAt": Optional[str],
+    "detail": Optional[str],
+    "checkedAt": str,
+})
+
+PostOrgsOrgIdPrivacyExecutorKeyResponse = TypedDict("PostOrgsOrgIdPrivacyExecutorKeyResponse", {
+    "secret": str,
+    "executorUrl": str,
+    "contract": Literal["cm-standard-v2"],
+    "orgId": str,
+    "linkId": str,
+    "cbid": str,
+    "rotated": bool,
+})
+
 GetOrgHostedPagesResponseConsent = TypedDict("GetOrgHostedPagesResponseConsent", {
     "adapter": str,
     "config": Dict[str, Any],
@@ -5500,6 +5777,1316 @@ PostOrgHostedPagesCheckResponse = TypedDict("PostOrgHostedPagesCheckResponse", {
     "checks": List["PostOrgHostedPagesCheckResponseChecksItem"],
 })
 
+GetHostsCurrentChatIdentityResponseTagsItem = TypedDict("GetHostsCurrentChatIdentityResponseTagsItem", {
+    "tag": Literal["script"],
+    "attrs": Dict[str, Union[str, bool]],
+    "inline": NotRequired[str],
+})
+
+GetHostsCurrentChatIdentityResponse = TypedDict("GetHostsCurrentChatIdentityResponse", {
+    "provider": Optional[str],
+    "tags": List["GetHostsCurrentChatIdentityResponseTagsItem"],
+})
+
+GetPortalThemeResponsePublishedPalette = TypedDict("GetPortalThemeResponsePublishedPalette", {
+    "background": NotRequired[str],
+    "surface": NotRequired[str],
+    "surfaceAlt": NotRequired[str],
+    "ink": NotRequired[str],
+    "muted": NotRequired[str],
+    "faint": NotRequired[str],
+    "line": NotRequired[str],
+    "lineStrong": NotRequired[str],
+    "primary": NotRequired[str],
+    "onPrimary": NotRequired[str],
+    "primarySoft": NotRequired[str],
+    "header_background": NotRequired[str],
+    "header_primary": NotRequired[str],
+    "sidebar": NotRequired[str],
+    "footer_background": NotRequired[str],
+    "footer_primary": NotRequired[str],
+    "success": NotRequired[str],
+    "warning": NotRequired[str],
+    "danger": NotRequired[str],
+    "info": NotRequired[str],
+    "chart": NotRequired[str],
+    "money": NotRequired[str],
+})
+
+GetPortalThemeResponsePublishedPaletteDark = TypedDict("GetPortalThemeResponsePublishedPaletteDark", {
+    "background": NotRequired[str],
+    "surface": NotRequired[str],
+    "surfaceAlt": NotRequired[str],
+    "ink": NotRequired[str],
+    "muted": NotRequired[str],
+    "faint": NotRequired[str],
+    "line": NotRequired[str],
+    "lineStrong": NotRequired[str],
+    "primary": NotRequired[str],
+    "onPrimary": NotRequired[str],
+    "primarySoft": NotRequired[str],
+    "header_background": NotRequired[str],
+    "header_primary": NotRequired[str],
+    "sidebar": NotRequired[str],
+    "footer_background": NotRequired[str],
+    "footer_primary": NotRequired[str],
+    "success": NotRequired[str],
+    "warning": NotRequired[str],
+    "danger": NotRequired[str],
+    "info": NotRequired[str],
+    "chart": NotRequired[str],
+    "money": NotRequired[str],
+})
+
+GetPortalThemeResponsePublishedFontsFacesItem = TypedDict("GetPortalThemeResponsePublishedFontsFacesItem", {
+    "family": str,
+    "src": str,
+    "format": NotRequired[Literal["woff2", "woff", "truetype", "opentype"]],
+    "weight": NotRequired[Union[int, str]],
+    "style": NotRequired[Literal["normal", "italic", "oblique"]],
+    "display": NotRequired[Literal["auto", "block", "swap", "fallback", "optional"]],
+})
+
+GetPortalThemeResponsePublishedFonts = TypedDict("GetPortalThemeResponsePublishedFonts", {
+    "faces": NotRequired[List["GetPortalThemeResponsePublishedFontsFacesItem"]],
+})
+
+GetPortalThemeResponsePublishedTypography = TypedDict("GetPortalThemeResponsePublishedTypography", {
+    "baseSize": NotRequired[float],
+    "headingScale": NotRequired[float],
+    "headingWeight": NotRequired[int],
+    "bodyWeight": NotRequired[int],
+    "headingTransform": NotRequired[Literal["none", "uppercase", "lowercase", "capitalize"]],
+    "headingTracking": NotRequired[float],
+    "bodyLeading": NotRequired[float],
+    "numerals": NotRequired[Literal["proportional", "tabular"]],
+})
+
+GetPortalThemeResponsePublishedComponentsCards = TypedDict("GetPortalThemeResponsePublishedComponentsCards", {
+    "border": NotRequired[bool],
+    "elevation": NotRequired[Literal["flat", "raised"]],
+})
+
+GetPortalThemeResponsePublishedComponentsButtons = TypedDict("GetPortalThemeResponsePublishedComponentsButtons", {
+    "radius": NotRequired[float],
+    "case": NotRequired[Literal["none", "uppercase"]],
+    "weight": NotRequired[int],
+    "style": NotRequired[Literal["solid", "outline", "soft"]],
+})
+
+GetPortalThemeResponsePublishedComponentsInputs = TypedDict("GetPortalThemeResponsePublishedComponentsInputs", {
+    "radius": NotRequired[float],
+    "style": NotRequired[Literal["outline", "filled", "underline"]],
+})
+
+GetPortalThemeResponsePublishedComponentsFocusRing = TypedDict("GetPortalThemeResponsePublishedComponentsFocusRing", {
+    "color": NotRequired[str],
+    "width": NotRequired[float],
+})
+
+GetPortalThemeResponsePublishedComponentsLinks = TypedDict("GetPortalThemeResponsePublishedComponentsLinks", {
+    "underline": NotRequired[Literal["always", "hover", "none"]],
+    "color": NotRequired[str],
+    "colorDark": NotRequired[str],
+})
+
+GetPortalThemeResponsePublishedComponents = TypedDict("GetPortalThemeResponsePublishedComponents", {
+    "radius": NotRequired[float],
+    "radiusSmall": NotRequired[float],
+    "shadow": NotRequired[Literal["none", "soft", "medium", "strong"]],
+    "cards": NotRequired["GetPortalThemeResponsePublishedComponentsCards"],
+    "buttons": NotRequired["GetPortalThemeResponsePublishedComponentsButtons"],
+    "inputs": NotRequired["GetPortalThemeResponsePublishedComponentsInputs"],
+    "focusRing": NotRequired["GetPortalThemeResponsePublishedComponentsFocusRing"],
+    "links": NotRequired["GetPortalThemeResponsePublishedComponentsLinks"],
+})
+
+GetPortalThemeResponsePublishedAnnouncementLink = TypedDict("GetPortalThemeResponsePublishedAnnouncementLink", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+GetPortalThemeResponsePublishedAnnouncement = TypedDict("GetPortalThemeResponsePublishedAnnouncement", {
+    "text": str,
+    "level": NotRequired[Literal["info", "success", "warning", "danger"]],
+    "link": NotRequired["GetPortalThemeResponsePublishedAnnouncementLink"],
+    "dismissible": NotRequired[bool],
+    "background": NotRequired[str],
+    "ink": NotRequired[str],
+    "startsAt": NotRequired[str],
+    "endsAt": NotRequired[str],
+})
+
+GetPortalThemeResponsePublishedChromeHeaderLinksItem = TypedDict("GetPortalThemeResponsePublishedChromeHeaderLinksItem", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+GetPortalThemeResponsePublishedChromeHeaderCta = TypedDict("GetPortalThemeResponsePublishedChromeHeaderCta", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+GetPortalThemeResponsePublishedChromeHeader = TypedDict("GetPortalThemeResponsePublishedChromeHeader", {
+    "links": NotRequired[List["GetPortalThemeResponsePublishedChromeHeaderLinksItem"]],
+    "cta": NotRequired["GetPortalThemeResponsePublishedChromeHeaderCta"],
+    "sticky": NotRequired[bool],
+    "showLocaleSwitcher": NotRequired[bool],
+    "showThemeToggle": NotRequired[bool],
+    "brandAlign": NotRequired[Literal["start", "center"]],
+    "border": NotRequired[bool],
+})
+
+GetPortalThemeResponsePublishedChromeFooterColumnsItemLinksItem = TypedDict("GetPortalThemeResponsePublishedChromeFooterColumnsItemLinksItem", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+GetPortalThemeResponsePublishedChromeFooterColumnsItem = TypedDict("GetPortalThemeResponsePublishedChromeFooterColumnsItem", {
+    "heading": str,
+    "links": List["GetPortalThemeResponsePublishedChromeFooterColumnsItemLinksItem"],
+})
+
+GetPortalThemeResponsePublishedChromeFooterSocialItem = TypedDict("GetPortalThemeResponsePublishedChromeFooterSocialItem", {
+    "platform": Literal["x", "linkedin", "instagram", "facebook", "youtube", "tiktok", "github", "discord", "threads", "bluesky", "mastodon"],
+    "href": str,
+})
+
+GetPortalThemeResponsePublishedChromeFooter = TypedDict("GetPortalThemeResponsePublishedChromeFooter", {
+    "columns": NotRequired[List["GetPortalThemeResponsePublishedChromeFooterColumnsItem"]],
+    "text": NotRequired[str],
+    "social": NotRequired[List["GetPortalThemeResponsePublishedChromeFooterSocialItem"]],
+    "showPoweredBy": NotRequired[bool],
+})
+
+GetPortalThemeResponsePublishedChrome = TypedDict("GetPortalThemeResponsePublishedChrome", {
+    "header": NotRequired["GetPortalThemeResponsePublishedChromeHeader"],
+    "footer": NotRequired["GetPortalThemeResponsePublishedChromeFooter"],
+})
+
+GetPortalThemeResponsePublishedPortalSectionsItem = TypedDict("GetPortalThemeResponsePublishedPortalSectionsItem", {
+    "id": Literal["welcome", "earnings", "link", "stats", "groups", "milestones", "programs"],
+    "enabled": NotRequired[bool],
+    "title": NotRequired[str],
+    "description": NotRequired[str],
+})
+
+GetPortalThemeResponsePublishedPortalWelcomeCta = TypedDict("GetPortalThemeResponsePublishedPortalWelcomeCta", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+GetPortalThemeResponsePublishedPortalWelcome = TypedDict("GetPortalThemeResponsePublishedPortalWelcome", {
+    "title": str,
+    "body": NotRequired[str],
+    "image": NotRequired[str],
+    "cta": NotRequired["GetPortalThemeResponsePublishedPortalWelcomeCta"],
+})
+
+GetPortalThemeResponsePublishedPortalNavigation = TypedDict("GetPortalThemeResponsePublishedPortalNavigation", {
+    "primary": NotRequired[List[Literal["links", "earnings", "payouts", "assets", "deals", "marketplace", "invitations", "contracts", "disputes", "financing", "passport"]]],
+    "hidden": NotRequired[List[Literal["links", "earnings", "payouts", "assets", "deals", "marketplace", "invitations", "contracts", "disputes", "financing", "passport"]]],
+    "labels": NotRequired[Dict[str, str]],
+    "style": NotRequired[Literal["topbar", "sidebar"]],
+})
+
+GetPortalThemeResponsePublishedPortalSignIn = TypedDict("GetPortalThemeResponsePublishedPortalSignIn", {
+    "title": NotRequired[str],
+    "subtitle": NotRequired[str],
+    "image": NotRequired[str],
+    "layout": NotRequired[Literal["centered", "split"]],
+    "footnote": NotRequired[str],
+})
+
+GetPortalThemeResponsePublishedPortalMoney = TypedDict("GetPortalThemeResponsePublishedPortalMoney", {
+    "showCurrencyCode": NotRequired[bool],
+    "compact": NotRequired[bool],
+})
+
+GetPortalThemeResponsePublishedPortal = TypedDict("GetPortalThemeResponsePublishedPortal", {
+    "sections": NotRequired[List["GetPortalThemeResponsePublishedPortalSectionsItem"]],
+    "welcome": NotRequired["GetPortalThemeResponsePublishedPortalWelcome"],
+    "navigation": NotRequired["GetPortalThemeResponsePublishedPortalNavigation"],
+    "signIn": NotRequired["GetPortalThemeResponsePublishedPortalSignIn"],
+    "money": NotRequired["GetPortalThemeResponsePublishedPortalMoney"],
+})
+
+GetPortalThemeResponsePublishedSettingsSchemaItem = TypedDict("GetPortalThemeResponsePublishedSettingsSchemaItem", {
+    "key": str,
+    "type": Literal["bool", "int", "string", "enum", "color"],
+    "label": NotRequired[str],
+    "default": NotRequired[Union[str, float, bool]],
+    "options": NotRequired[List[str]],
+})
+
+GetPortalThemeResponsePublishedCssSnippetsItem = TypedDict("GetPortalThemeResponsePublishedCssSnippetsItem", {
+    "name": str,
+    "css": str,
+    "enabled": NotRequired[bool],
+})
+
+GetPortalThemeResponsePublishedMobile = TypedDict("GetPortalThemeResponsePublishedMobile", {
+    "fontScale": NotRequired[float],
+    "density": NotRequired[Literal["compact", "cozy"]],
+    "logoUrl": NotRequired[str],
+    "hideSections": NotRequired[List[Literal["welcome", "earnings", "link", "stats", "groups", "milestones", "programs"]]],
+    "css": NotRequired[str],
+})
+
+GetPortalThemeResponsePublishedEmbed = TypedDict("GetPortalThemeResponsePublishedEmbed", {
+    "enabled": NotRequired[bool],
+    "allowedOrigins": NotRequired[List[str]],
+    "hideChrome": NotRequired[bool],
+})
+
+# What partners see now.
+GetPortalThemeResponsePublished = TypedDict("GetPortalThemeResponsePublished", {
+    "primaryColor": NotRequired[str],
+    "primaryColorDark": NotRequired[str],
+    "accentColor": NotRequired[str],
+    "palette": NotRequired["GetPortalThemeResponsePublishedPalette"],
+    "paletteDark": NotRequired["GetPortalThemeResponsePublishedPaletteDark"],
+    "colorScheme": NotRequired[Literal["system", "light", "dark"]],
+    "colorSchemeStrict": NotRequired[bool],
+    "contentWidth": NotRequired[Literal["standard", "wide", "full"]],
+    "density": NotRequired[Literal["compact", "cozy", "comfortable"]],
+    "font": NotRequired[Literal["sans", "serif", "mono", "system"]],
+    "customFontUrl": NotRequired[str],
+    "customFontFamily": NotRequired[str],
+    "headingFontFamily": NotRequired[str],
+    "bodyFontFamily": NotRequired[str],
+    "moneyFontFamily": NotRequired[str],
+    "monoFontFamily": NotRequired[str],
+    "fonts": NotRequired["GetPortalThemeResponsePublishedFonts"],
+    "typography": NotRequired["GetPortalThemeResponsePublishedTypography"],
+    "brandName": NotRequired[Union[str, bool]],
+    "logoUrl": NotRequired[str],
+    "logoUrlLight": NotRequired[str],
+    "logoUrlDark": NotRequired[str],
+    "logoMark": NotRequired[str],
+    "logoIncludesName": NotRequired[bool],
+    "logoDarkMode": NotRequired[Literal["none", "invert", "plate"]],
+    "logoHeight": NotRequired[float],
+    "faviconUrl": NotRequired[str],
+    "pageTitle": NotRequired[str],
+    "components": NotRequired["GetPortalThemeResponsePublishedComponents"],
+    "announcement": NotRequired["GetPortalThemeResponsePublishedAnnouncement"],
+    "chrome": NotRequired["GetPortalThemeResponsePublishedChrome"],
+    "portal": NotRequired["GetPortalThemeResponsePublishedPortal"],
+    "stringOverrides": NotRequired[Dict[str, Dict[str, str]]],
+    "settingsSchema": NotRequired[List["GetPortalThemeResponsePublishedSettingsSchemaItem"]],
+    "settings": NotRequired[Dict[str, Union[str, float, bool]]],
+    "customCss": NotRequired[str],
+    "cssSnippets": NotRequired[List["GetPortalThemeResponsePublishedCssSnippetsItem"]],
+    "mobile": NotRequired["GetPortalThemeResponsePublishedMobile"],
+    "embed": NotRequired["GetPortalThemeResponsePublishedEmbed"],
+})
+
+GetPortalThemeResponseDraftOption1Palette = TypedDict("GetPortalThemeResponseDraftOption1Palette", {
+    "background": NotRequired[str],
+    "surface": NotRequired[str],
+    "surfaceAlt": NotRequired[str],
+    "ink": NotRequired[str],
+    "muted": NotRequired[str],
+    "faint": NotRequired[str],
+    "line": NotRequired[str],
+    "lineStrong": NotRequired[str],
+    "primary": NotRequired[str],
+    "onPrimary": NotRequired[str],
+    "primarySoft": NotRequired[str],
+    "header_background": NotRequired[str],
+    "header_primary": NotRequired[str],
+    "sidebar": NotRequired[str],
+    "footer_background": NotRequired[str],
+    "footer_primary": NotRequired[str],
+    "success": NotRequired[str],
+    "warning": NotRequired[str],
+    "danger": NotRequired[str],
+    "info": NotRequired[str],
+    "chart": NotRequired[str],
+    "money": NotRequired[str],
+})
+
+GetPortalThemeResponseDraftOption1PaletteDark = TypedDict("GetPortalThemeResponseDraftOption1PaletteDark", {
+    "background": NotRequired[str],
+    "surface": NotRequired[str],
+    "surfaceAlt": NotRequired[str],
+    "ink": NotRequired[str],
+    "muted": NotRequired[str],
+    "faint": NotRequired[str],
+    "line": NotRequired[str],
+    "lineStrong": NotRequired[str],
+    "primary": NotRequired[str],
+    "onPrimary": NotRequired[str],
+    "primarySoft": NotRequired[str],
+    "header_background": NotRequired[str],
+    "header_primary": NotRequired[str],
+    "sidebar": NotRequired[str],
+    "footer_background": NotRequired[str],
+    "footer_primary": NotRequired[str],
+    "success": NotRequired[str],
+    "warning": NotRequired[str],
+    "danger": NotRequired[str],
+    "info": NotRequired[str],
+    "chart": NotRequired[str],
+    "money": NotRequired[str],
+})
+
+GetPortalThemeResponseDraftOption1FontsFacesItem = TypedDict("GetPortalThemeResponseDraftOption1FontsFacesItem", {
+    "family": str,
+    "src": str,
+    "format": NotRequired[Literal["woff2", "woff", "truetype", "opentype"]],
+    "weight": NotRequired[Union[int, str]],
+    "style": NotRequired[Literal["normal", "italic", "oblique"]],
+    "display": NotRequired[Literal["auto", "block", "swap", "fallback", "optional"]],
+})
+
+GetPortalThemeResponseDraftOption1Fonts = TypedDict("GetPortalThemeResponseDraftOption1Fonts", {
+    "faces": NotRequired[List["GetPortalThemeResponseDraftOption1FontsFacesItem"]],
+})
+
+GetPortalThemeResponseDraftOption1Typography = TypedDict("GetPortalThemeResponseDraftOption1Typography", {
+    "baseSize": NotRequired[float],
+    "headingScale": NotRequired[float],
+    "headingWeight": NotRequired[int],
+    "bodyWeight": NotRequired[int],
+    "headingTransform": NotRequired[Literal["none", "uppercase", "lowercase", "capitalize"]],
+    "headingTracking": NotRequired[float],
+    "bodyLeading": NotRequired[float],
+    "numerals": NotRequired[Literal["proportional", "tabular"]],
+})
+
+GetPortalThemeResponseDraftOption1ComponentsCards = TypedDict("GetPortalThemeResponseDraftOption1ComponentsCards", {
+    "border": NotRequired[bool],
+    "elevation": NotRequired[Literal["flat", "raised"]],
+})
+
+GetPortalThemeResponseDraftOption1ComponentsButtons = TypedDict("GetPortalThemeResponseDraftOption1ComponentsButtons", {
+    "radius": NotRequired[float],
+    "case": NotRequired[Literal["none", "uppercase"]],
+    "weight": NotRequired[int],
+    "style": NotRequired[Literal["solid", "outline", "soft"]],
+})
+
+GetPortalThemeResponseDraftOption1ComponentsInputs = TypedDict("GetPortalThemeResponseDraftOption1ComponentsInputs", {
+    "radius": NotRequired[float],
+    "style": NotRequired[Literal["outline", "filled", "underline"]],
+})
+
+GetPortalThemeResponseDraftOption1ComponentsFocusRing = TypedDict("GetPortalThemeResponseDraftOption1ComponentsFocusRing", {
+    "color": NotRequired[str],
+    "width": NotRequired[float],
+})
+
+GetPortalThemeResponseDraftOption1ComponentsLinks = TypedDict("GetPortalThemeResponseDraftOption1ComponentsLinks", {
+    "underline": NotRequired[Literal["always", "hover", "none"]],
+    "color": NotRequired[str],
+    "colorDark": NotRequired[str],
+})
+
+GetPortalThemeResponseDraftOption1Components = TypedDict("GetPortalThemeResponseDraftOption1Components", {
+    "radius": NotRequired[float],
+    "radiusSmall": NotRequired[float],
+    "shadow": NotRequired[Literal["none", "soft", "medium", "strong"]],
+    "cards": NotRequired["GetPortalThemeResponseDraftOption1ComponentsCards"],
+    "buttons": NotRequired["GetPortalThemeResponseDraftOption1ComponentsButtons"],
+    "inputs": NotRequired["GetPortalThemeResponseDraftOption1ComponentsInputs"],
+    "focusRing": NotRequired["GetPortalThemeResponseDraftOption1ComponentsFocusRing"],
+    "links": NotRequired["GetPortalThemeResponseDraftOption1ComponentsLinks"],
+})
+
+GetPortalThemeResponseDraftOption1AnnouncementLink = TypedDict("GetPortalThemeResponseDraftOption1AnnouncementLink", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+GetPortalThemeResponseDraftOption1Announcement = TypedDict("GetPortalThemeResponseDraftOption1Announcement", {
+    "text": str,
+    "level": NotRequired[Literal["info", "success", "warning", "danger"]],
+    "link": NotRequired["GetPortalThemeResponseDraftOption1AnnouncementLink"],
+    "dismissible": NotRequired[bool],
+    "background": NotRequired[str],
+    "ink": NotRequired[str],
+    "startsAt": NotRequired[str],
+    "endsAt": NotRequired[str],
+})
+
+GetPortalThemeResponseDraftOption1ChromeHeaderLinksItem = TypedDict("GetPortalThemeResponseDraftOption1ChromeHeaderLinksItem", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+GetPortalThemeResponseDraftOption1ChromeHeaderCta = TypedDict("GetPortalThemeResponseDraftOption1ChromeHeaderCta", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+GetPortalThemeResponseDraftOption1ChromeHeader = TypedDict("GetPortalThemeResponseDraftOption1ChromeHeader", {
+    "links": NotRequired[List["GetPortalThemeResponseDraftOption1ChromeHeaderLinksItem"]],
+    "cta": NotRequired["GetPortalThemeResponseDraftOption1ChromeHeaderCta"],
+    "sticky": NotRequired[bool],
+    "showLocaleSwitcher": NotRequired[bool],
+    "showThemeToggle": NotRequired[bool],
+    "brandAlign": NotRequired[Literal["start", "center"]],
+    "border": NotRequired[bool],
+})
+
+GetPortalThemeResponseDraftOption1ChromeFooterColumnsItemLinksItem = TypedDict("GetPortalThemeResponseDraftOption1ChromeFooterColumnsItemLinksItem", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+GetPortalThemeResponseDraftOption1ChromeFooterColumnsItem = TypedDict("GetPortalThemeResponseDraftOption1ChromeFooterColumnsItem", {
+    "heading": str,
+    "links": List["GetPortalThemeResponseDraftOption1ChromeFooterColumnsItemLinksItem"],
+})
+
+GetPortalThemeResponseDraftOption1ChromeFooterSocialItem = TypedDict("GetPortalThemeResponseDraftOption1ChromeFooterSocialItem", {
+    "platform": Literal["x", "linkedin", "instagram", "facebook", "youtube", "tiktok", "github", "discord", "threads", "bluesky", "mastodon"],
+    "href": str,
+})
+
+GetPortalThemeResponseDraftOption1ChromeFooter = TypedDict("GetPortalThemeResponseDraftOption1ChromeFooter", {
+    "columns": NotRequired[List["GetPortalThemeResponseDraftOption1ChromeFooterColumnsItem"]],
+    "text": NotRequired[str],
+    "social": NotRequired[List["GetPortalThemeResponseDraftOption1ChromeFooterSocialItem"]],
+    "showPoweredBy": NotRequired[bool],
+})
+
+GetPortalThemeResponseDraftOption1Chrome = TypedDict("GetPortalThemeResponseDraftOption1Chrome", {
+    "header": NotRequired["GetPortalThemeResponseDraftOption1ChromeHeader"],
+    "footer": NotRequired["GetPortalThemeResponseDraftOption1ChromeFooter"],
+})
+
+GetPortalThemeResponseDraftOption1PortalSectionsItem = TypedDict("GetPortalThemeResponseDraftOption1PortalSectionsItem", {
+    "id": Literal["welcome", "earnings", "link", "stats", "groups", "milestones", "programs"],
+    "enabled": NotRequired[bool],
+    "title": NotRequired[str],
+    "description": NotRequired[str],
+})
+
+GetPortalThemeResponseDraftOption1PortalWelcomeCta = TypedDict("GetPortalThemeResponseDraftOption1PortalWelcomeCta", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+GetPortalThemeResponseDraftOption1PortalWelcome = TypedDict("GetPortalThemeResponseDraftOption1PortalWelcome", {
+    "title": str,
+    "body": NotRequired[str],
+    "image": NotRequired[str],
+    "cta": NotRequired["GetPortalThemeResponseDraftOption1PortalWelcomeCta"],
+})
+
+GetPortalThemeResponseDraftOption1PortalNavigation = TypedDict("GetPortalThemeResponseDraftOption1PortalNavigation", {
+    "primary": NotRequired[List[Literal["links", "earnings", "payouts", "assets", "deals", "marketplace", "invitations", "contracts", "disputes", "financing", "passport"]]],
+    "hidden": NotRequired[List[Literal["links", "earnings", "payouts", "assets", "deals", "marketplace", "invitations", "contracts", "disputes", "financing", "passport"]]],
+    "labels": NotRequired[Dict[str, str]],
+    "style": NotRequired[Literal["topbar", "sidebar"]],
+})
+
+GetPortalThemeResponseDraftOption1PortalSignIn = TypedDict("GetPortalThemeResponseDraftOption1PortalSignIn", {
+    "title": NotRequired[str],
+    "subtitle": NotRequired[str],
+    "image": NotRequired[str],
+    "layout": NotRequired[Literal["centered", "split"]],
+    "footnote": NotRequired[str],
+})
+
+GetPortalThemeResponseDraftOption1PortalMoney = TypedDict("GetPortalThemeResponseDraftOption1PortalMoney", {
+    "showCurrencyCode": NotRequired[bool],
+    "compact": NotRequired[bool],
+})
+
+GetPortalThemeResponseDraftOption1Portal = TypedDict("GetPortalThemeResponseDraftOption1Portal", {
+    "sections": NotRequired[List["GetPortalThemeResponseDraftOption1PortalSectionsItem"]],
+    "welcome": NotRequired["GetPortalThemeResponseDraftOption1PortalWelcome"],
+    "navigation": NotRequired["GetPortalThemeResponseDraftOption1PortalNavigation"],
+    "signIn": NotRequired["GetPortalThemeResponseDraftOption1PortalSignIn"],
+    "money": NotRequired["GetPortalThemeResponseDraftOption1PortalMoney"],
+})
+
+GetPortalThemeResponseDraftOption1SettingsSchemaItem = TypedDict("GetPortalThemeResponseDraftOption1SettingsSchemaItem", {
+    "key": str,
+    "type": Literal["bool", "int", "string", "enum", "color"],
+    "label": NotRequired[str],
+    "default": NotRequired[Union[str, float, bool]],
+    "options": NotRequired[List[str]],
+})
+
+GetPortalThemeResponseDraftOption1CssSnippetsItem = TypedDict("GetPortalThemeResponseDraftOption1CssSnippetsItem", {
+    "name": str,
+    "css": str,
+    "enabled": NotRequired[bool],
+})
+
+GetPortalThemeResponseDraftOption1Mobile = TypedDict("GetPortalThemeResponseDraftOption1Mobile", {
+    "fontScale": NotRequired[float],
+    "density": NotRequired[Literal["compact", "cozy"]],
+    "logoUrl": NotRequired[str],
+    "hideSections": NotRequired[List[Literal["welcome", "earnings", "link", "stats", "groups", "milestones", "programs"]]],
+    "css": NotRequired[str],
+})
+
+GetPortalThemeResponseDraftOption1Embed = TypedDict("GetPortalThemeResponseDraftOption1Embed", {
+    "enabled": NotRequired[bool],
+    "allowedOrigins": NotRequired[List[str]],
+    "hideChrome": NotRequired[bool],
+})
+
+GetPortalThemeResponseDraftOption1 = TypedDict("GetPortalThemeResponseDraftOption1", {
+    "primaryColor": NotRequired[str],
+    "primaryColorDark": NotRequired[str],
+    "accentColor": NotRequired[str],
+    "palette": NotRequired["GetPortalThemeResponseDraftOption1Palette"],
+    "paletteDark": NotRequired["GetPortalThemeResponseDraftOption1PaletteDark"],
+    "colorScheme": NotRequired[Literal["system", "light", "dark"]],
+    "colorSchemeStrict": NotRequired[bool],
+    "contentWidth": NotRequired[Literal["standard", "wide", "full"]],
+    "density": NotRequired[Literal["compact", "cozy", "comfortable"]],
+    "font": NotRequired[Literal["sans", "serif", "mono", "system"]],
+    "customFontUrl": NotRequired[str],
+    "customFontFamily": NotRequired[str],
+    "headingFontFamily": NotRequired[str],
+    "bodyFontFamily": NotRequired[str],
+    "moneyFontFamily": NotRequired[str],
+    "monoFontFamily": NotRequired[str],
+    "fonts": NotRequired["GetPortalThemeResponseDraftOption1Fonts"],
+    "typography": NotRequired["GetPortalThemeResponseDraftOption1Typography"],
+    "brandName": NotRequired[Union[str, bool]],
+    "logoUrl": NotRequired[str],
+    "logoUrlLight": NotRequired[str],
+    "logoUrlDark": NotRequired[str],
+    "logoMark": NotRequired[str],
+    "logoIncludesName": NotRequired[bool],
+    "logoDarkMode": NotRequired[Literal["none", "invert", "plate"]],
+    "logoHeight": NotRequired[float],
+    "faviconUrl": NotRequired[str],
+    "pageTitle": NotRequired[str],
+    "components": NotRequired["GetPortalThemeResponseDraftOption1Components"],
+    "announcement": NotRequired["GetPortalThemeResponseDraftOption1Announcement"],
+    "chrome": NotRequired["GetPortalThemeResponseDraftOption1Chrome"],
+    "portal": NotRequired["GetPortalThemeResponseDraftOption1Portal"],
+    "stringOverrides": NotRequired[Dict[str, Dict[str, str]]],
+    "settingsSchema": NotRequired[List["GetPortalThemeResponseDraftOption1SettingsSchemaItem"]],
+    "settings": NotRequired[Dict[str, Union[str, float, bool]]],
+    "customCss": NotRequired[str],
+    "cssSnippets": NotRequired[List["GetPortalThemeResponseDraftOption1CssSnippetsItem"]],
+    "mobile": NotRequired["GetPortalThemeResponseDraftOption1Mobile"],
+    "embed": NotRequired["GetPortalThemeResponseDraftOption1Embed"],
+})
+
+GetPortalThemeResponse = TypedDict("GetPortalThemeResponse", {
+    "published": "GetPortalThemeResponsePublished",
+    "draft": Optional["GetPortalThemeResponseDraftOption1"],
+    "hasDraft": bool,
+    "publishedAt": Optional[str],
+    "updatedAt": Optional[str],
+    "previewExpiresAt": Optional[str],
+})
+
+# The theme as JSON Schema (draft 2020-12), for editors and validators.
+GetPortalThemeSchemaResponse: TypeAlias = "Dict[str, Any]"
+
+GetPortalThemeCompiledResponse = TypedDict("GetPortalThemeCompiledResponse", {
+    "css": str,
+    "view": Dict[str, Any],
+})
+
+GetPortalThemeVersionsResponseDataItem = TypedDict("GetPortalThemeVersionsResponseDataItem", {
+    "id": str,
+    "publishedBy": Optional[str],
+    "note": Optional[str],
+    "createdAt": str,
+})
+
+GetPortalThemeVersionsResponse = TypedDict("GetPortalThemeVersionsResponse", {
+    "data": List["GetPortalThemeVersionsResponseDataItem"],
+})
+
+PostPortalThemePreviewResponse = TypedDict("PostPortalThemePreviewResponse", {
+    "token": str,
+    "expiresAt": str,
+    "url": Optional[str],
+})
+
+PostPortalThemeImportBrandResponsePublishedPalette = TypedDict("PostPortalThemeImportBrandResponsePublishedPalette", {
+    "background": NotRequired[str],
+    "surface": NotRequired[str],
+    "surfaceAlt": NotRequired[str],
+    "ink": NotRequired[str],
+    "muted": NotRequired[str],
+    "faint": NotRequired[str],
+    "line": NotRequired[str],
+    "lineStrong": NotRequired[str],
+    "primary": NotRequired[str],
+    "onPrimary": NotRequired[str],
+    "primarySoft": NotRequired[str],
+    "header_background": NotRequired[str],
+    "header_primary": NotRequired[str],
+    "sidebar": NotRequired[str],
+    "footer_background": NotRequired[str],
+    "footer_primary": NotRequired[str],
+    "success": NotRequired[str],
+    "warning": NotRequired[str],
+    "danger": NotRequired[str],
+    "info": NotRequired[str],
+    "chart": NotRequired[str],
+    "money": NotRequired[str],
+})
+
+PostPortalThemeImportBrandResponsePublishedPaletteDark = TypedDict("PostPortalThemeImportBrandResponsePublishedPaletteDark", {
+    "background": NotRequired[str],
+    "surface": NotRequired[str],
+    "surfaceAlt": NotRequired[str],
+    "ink": NotRequired[str],
+    "muted": NotRequired[str],
+    "faint": NotRequired[str],
+    "line": NotRequired[str],
+    "lineStrong": NotRequired[str],
+    "primary": NotRequired[str],
+    "onPrimary": NotRequired[str],
+    "primarySoft": NotRequired[str],
+    "header_background": NotRequired[str],
+    "header_primary": NotRequired[str],
+    "sidebar": NotRequired[str],
+    "footer_background": NotRequired[str],
+    "footer_primary": NotRequired[str],
+    "success": NotRequired[str],
+    "warning": NotRequired[str],
+    "danger": NotRequired[str],
+    "info": NotRequired[str],
+    "chart": NotRequired[str],
+    "money": NotRequired[str],
+})
+
+PostPortalThemeImportBrandResponsePublishedFontsFacesItem = TypedDict("PostPortalThemeImportBrandResponsePublishedFontsFacesItem", {
+    "family": str,
+    "src": str,
+    "format": NotRequired[Literal["woff2", "woff", "truetype", "opentype"]],
+    "weight": NotRequired[Union[int, str]],
+    "style": NotRequired[Literal["normal", "italic", "oblique"]],
+    "display": NotRequired[Literal["auto", "block", "swap", "fallback", "optional"]],
+})
+
+PostPortalThemeImportBrandResponsePublishedFonts = TypedDict("PostPortalThemeImportBrandResponsePublishedFonts", {
+    "faces": NotRequired[List["PostPortalThemeImportBrandResponsePublishedFontsFacesItem"]],
+})
+
+PostPortalThemeImportBrandResponsePublishedTypography = TypedDict("PostPortalThemeImportBrandResponsePublishedTypography", {
+    "baseSize": NotRequired[float],
+    "headingScale": NotRequired[float],
+    "headingWeight": NotRequired[int],
+    "bodyWeight": NotRequired[int],
+    "headingTransform": NotRequired[Literal["none", "uppercase", "lowercase", "capitalize"]],
+    "headingTracking": NotRequired[float],
+    "bodyLeading": NotRequired[float],
+    "numerals": NotRequired[Literal["proportional", "tabular"]],
+})
+
+PostPortalThemeImportBrandResponsePublishedComponentsCards = TypedDict("PostPortalThemeImportBrandResponsePublishedComponentsCards", {
+    "border": NotRequired[bool],
+    "elevation": NotRequired[Literal["flat", "raised"]],
+})
+
+PostPortalThemeImportBrandResponsePublishedComponentsButtons = TypedDict("PostPortalThemeImportBrandResponsePublishedComponentsButtons", {
+    "radius": NotRequired[float],
+    "case": NotRequired[Literal["none", "uppercase"]],
+    "weight": NotRequired[int],
+    "style": NotRequired[Literal["solid", "outline", "soft"]],
+})
+
+PostPortalThemeImportBrandResponsePublishedComponentsInputs = TypedDict("PostPortalThemeImportBrandResponsePublishedComponentsInputs", {
+    "radius": NotRequired[float],
+    "style": NotRequired[Literal["outline", "filled", "underline"]],
+})
+
+PostPortalThemeImportBrandResponsePublishedComponentsFocusRing = TypedDict("PostPortalThemeImportBrandResponsePublishedComponentsFocusRing", {
+    "color": NotRequired[str],
+    "width": NotRequired[float],
+})
+
+PostPortalThemeImportBrandResponsePublishedComponentsLinks = TypedDict("PostPortalThemeImportBrandResponsePublishedComponentsLinks", {
+    "underline": NotRequired[Literal["always", "hover", "none"]],
+    "color": NotRequired[str],
+    "colorDark": NotRequired[str],
+})
+
+PostPortalThemeImportBrandResponsePublishedComponents = TypedDict("PostPortalThemeImportBrandResponsePublishedComponents", {
+    "radius": NotRequired[float],
+    "radiusSmall": NotRequired[float],
+    "shadow": NotRequired[Literal["none", "soft", "medium", "strong"]],
+    "cards": NotRequired["PostPortalThemeImportBrandResponsePublishedComponentsCards"],
+    "buttons": NotRequired["PostPortalThemeImportBrandResponsePublishedComponentsButtons"],
+    "inputs": NotRequired["PostPortalThemeImportBrandResponsePublishedComponentsInputs"],
+    "focusRing": NotRequired["PostPortalThemeImportBrandResponsePublishedComponentsFocusRing"],
+    "links": NotRequired["PostPortalThemeImportBrandResponsePublishedComponentsLinks"],
+})
+
+PostPortalThemeImportBrandResponsePublishedAnnouncementLink = TypedDict("PostPortalThemeImportBrandResponsePublishedAnnouncementLink", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+PostPortalThemeImportBrandResponsePublishedAnnouncement = TypedDict("PostPortalThemeImportBrandResponsePublishedAnnouncement", {
+    "text": str,
+    "level": NotRequired[Literal["info", "success", "warning", "danger"]],
+    "link": NotRequired["PostPortalThemeImportBrandResponsePublishedAnnouncementLink"],
+    "dismissible": NotRequired[bool],
+    "background": NotRequired[str],
+    "ink": NotRequired[str],
+    "startsAt": NotRequired[str],
+    "endsAt": NotRequired[str],
+})
+
+PostPortalThemeImportBrandResponsePublishedChromeHeaderLinksItem = TypedDict("PostPortalThemeImportBrandResponsePublishedChromeHeaderLinksItem", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+PostPortalThemeImportBrandResponsePublishedChromeHeaderCta = TypedDict("PostPortalThemeImportBrandResponsePublishedChromeHeaderCta", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+PostPortalThemeImportBrandResponsePublishedChromeHeader = TypedDict("PostPortalThemeImportBrandResponsePublishedChromeHeader", {
+    "links": NotRequired[List["PostPortalThemeImportBrandResponsePublishedChromeHeaderLinksItem"]],
+    "cta": NotRequired["PostPortalThemeImportBrandResponsePublishedChromeHeaderCta"],
+    "sticky": NotRequired[bool],
+    "showLocaleSwitcher": NotRequired[bool],
+    "showThemeToggle": NotRequired[bool],
+    "brandAlign": NotRequired[Literal["start", "center"]],
+    "border": NotRequired[bool],
+})
+
+PostPortalThemeImportBrandResponsePublishedChromeFooterColumnsItemLinksItem = TypedDict("PostPortalThemeImportBrandResponsePublishedChromeFooterColumnsItemLinksItem", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+PostPortalThemeImportBrandResponsePublishedChromeFooterColumnsItem = TypedDict("PostPortalThemeImportBrandResponsePublishedChromeFooterColumnsItem", {
+    "heading": str,
+    "links": List["PostPortalThemeImportBrandResponsePublishedChromeFooterColumnsItemLinksItem"],
+})
+
+PostPortalThemeImportBrandResponsePublishedChromeFooterSocialItem = TypedDict("PostPortalThemeImportBrandResponsePublishedChromeFooterSocialItem", {
+    "platform": Literal["x", "linkedin", "instagram", "facebook", "youtube", "tiktok", "github", "discord", "threads", "bluesky", "mastodon"],
+    "href": str,
+})
+
+PostPortalThemeImportBrandResponsePublishedChromeFooter = TypedDict("PostPortalThemeImportBrandResponsePublishedChromeFooter", {
+    "columns": NotRequired[List["PostPortalThemeImportBrandResponsePublishedChromeFooterColumnsItem"]],
+    "text": NotRequired[str],
+    "social": NotRequired[List["PostPortalThemeImportBrandResponsePublishedChromeFooterSocialItem"]],
+    "showPoweredBy": NotRequired[bool],
+})
+
+PostPortalThemeImportBrandResponsePublishedChrome = TypedDict("PostPortalThemeImportBrandResponsePublishedChrome", {
+    "header": NotRequired["PostPortalThemeImportBrandResponsePublishedChromeHeader"],
+    "footer": NotRequired["PostPortalThemeImportBrandResponsePublishedChromeFooter"],
+})
+
+PostPortalThemeImportBrandResponsePublishedPortalSectionsItem = TypedDict("PostPortalThemeImportBrandResponsePublishedPortalSectionsItem", {
+    "id": Literal["welcome", "earnings", "link", "stats", "groups", "milestones", "programs"],
+    "enabled": NotRequired[bool],
+    "title": NotRequired[str],
+    "description": NotRequired[str],
+})
+
+PostPortalThemeImportBrandResponsePublishedPortalWelcomeCta = TypedDict("PostPortalThemeImportBrandResponsePublishedPortalWelcomeCta", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+PostPortalThemeImportBrandResponsePublishedPortalWelcome = TypedDict("PostPortalThemeImportBrandResponsePublishedPortalWelcome", {
+    "title": str,
+    "body": NotRequired[str],
+    "image": NotRequired[str],
+    "cta": NotRequired["PostPortalThemeImportBrandResponsePublishedPortalWelcomeCta"],
+})
+
+PostPortalThemeImportBrandResponsePublishedPortalNavigation = TypedDict("PostPortalThemeImportBrandResponsePublishedPortalNavigation", {
+    "primary": NotRequired[List[Literal["links", "earnings", "payouts", "assets", "deals", "marketplace", "invitations", "contracts", "disputes", "financing", "passport"]]],
+    "hidden": NotRequired[List[Literal["links", "earnings", "payouts", "assets", "deals", "marketplace", "invitations", "contracts", "disputes", "financing", "passport"]]],
+    "labels": NotRequired[Dict[str, str]],
+    "style": NotRequired[Literal["topbar", "sidebar"]],
+})
+
+PostPortalThemeImportBrandResponsePublishedPortalSignIn = TypedDict("PostPortalThemeImportBrandResponsePublishedPortalSignIn", {
+    "title": NotRequired[str],
+    "subtitle": NotRequired[str],
+    "image": NotRequired[str],
+    "layout": NotRequired[Literal["centered", "split"]],
+    "footnote": NotRequired[str],
+})
+
+PostPortalThemeImportBrandResponsePublishedPortalMoney = TypedDict("PostPortalThemeImportBrandResponsePublishedPortalMoney", {
+    "showCurrencyCode": NotRequired[bool],
+    "compact": NotRequired[bool],
+})
+
+PostPortalThemeImportBrandResponsePublishedPortal = TypedDict("PostPortalThemeImportBrandResponsePublishedPortal", {
+    "sections": NotRequired[List["PostPortalThemeImportBrandResponsePublishedPortalSectionsItem"]],
+    "welcome": NotRequired["PostPortalThemeImportBrandResponsePublishedPortalWelcome"],
+    "navigation": NotRequired["PostPortalThemeImportBrandResponsePublishedPortalNavigation"],
+    "signIn": NotRequired["PostPortalThemeImportBrandResponsePublishedPortalSignIn"],
+    "money": NotRequired["PostPortalThemeImportBrandResponsePublishedPortalMoney"],
+})
+
+PostPortalThemeImportBrandResponsePublishedSettingsSchemaItem = TypedDict("PostPortalThemeImportBrandResponsePublishedSettingsSchemaItem", {
+    "key": str,
+    "type": Literal["bool", "int", "string", "enum", "color"],
+    "label": NotRequired[str],
+    "default": NotRequired[Union[str, float, bool]],
+    "options": NotRequired[List[str]],
+})
+
+PostPortalThemeImportBrandResponsePublishedCssSnippetsItem = TypedDict("PostPortalThemeImportBrandResponsePublishedCssSnippetsItem", {
+    "name": str,
+    "css": str,
+    "enabled": NotRequired[bool],
+})
+
+PostPortalThemeImportBrandResponsePublishedMobile = TypedDict("PostPortalThemeImportBrandResponsePublishedMobile", {
+    "fontScale": NotRequired[float],
+    "density": NotRequired[Literal["compact", "cozy"]],
+    "logoUrl": NotRequired[str],
+    "hideSections": NotRequired[List[Literal["welcome", "earnings", "link", "stats", "groups", "milestones", "programs"]]],
+    "css": NotRequired[str],
+})
+
+PostPortalThemeImportBrandResponsePublishedEmbed = TypedDict("PostPortalThemeImportBrandResponsePublishedEmbed", {
+    "enabled": NotRequired[bool],
+    "allowedOrigins": NotRequired[List[str]],
+    "hideChrome": NotRequired[bool],
+})
+
+# What partners see now.
+PostPortalThemeImportBrandResponsePublished = TypedDict("PostPortalThemeImportBrandResponsePublished", {
+    "primaryColor": NotRequired[str],
+    "primaryColorDark": NotRequired[str],
+    "accentColor": NotRequired[str],
+    "palette": NotRequired["PostPortalThemeImportBrandResponsePublishedPalette"],
+    "paletteDark": NotRequired["PostPortalThemeImportBrandResponsePublishedPaletteDark"],
+    "colorScheme": NotRequired[Literal["system", "light", "dark"]],
+    "colorSchemeStrict": NotRequired[bool],
+    "contentWidth": NotRequired[Literal["standard", "wide", "full"]],
+    "density": NotRequired[Literal["compact", "cozy", "comfortable"]],
+    "font": NotRequired[Literal["sans", "serif", "mono", "system"]],
+    "customFontUrl": NotRequired[str],
+    "customFontFamily": NotRequired[str],
+    "headingFontFamily": NotRequired[str],
+    "bodyFontFamily": NotRequired[str],
+    "moneyFontFamily": NotRequired[str],
+    "monoFontFamily": NotRequired[str],
+    "fonts": NotRequired["PostPortalThemeImportBrandResponsePublishedFonts"],
+    "typography": NotRequired["PostPortalThemeImportBrandResponsePublishedTypography"],
+    "brandName": NotRequired[Union[str, bool]],
+    "logoUrl": NotRequired[str],
+    "logoUrlLight": NotRequired[str],
+    "logoUrlDark": NotRequired[str],
+    "logoMark": NotRequired[str],
+    "logoIncludesName": NotRequired[bool],
+    "logoDarkMode": NotRequired[Literal["none", "invert", "plate"]],
+    "logoHeight": NotRequired[float],
+    "faviconUrl": NotRequired[str],
+    "pageTitle": NotRequired[str],
+    "components": NotRequired["PostPortalThemeImportBrandResponsePublishedComponents"],
+    "announcement": NotRequired["PostPortalThemeImportBrandResponsePublishedAnnouncement"],
+    "chrome": NotRequired["PostPortalThemeImportBrandResponsePublishedChrome"],
+    "portal": NotRequired["PostPortalThemeImportBrandResponsePublishedPortal"],
+    "stringOverrides": NotRequired[Dict[str, Dict[str, str]]],
+    "settingsSchema": NotRequired[List["PostPortalThemeImportBrandResponsePublishedSettingsSchemaItem"]],
+    "settings": NotRequired[Dict[str, Union[str, float, bool]]],
+    "customCss": NotRequired[str],
+    "cssSnippets": NotRequired[List["PostPortalThemeImportBrandResponsePublishedCssSnippetsItem"]],
+    "mobile": NotRequired["PostPortalThemeImportBrandResponsePublishedMobile"],
+    "embed": NotRequired["PostPortalThemeImportBrandResponsePublishedEmbed"],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1Palette = TypedDict("PostPortalThemeImportBrandResponseDraftOption1Palette", {
+    "background": NotRequired[str],
+    "surface": NotRequired[str],
+    "surfaceAlt": NotRequired[str],
+    "ink": NotRequired[str],
+    "muted": NotRequired[str],
+    "faint": NotRequired[str],
+    "line": NotRequired[str],
+    "lineStrong": NotRequired[str],
+    "primary": NotRequired[str],
+    "onPrimary": NotRequired[str],
+    "primarySoft": NotRequired[str],
+    "header_background": NotRequired[str],
+    "header_primary": NotRequired[str],
+    "sidebar": NotRequired[str],
+    "footer_background": NotRequired[str],
+    "footer_primary": NotRequired[str],
+    "success": NotRequired[str],
+    "warning": NotRequired[str],
+    "danger": NotRequired[str],
+    "info": NotRequired[str],
+    "chart": NotRequired[str],
+    "money": NotRequired[str],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1PaletteDark = TypedDict("PostPortalThemeImportBrandResponseDraftOption1PaletteDark", {
+    "background": NotRequired[str],
+    "surface": NotRequired[str],
+    "surfaceAlt": NotRequired[str],
+    "ink": NotRequired[str],
+    "muted": NotRequired[str],
+    "faint": NotRequired[str],
+    "line": NotRequired[str],
+    "lineStrong": NotRequired[str],
+    "primary": NotRequired[str],
+    "onPrimary": NotRequired[str],
+    "primarySoft": NotRequired[str],
+    "header_background": NotRequired[str],
+    "header_primary": NotRequired[str],
+    "sidebar": NotRequired[str],
+    "footer_background": NotRequired[str],
+    "footer_primary": NotRequired[str],
+    "success": NotRequired[str],
+    "warning": NotRequired[str],
+    "danger": NotRequired[str],
+    "info": NotRequired[str],
+    "chart": NotRequired[str],
+    "money": NotRequired[str],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1FontsFacesItem = TypedDict("PostPortalThemeImportBrandResponseDraftOption1FontsFacesItem", {
+    "family": str,
+    "src": str,
+    "format": NotRequired[Literal["woff2", "woff", "truetype", "opentype"]],
+    "weight": NotRequired[Union[int, str]],
+    "style": NotRequired[Literal["normal", "italic", "oblique"]],
+    "display": NotRequired[Literal["auto", "block", "swap", "fallback", "optional"]],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1Fonts = TypedDict("PostPortalThemeImportBrandResponseDraftOption1Fonts", {
+    "faces": NotRequired[List["PostPortalThemeImportBrandResponseDraftOption1FontsFacesItem"]],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1Typography = TypedDict("PostPortalThemeImportBrandResponseDraftOption1Typography", {
+    "baseSize": NotRequired[float],
+    "headingScale": NotRequired[float],
+    "headingWeight": NotRequired[int],
+    "bodyWeight": NotRequired[int],
+    "headingTransform": NotRequired[Literal["none", "uppercase", "lowercase", "capitalize"]],
+    "headingTracking": NotRequired[float],
+    "bodyLeading": NotRequired[float],
+    "numerals": NotRequired[Literal["proportional", "tabular"]],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1ComponentsCards = TypedDict("PostPortalThemeImportBrandResponseDraftOption1ComponentsCards", {
+    "border": NotRequired[bool],
+    "elevation": NotRequired[Literal["flat", "raised"]],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1ComponentsButtons = TypedDict("PostPortalThemeImportBrandResponseDraftOption1ComponentsButtons", {
+    "radius": NotRequired[float],
+    "case": NotRequired[Literal["none", "uppercase"]],
+    "weight": NotRequired[int],
+    "style": NotRequired[Literal["solid", "outline", "soft"]],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1ComponentsInputs = TypedDict("PostPortalThemeImportBrandResponseDraftOption1ComponentsInputs", {
+    "radius": NotRequired[float],
+    "style": NotRequired[Literal["outline", "filled", "underline"]],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1ComponentsFocusRing = TypedDict("PostPortalThemeImportBrandResponseDraftOption1ComponentsFocusRing", {
+    "color": NotRequired[str],
+    "width": NotRequired[float],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1ComponentsLinks = TypedDict("PostPortalThemeImportBrandResponseDraftOption1ComponentsLinks", {
+    "underline": NotRequired[Literal["always", "hover", "none"]],
+    "color": NotRequired[str],
+    "colorDark": NotRequired[str],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1Components = TypedDict("PostPortalThemeImportBrandResponseDraftOption1Components", {
+    "radius": NotRequired[float],
+    "radiusSmall": NotRequired[float],
+    "shadow": NotRequired[Literal["none", "soft", "medium", "strong"]],
+    "cards": NotRequired["PostPortalThemeImportBrandResponseDraftOption1ComponentsCards"],
+    "buttons": NotRequired["PostPortalThemeImportBrandResponseDraftOption1ComponentsButtons"],
+    "inputs": NotRequired["PostPortalThemeImportBrandResponseDraftOption1ComponentsInputs"],
+    "focusRing": NotRequired["PostPortalThemeImportBrandResponseDraftOption1ComponentsFocusRing"],
+    "links": NotRequired["PostPortalThemeImportBrandResponseDraftOption1ComponentsLinks"],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1AnnouncementLink = TypedDict("PostPortalThemeImportBrandResponseDraftOption1AnnouncementLink", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1Announcement = TypedDict("PostPortalThemeImportBrandResponseDraftOption1Announcement", {
+    "text": str,
+    "level": NotRequired[Literal["info", "success", "warning", "danger"]],
+    "link": NotRequired["PostPortalThemeImportBrandResponseDraftOption1AnnouncementLink"],
+    "dismissible": NotRequired[bool],
+    "background": NotRequired[str],
+    "ink": NotRequired[str],
+    "startsAt": NotRequired[str],
+    "endsAt": NotRequired[str],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1ChromeHeaderLinksItem = TypedDict("PostPortalThemeImportBrandResponseDraftOption1ChromeHeaderLinksItem", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1ChromeHeaderCta = TypedDict("PostPortalThemeImportBrandResponseDraftOption1ChromeHeaderCta", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1ChromeHeader = TypedDict("PostPortalThemeImportBrandResponseDraftOption1ChromeHeader", {
+    "links": NotRequired[List["PostPortalThemeImportBrandResponseDraftOption1ChromeHeaderLinksItem"]],
+    "cta": NotRequired["PostPortalThemeImportBrandResponseDraftOption1ChromeHeaderCta"],
+    "sticky": NotRequired[bool],
+    "showLocaleSwitcher": NotRequired[bool],
+    "showThemeToggle": NotRequired[bool],
+    "brandAlign": NotRequired[Literal["start", "center"]],
+    "border": NotRequired[bool],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1ChromeFooterColumnsItemLinksItem = TypedDict("PostPortalThemeImportBrandResponseDraftOption1ChromeFooterColumnsItemLinksItem", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1ChromeFooterColumnsItem = TypedDict("PostPortalThemeImportBrandResponseDraftOption1ChromeFooterColumnsItem", {
+    "heading": str,
+    "links": List["PostPortalThemeImportBrandResponseDraftOption1ChromeFooterColumnsItemLinksItem"],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1ChromeFooterSocialItem = TypedDict("PostPortalThemeImportBrandResponseDraftOption1ChromeFooterSocialItem", {
+    "platform": Literal["x", "linkedin", "instagram", "facebook", "youtube", "tiktok", "github", "discord", "threads", "bluesky", "mastodon"],
+    "href": str,
+})
+
+PostPortalThemeImportBrandResponseDraftOption1ChromeFooter = TypedDict("PostPortalThemeImportBrandResponseDraftOption1ChromeFooter", {
+    "columns": NotRequired[List["PostPortalThemeImportBrandResponseDraftOption1ChromeFooterColumnsItem"]],
+    "text": NotRequired[str],
+    "social": NotRequired[List["PostPortalThemeImportBrandResponseDraftOption1ChromeFooterSocialItem"]],
+    "showPoweredBy": NotRequired[bool],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1Chrome = TypedDict("PostPortalThemeImportBrandResponseDraftOption1Chrome", {
+    "header": NotRequired["PostPortalThemeImportBrandResponseDraftOption1ChromeHeader"],
+    "footer": NotRequired["PostPortalThemeImportBrandResponseDraftOption1ChromeFooter"],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1PortalSectionsItem = TypedDict("PostPortalThemeImportBrandResponseDraftOption1PortalSectionsItem", {
+    "id": Literal["welcome", "earnings", "link", "stats", "groups", "milestones", "programs"],
+    "enabled": NotRequired[bool],
+    "title": NotRequired[str],
+    "description": NotRequired[str],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1PortalWelcomeCta = TypedDict("PostPortalThemeImportBrandResponseDraftOption1PortalWelcomeCta", {
+    "label": str,
+    "href": str,
+    "newTab": NotRequired[bool],
+    "translations": NotRequired[Dict[str, str]],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1PortalWelcome = TypedDict("PostPortalThemeImportBrandResponseDraftOption1PortalWelcome", {
+    "title": str,
+    "body": NotRequired[str],
+    "image": NotRequired[str],
+    "cta": NotRequired["PostPortalThemeImportBrandResponseDraftOption1PortalWelcomeCta"],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1PortalNavigation = TypedDict("PostPortalThemeImportBrandResponseDraftOption1PortalNavigation", {
+    "primary": NotRequired[List[Literal["links", "earnings", "payouts", "assets", "deals", "marketplace", "invitations", "contracts", "disputes", "financing", "passport"]]],
+    "hidden": NotRequired[List[Literal["links", "earnings", "payouts", "assets", "deals", "marketplace", "invitations", "contracts", "disputes", "financing", "passport"]]],
+    "labels": NotRequired[Dict[str, str]],
+    "style": NotRequired[Literal["topbar", "sidebar"]],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1PortalSignIn = TypedDict("PostPortalThemeImportBrandResponseDraftOption1PortalSignIn", {
+    "title": NotRequired[str],
+    "subtitle": NotRequired[str],
+    "image": NotRequired[str],
+    "layout": NotRequired[Literal["centered", "split"]],
+    "footnote": NotRequired[str],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1PortalMoney = TypedDict("PostPortalThemeImportBrandResponseDraftOption1PortalMoney", {
+    "showCurrencyCode": NotRequired[bool],
+    "compact": NotRequired[bool],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1Portal = TypedDict("PostPortalThemeImportBrandResponseDraftOption1Portal", {
+    "sections": NotRequired[List["PostPortalThemeImportBrandResponseDraftOption1PortalSectionsItem"]],
+    "welcome": NotRequired["PostPortalThemeImportBrandResponseDraftOption1PortalWelcome"],
+    "navigation": NotRequired["PostPortalThemeImportBrandResponseDraftOption1PortalNavigation"],
+    "signIn": NotRequired["PostPortalThemeImportBrandResponseDraftOption1PortalSignIn"],
+    "money": NotRequired["PostPortalThemeImportBrandResponseDraftOption1PortalMoney"],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1SettingsSchemaItem = TypedDict("PostPortalThemeImportBrandResponseDraftOption1SettingsSchemaItem", {
+    "key": str,
+    "type": Literal["bool", "int", "string", "enum", "color"],
+    "label": NotRequired[str],
+    "default": NotRequired[Union[str, float, bool]],
+    "options": NotRequired[List[str]],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1CssSnippetsItem = TypedDict("PostPortalThemeImportBrandResponseDraftOption1CssSnippetsItem", {
+    "name": str,
+    "css": str,
+    "enabled": NotRequired[bool],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1Mobile = TypedDict("PostPortalThemeImportBrandResponseDraftOption1Mobile", {
+    "fontScale": NotRequired[float],
+    "density": NotRequired[Literal["compact", "cozy"]],
+    "logoUrl": NotRequired[str],
+    "hideSections": NotRequired[List[Literal["welcome", "earnings", "link", "stats", "groups", "milestones", "programs"]]],
+    "css": NotRequired[str],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1Embed = TypedDict("PostPortalThemeImportBrandResponseDraftOption1Embed", {
+    "enabled": NotRequired[bool],
+    "allowedOrigins": NotRequired[List[str]],
+    "hideChrome": NotRequired[bool],
+})
+
+PostPortalThemeImportBrandResponseDraftOption1 = TypedDict("PostPortalThemeImportBrandResponseDraftOption1", {
+    "primaryColor": NotRequired[str],
+    "primaryColorDark": NotRequired[str],
+    "accentColor": NotRequired[str],
+    "palette": NotRequired["PostPortalThemeImportBrandResponseDraftOption1Palette"],
+    "paletteDark": NotRequired["PostPortalThemeImportBrandResponseDraftOption1PaletteDark"],
+    "colorScheme": NotRequired[Literal["system", "light", "dark"]],
+    "colorSchemeStrict": NotRequired[bool],
+    "contentWidth": NotRequired[Literal["standard", "wide", "full"]],
+    "density": NotRequired[Literal["compact", "cozy", "comfortable"]],
+    "font": NotRequired[Literal["sans", "serif", "mono", "system"]],
+    "customFontUrl": NotRequired[str],
+    "customFontFamily": NotRequired[str],
+    "headingFontFamily": NotRequired[str],
+    "bodyFontFamily": NotRequired[str],
+    "moneyFontFamily": NotRequired[str],
+    "monoFontFamily": NotRequired[str],
+    "fonts": NotRequired["PostPortalThemeImportBrandResponseDraftOption1Fonts"],
+    "typography": NotRequired["PostPortalThemeImportBrandResponseDraftOption1Typography"],
+    "brandName": NotRequired[Union[str, bool]],
+    "logoUrl": NotRequired[str],
+    "logoUrlLight": NotRequired[str],
+    "logoUrlDark": NotRequired[str],
+    "logoMark": NotRequired[str],
+    "logoIncludesName": NotRequired[bool],
+    "logoDarkMode": NotRequired[Literal["none", "invert", "plate"]],
+    "logoHeight": NotRequired[float],
+    "faviconUrl": NotRequired[str],
+    "pageTitle": NotRequired[str],
+    "components": NotRequired["PostPortalThemeImportBrandResponseDraftOption1Components"],
+    "announcement": NotRequired["PostPortalThemeImportBrandResponseDraftOption1Announcement"],
+    "chrome": NotRequired["PostPortalThemeImportBrandResponseDraftOption1Chrome"],
+    "portal": NotRequired["PostPortalThemeImportBrandResponseDraftOption1Portal"],
+    "stringOverrides": NotRequired[Dict[str, Dict[str, str]]],
+    "settingsSchema": NotRequired[List["PostPortalThemeImportBrandResponseDraftOption1SettingsSchemaItem"]],
+    "settings": NotRequired[Dict[str, Union[str, float, bool]]],
+    "customCss": NotRequired[str],
+    "cssSnippets": NotRequired[List["PostPortalThemeImportBrandResponseDraftOption1CssSnippetsItem"]],
+    "mobile": NotRequired["PostPortalThemeImportBrandResponseDraftOption1Mobile"],
+    "embed": NotRequired["PostPortalThemeImportBrandResponseDraftOption1Embed"],
+})
+
+PostPortalThemeImportBrandResponse = TypedDict("PostPortalThemeImportBrandResponse", {
+    "published": "PostPortalThemeImportBrandResponsePublished",
+    "draft": Optional["PostPortalThemeImportBrandResponseDraftOption1"],
+    "hasDraft": bool,
+    "publishedAt": Optional[str],
+    "updatedAt": Optional[str],
+    "previewExpiresAt": Optional[str],
+    "applied": List[str],
+})
+
+GetStripeCreditsConnectionResponse = TypedDict("GetStripeCreditsConnectionResponse", {
+    "connected": bool,
+    "source": Optional[Literal["stripe_credits", "payout_connection"]],
+    "connectedAt": Optional[str],
+})
+
+GetProgramsIdStripeCreditsResponse = TypedDict("GetProgramsIdStripeCreditsResponse", {
+    "programId": str,
+    "enabled": bool,
+    "referrerMatch": Literal["billing_link", "metadata", "email"],
+    "metadataKey": Optional[str],
+    "refereeRewards": bool,
+    "keyConnected": bool,
+})
+
+GetProgramsIdStripeCreditsLogResponseDataItem = TypedDict("GetProgramsIdStripeCreditsLogResponseDataItem", {
+    "id": str,
+    "programId": str,
+    "sourceEventId": str,
+    "kind": Literal["referrer_credit", "referrer_debit", "referee_credit"],
+    "commissionId": Optional[str],
+    "partnerId": Optional[str],
+    "customerRef": Optional[str],
+    "amountMinor": int,
+    "currency": str,
+    "stripeCustomerId": Optional[str],
+    "status": Literal["pending", "applied", "failed", "no_customer", "canceled"],
+    "attempts": int,
+    "stripeBalanceTransactionId": Optional[str],
+    "lastError": Optional[str],
+    "createdAt": str,
+    "updatedAt": str,
+})
+
+GetProgramsIdStripeCreditsLogResponse = TypedDict("GetProgramsIdStripeCreditsLogResponse", {
+    "object": Literal["list"],
+    "data": List["GetProgramsIdStripeCreditsLogResponseDataItem"],
+    "has_more": bool,
+    "next_cursor": Optional[str],
+})
+
 PostWebhooksBillingConnectionIdResponseResultsItem = TypedDict("PostWebhooksBillingConnectionIdResponseResultsItem", {
     "duplicate": bool,
     "billingEventId": Optional[str],
@@ -5565,25 +7152,53 @@ PostWebhooksStripeBillingResponse = TypedDict("PostWebhooksStripeBillingResponse
     "planStatus": NotRequired[str],
 })
 
+PostWebhooksCookiemunchConsentResponse = TypedDict("PostWebhooksCookiemunchConsentResponse", {
+    "received": bool,
+    "duplicate": NotRequired[bool],
+    "ignored": NotRequired[bool],
+    "reason": NotRequired[Literal["event_not_handled", "site_not_registered"]],
+})
+
 PostApiPrivacyLookupResponse = TypedDict("PostApiPrivacyLookupResponse", {
     "subjectId": Optional[str],
     "status": Literal["found", "no_match"],
 })
 
-PostApiPrivacyRequestsResponse = TypedDict("PostApiPrivacyRequestsResponse", {
+PostApiPrivacyRequestsResponseValueOption1 = TypedDict("PostApiPrivacyRequestsResponseValueOption1", {
     "id": str,
     "status": Literal["pending", "completed", "no_match", "rejected"],
     "eta": NotRequired[str],
     "detail": NotRequired[str],
 })
 
-GetApiPrivacyRequestsIdResponse = TypedDict("GetApiPrivacyRequestsIdResponse", {
+PostApiPrivacyRequestsResponse: TypeAlias = "Union[PostApiPrivacyRequestsResponseValueOption1, PostApiPrivacyRequestsIdCancelResponse]"
+
+GetApiPrivacyRequestsIdResponseValueOption1 = TypedDict("GetApiPrivacyRequestsIdResponseValueOption1", {
     "id": str,
-    "type": Literal["access", "deletion"],
     "status": Literal["pending", "completed", "no_match", "rejected"],
     "eta": NotRequired[str],
     "detail": NotRequired[str],
+    "type": Literal["access", "deletion"],
     "result": NotRequired["GetOpenapiJsonResponse"],
+})
+
+GetApiPrivacyRequestsIdResponse: TypeAlias = "Union[GetApiPrivacyRequestsIdResponseValueOption1, PostApiPrivacyRequestsIdCancelResponse]"
+
+PostApiPrivacyRequestsIdCancelResponseRetentionItem = TypedDict("PostApiPrivacyRequestsIdCancelResponseRetentionItem", {
+    "category": str,
+    "basis": Literal["legal_obligation", "legal_claims", "contract", "public_interest"],
+    "until": NotRequired[str],
+})
+
+PostApiPrivacyRequestsIdCancelResponse = TypedDict("PostApiPrivacyRequestsIdCancelResponse", {
+    "id": str,
+    "type": str,
+    "canonicalType": Literal["access", "deletion", "closure", "restriction", "rectification"],
+    "status": Literal["pending", "scheduled", "processing", "completed", "completed_with_retention", "rejected", "no_match", "cancelled"],
+    "eta": NotRequired[str],
+    "detail": NotRequired[str],
+    "retention": NotRequired[List["PostApiPrivacyRequestsIdCancelResponseRetentionItem"]],
+    "result": NotRequired[Optional["GetOpenapiJsonResponse"]],
 })
 
 PostApiPrivacyOrgsOrgIdLookupResponse = TypedDict("PostApiPrivacyOrgsOrgIdLookupResponse", {
@@ -5602,7 +7217,7 @@ GetApiPrivacyOrgsOrgIdRequestsIdResponse = TypedDict("GetApiPrivacyOrgsOrgIdRequ
     "type": Literal["access", "deletion"],
     "status": Literal["pending", "completed", "no_match", "rejected"],
     "detail": NotRequired[str],
-    "result": NotRequired["PostSupportCardsOrgIdAdapterResponse"],
+    "result": NotRequired["GetSupportPlatformChatlyAnswersResponse"],
 })
 
 GetGraphqlResponse = TypedDict("GetGraphqlResponse", {
@@ -5648,14 +7263,38 @@ PutOrgPortalAuthBodyOption2 = TypedDict("PutOrgPortalAuthBodyOption2", {
     "autoEnrollProgramId": NotRequired[Optional[str]],
 })
 
+PutOrgPortalAuthBodyOption3Claims = TypedDict("PutOrgPortalAuthBodyOption3Claims", {
+    "sub": NotRequired[str],
+    "email": NotRequired[str],
+    "name": NotRequired[str],
+    "emailVerified": NotRequired[str],
+})
+
 PutOrgPortalAuthBodyOption3 = TypedDict("PutOrgPortalAuthBodyOption3", {
     "adapter": Literal["custom"],
-    "issuer": str,
-    "jwksUrl": str,
+    "preset": NotRequired[Literal["clerk", "supabase", "firebase", "auth0", "cognito", "stytch", "kinde", "okta", "entra", "google", "keycloak", "descope", "fusionauth"]],
+    "tenant": NotRequired[str],
+    "issuer": NotRequired[str],
+    "jwksUrl": NotRequired[str],
+    "keyType": NotRequired[Literal["jwks", "hs256"]],
+    "sharedSecret": NotRequired[str],
+    "audience": NotRequired[str],
+    "maxAgeS": NotRequired[int],
+    "claims": NotRequired["PutOrgPortalAuthBodyOption3Claims"],
     "trustEmailVerified": NotRequired[bool],
     "autoEnrollProgramId": NotRequired[Optional[str]],
     "name": NotRequired[str],
     "loginUrl": NotRequired[str],
+})
+
+PutOrgPortalAuthBodyOption4 = TypedDict("PutOrgPortalAuthBodyOption4", {
+    "adapter": Literal["atlas-suite"],
+    "instanceId": str,
+    "trustEmailVerified": NotRequired[bool],
+    "autoEnrollProgramId": NotRequired[Optional[str]],
+    "name": NotRequired[str],
+    "loginUrl": NotRequired[str],
+    "verifyErrorsSecret": NotRequired[str],
 })
 
 PostMobilePurchasesBody = TypedDict("PostMobilePurchasesBody", {
@@ -5898,6 +7537,56 @@ PatchProgramsIdBodyMobileAppOption1 = TypedDict("PatchProgramsIdBodyMobileAppOpt
     "android": NotRequired[Optional["PatchProgramsIdBodyMobileAppOption1AndroidOption1"]],
 })
 
+PatchProgramsIdBodySettingsPublicPage = TypedDict("PatchProgramsIdBodySettingsPublicPage", {
+    "pitch": NotRequired[str],
+    "autoApprove": NotRequired[bool],
+})
+
+PatchProgramsIdBodySettingsRiskPolicy = TypedDict("PatchProgramsIdBodySettingsRiskPolicy", {
+    "holdBotScore": NotRequired[float],
+    "holdRiskScore": NotRequired[float],
+    "holdHighRiskLevel": NotRequired[bool],
+    "holdDisposableEmail": NotRequired[bool],
+    "holdVelocity": NotRequired[int],
+    "holdUnverifiedEmail": NotRequired[bool],
+    "holdSelfReferral": NotRequired[bool],
+})
+
+PatchProgramsIdBodySettingsWidget = TypedDict("PatchProgramsIdBodySettingsWidget", {
+    "autoEnroll": NotRequired[bool],
+    "destinationUrl": NotRequired[Optional[str]],
+})
+
+PatchProgramsIdBodySettingsMobileAppOption1IosOption1 = TypedDict("PatchProgramsIdBodySettingsMobileAppOption1IosOption1", {
+    "teamId": str,
+    "bundleId": str,
+})
+
+PatchProgramsIdBodySettingsMobileAppOption1AndroidOption1 = TypedDict("PatchProgramsIdBodySettingsMobileAppOption1AndroidOption1", {
+    "packageName": str,
+    "sha256CertFingerprints": List[str],
+})
+
+PatchProgramsIdBodySettingsMobileAppOption1 = TypedDict("PatchProgramsIdBodySettingsMobileAppOption1", {
+    "ios": NotRequired[Optional["PatchProgramsIdBodySettingsMobileAppOption1IosOption1"]],
+    "android": NotRequired[Optional["PatchProgramsIdBodySettingsMobileAppOption1AndroidOption1"]],
+})
+
+PatchProgramsIdBodySettings = TypedDict("PatchProgramsIdBodySettings", {
+    "publicHandle": NotRequired[Optional[str]],
+    "publicPage": NotRequired["PatchProgramsIdBodySettingsPublicPage"],
+    "probabilisticPolicy": NotRequired[Literal["auto", "review", "off"]],
+    "selfReferralPolicy": NotRequired[Literal["review", "reject"]],
+    "splitCommissions": NotRequired[bool],
+    "utmTemplate": NotRequired[Dict[str, str]],
+    "allowPaidSearch": NotRequired[bool],
+    "challengeLinks": NotRequired[bool],
+    "settlement": NotRequired[Literal["payout", "merchant_credit"]],
+    "riskPolicy": NotRequired["PatchProgramsIdBodySettingsRiskPolicy"],
+    "widget": NotRequired["PatchProgramsIdBodySettingsWidget"],
+    "mobileApp": NotRequired[Optional["PatchProgramsIdBodySettingsMobileAppOption1"]],
+})
+
 PatchProgramsIdBody = TypedDict("PatchProgramsIdBody", {
     "name": NotRequired[str],
     "slug": NotRequired[str],
@@ -5918,10 +7607,20 @@ PatchProgramsIdBody = TypedDict("PatchProgramsIdBody", {
     "riskPolicy": NotRequired["PatchProgramsIdBodyRiskPolicy"],
     "widget": NotRequired["PatchProgramsIdBodyWidget"],
     "mobileApp": NotRequired[Optional["PatchProgramsIdBodyMobileAppOption1"]],
+    "settings": NotRequired["PatchProgramsIdBodySettings"],
+    "destinationUrl": NotRequired[str],
+})
+
+PostProgramsIdReferrersBody = TypedDict("PostProgramsIdReferrersBody", {
+    "externalRef": str,
+    "email": NotRequired[str],
+    "name": NotRequired[str],
+    "code": NotRequired[str],
 })
 
 PostProgramsIdEnrollmentsBody = TypedDict("PostProgramsIdEnrollmentsBody", {
     "partnerId": str,
+    "externalRef": NotRequired[str],
 })
 
 PostPartnersBody = TypedDict("PostPartnersBody", {
@@ -5950,12 +7649,14 @@ PostApiKeysBody = TypedDict("PostApiKeysBody", {
     "mode": NotRequired[Literal["live", "test", "both"]],
     "owner": NotRequired[str],
     "expiresInDays": NotRequired[int],
+    "programIds": NotRequired[List[str]],
 })
 
 PatchApiKeysIdBody = TypedDict("PatchApiKeysIdBody", {
     "apiVersion": NotRequired[str],
     "owner": NotRequired[Optional[str]],
     "expiresInDays": NotRequired[Optional[int]],
+    "programIds": NotRequired[Optional[List[str]]],
 })
 
 PostTestClockAdvanceBody = TypedDict("PostTestClockAdvanceBody", {
@@ -6205,6 +7906,7 @@ PostBillingConnectionsBody = TypedDict("PostBillingConnectionsBody", {
     "name": NotRequired[str],
     "webhookSecret": NotRequired[str],
     "filter": NotRequired["PostBillingConnectionsBodyFilter"],
+    "customerRefMetadataKey": NotRequired[Optional[str]],
 })
 
 PutBillingConnectionsIdSecretBody = TypedDict("PutBillingConnectionsIdSecretBody", {
@@ -6229,6 +7931,7 @@ PatchBillingConnectionsIdBody = TypedDict("PatchBillingConnectionsIdBody", {
     "status": NotRequired[Literal["active", "paused"]],
     "name": NotRequired[str],
     "filter": NotRequired[Optional["PatchBillingConnectionsIdBodyFilterOption1"]],
+    "customerRefMetadataKey": NotRequired[Optional[str]],
 })
 
 PutBillingConnectionsIdValueMappingBody = TypedDict("PutBillingConnectionsIdValueMappingBody", {
@@ -6437,6 +8140,17 @@ PutPartnerOrgsOrgIdPayoutProfileBody = TypedDict("PutPartnerOrgsOrgIdPayoutProfi
 PostPartnerOrgsOrgIdTaxFormBody = TypedDict("PostPartnerOrgsOrgIdTaxFormBody", {
     "type": Literal["w9", "w8ben", "w8bene"],
     "data": Any,
+})
+
+PostPartnerApiTokensBody = TypedDict("PostPartnerApiTokensBody", {
+    "name": str,
+    "scopes": NotRequired[List[Literal["read", "write"]]],
+    "expiresInDays": NotRequired[int],
+})
+
+PostPartnersIdPortalLinkBody = TypedDict("PostPartnersIdPortalLinkBody", {
+    "programId": str,
+    "returnUrl": NotRequired[str],
 })
 
 PostWebhookEndpointsBody = TypedDict("PostWebhookEndpointsBody", {
@@ -6915,6 +8629,7 @@ PostAuthConnectionsBody = TypedDict("PostAuthConnectionsBody", {
     "provider": Literal["atlas", "clerk", "auth0", "supabase", "firebase", "cognito", "stytch", "kinde", "workos", "generic", "custom"],
     "programId": str,
     "instanceId": NotRequired[str],
+    "appId": NotRequired[str],
     "autoEnrollUsers": NotRequired[bool],
     "destinationUrl": NotRequired[str],
     "name": NotRequired[str],
@@ -6972,7 +8687,8 @@ PostAuthConnectionsIdSignupsBody = TypedDict("PostAuthConnectionsIdSignupsBody",
 
 PostAuthConnectionsIdPartnersBody = TypedDict("PostAuthConnectionsIdPartnersBody", {
     "customerRef": str,
-    "email": str,
+    "email": NotRequired[str],
+    "emailHash": NotRequired[str],
     "name": NotRequired[str],
     "code": NotRequired[str],
 })
@@ -7011,12 +8727,36 @@ PostAuthConnectionsInstallBody = TypedDict("PostAuthConnectionsInstallBody", {
     "decision": Literal["allow", "deny"],
 })
 
-PostOauthTokenBody = TypedDict("PostOauthTokenBody", {
+PostOauthTokenBodyOption1 = TypedDict("PostOauthTokenBodyOption1", {
     "grant_type": Literal["authorization_code"],
     "code": str,
     "code_verifier": str,
     "client_id": str,
     "redirect_uri": str,
+})
+
+PostOauthTokenBodyOption2 = TypedDict("PostOauthTokenBodyOption2", {
+    "grant_type": Literal["client_credentials"],
+    "client_id": NotRequired[str],
+    "client_secret": NotRequired[str],
+    "scope": NotRequired[str],
+})
+
+PostOauthTokenBodyOption3 = TypedDict("PostOauthTokenBodyOption3", {
+    "grant_type": Literal["urn:ietf:params:oauth:grant-type:token-exchange"],
+    "subject_token": str,
+    "subject_token_type": Literal["urn:ietf:params:oauth:token-type:access_token"],
+    "requested_token_type": NotRequired[Literal["urn:ietf:params:oauth:token-type:access_token"]],
+    "audience": NotRequired[Literal["referalli"]],
+    "resource": str,
+    "scope": NotRequired[str],
+})
+
+PostProductLinksBody = TypedDict("PostProductLinksBody", {
+    "partner": str,
+    "name": NotRequired[str],
+    "scopes": List[str],
+    "expires_at": NotRequired[Union[int, str]],
 })
 
 PatchOrgSsoBody = TypedDict("PatchOrgSsoBody", {
@@ -7121,20 +8861,60 @@ PutOrgTrackingConsentBody = TypedDict("PutOrgTrackingConsentBody", {
     "noCmp": NotRequired[Literal["persist", "memory"]],
 })
 
+PutOrgConsentPartnersCookiemunchBody = TypedDict("PutOrgConsentPartnersCookiemunchBody", {
+    "sites": List[str],
+})
+
+PostOrgConsentPartnersCookiemunchStampsCheckBody = TypedDict("PostOrgConsentPartnersCookiemunchStampsCheckBody", {
+    "stamp": str,
+    "cbid": NotRequired[str],
+})
+
+PostOrgsOrgIdPrivacyExecutorKeyBody = TypedDict("PostOrgsOrgIdPrivacyExecutorKeyBody", {
+    "cbid": NotRequired[str],
+    "linkId": NotRequired[str],
+    "partner": NotRequired[str],
+    "externalId": NotRequired[str],
+    "orgId": NotRequired[str],
+    "nonce": NotRequired[str],
+    "iat": NotRequired[int],
+})
+
 PutOrgHostedPagesBodyConsent = TypedDict("PutOrgHostedPagesBodyConsent", {
-    "adapter": Literal["none", "builtin", "cookiemunch", "onetrust", "cookiebot", "usercentrics", "didomi", "osano", "termly", "iubenda", "custom"],
+    "adapter": Literal["none", "builtin", "cookiemunch", "onetrust", "cookiebot", "usercentrics", "didomi", "osano", "termly", "iubenda", "cookieyes", "trustarc", "ketch", "transcend", "cookiefirst", "consentmanager", "cookieinformation", "cookiescript", "cookiehub", "googlefc", "axeptio", "sourcepoint", "inmobi", "securiti", "enzuzo", "cookiepro", "trustcommander", "klaro", "cookiecontrol", "custom"],
     "config": NotRequired[Dict[str, Any]],
 })
 
 PutOrgHostedPagesBodyChatOption1 = TypedDict("PutOrgHostedPagesBodyChatOption1", {
-    "adapter": Literal["chatly", "intercom", "crisp", "custom"],
+    "adapter": Literal["chatly", "intercom", "crisp", "zendesk", "hubspot", "drift", "livechat", "tawk", "freshchat", "tidio", "helpscout", "front", "chatwoot", "olark", "smartsupp", "jivochat", "gorgias", "pylon", "plain", "userlike", "zoho-salesiq", "reamaze", "chatra", "kustomer", "gladly", "brevo", "trengo", "dixa", "gist", "freshdesk", "liveagent", "chatbase", "voiceflow", "botpress", "salesforce", "microsoft-omnichannel", "custom"],
     "config": NotRequired[Dict[str, Any]],
+    "identitySecret": NotRequired[Optional[str]],
 })
 
 PutOrgHostedPagesBody = TypedDict("PutOrgHostedPagesBody", {
     "consent": "PutOrgHostedPagesBodyConsent",
     "chat": NotRequired[Optional["PutOrgHostedPagesBodyChatOption1"]],
     "customOrigins": NotRequired[Dict[str, List[str]]],
+})
+
+PostPortalThemePublishBody = TypedDict("PostPortalThemePublishBody", {
+    "note": NotRequired[str],
+})
+
+PostPortalThemeImportBrandBody = TypedDict("PostPortalThemeImportBrandBody", {
+    "document": NotRequired[Dict[str, Any]],
+    "url": NotRequired[str],
+})
+
+PutStripeCreditsConnectionBody = TypedDict("PutStripeCreditsConnectionBody", {
+    "secretKey": str,
+})
+
+PutProgramsIdStripeCreditsBody = TypedDict("PutProgramsIdStripeCreditsBody", {
+    "enabled": bool,
+    "referrerMatch": NotRequired[Literal["billing_link", "metadata", "email"]],
+    "metadataKey": NotRequired[str],
+    "refereeRewards": NotRequired[bool],
 })
 
 PostGraphqlBody = TypedDict("PostGraphqlBody", {

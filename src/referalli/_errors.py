@@ -80,6 +80,14 @@ class AccessSuspendedError(ApiError):
     """``access_suspended`` (HTTP 403)."""
 
 
+class ProgramScopedKeyError(ApiError):
+    """``program_scoped_key`` (HTTP 403)."""
+
+
+class RestrictedSessionError(ApiError):
+    """``restricted_session`` (HTTP 403)."""
+
+
 class NotFoundError(ApiError):
     """``not_found`` (HTTP 404)."""
 
@@ -90,6 +98,10 @@ class ConflictError(ApiError):
 
 class IdempotencyInProgressError(ApiError):
     """``idempotency_in_progress`` (HTTP 409)."""
+
+
+class StripeKeyRequiredError(ApiError):
+    """``stripe_key_required`` (HTTP 409)."""
 
 
 class ReplayError(ApiError):
@@ -156,9 +168,12 @@ ERROR_CLASSES: Dict[str, Type[ApiError]] = {
     "webhooks_disabled": WebhooksDisabledError,
     "sso_required": SsoRequiredError,
     "access_suspended": AccessSuspendedError,
+    "program_scoped_key": ProgramScopedKeyError,
+    "restricted_session": RestrictedSessionError,
     "not_found": NotFoundError,
     "conflict": ConflictError,
     "idempotency_in_progress": IdempotencyInProgressError,
+    "stripe_key_required": StripeKeyRequiredError,
     "replay": ReplayError,
     "live_mode_only": LiveModeOnlyError,
     "test_mode_only": TestModeOnlyError,

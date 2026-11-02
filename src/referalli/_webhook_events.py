@@ -361,6 +361,28 @@ class RoiPaybackReachedEvent(TypedDict):
     data: "RoiPaybackReachedEventData"
 
 
+class StripeCreditAppliedEvent(TypedDict):
+    """``stripe_credit.applied``: A Stripe balance credit or debit was applied"""
+
+    id: str
+    topic: Literal["stripe_credit.applied"]
+    orgId: str
+    livemode: bool
+    createdAt: str
+    data: "StripeCreditAppliedEventData"
+
+
+class StripeCreditFailedEvent(TypedDict):
+    """``stripe_credit.failed``: A Stripe balance credit or debit gave up"""
+
+    id: str
+    topic: Literal["stripe_credit.failed"]
+    orgId: str
+    livemode: bool
+    createdAt: str
+    data: "StripeCreditFailedEventData"
+
+
 class TaxFormDeliveredEvent(TypedDict):
     """``tax.form_delivered``: A tax form was delivered to a partner"""
 
@@ -406,7 +428,7 @@ class WebhookEndpointRecoveredEvent(TypedDict):
 
 
 #: Any webhook event. Narrow it on ``event["topic"]``.
-WebhookEvent = Union[BillingEventRecordedEvent, ClickRecordedEvent, CommissionEarnedEvent, CommissionReversedEvent, CommissionSettledEvent, CreditRedeemedEvent, CustomerAliasedEvent, DealSubmittedEvent, DisputeResolvedEvent, FraudCaseOpenedEvent, PartnerAppliedEvent, PartnerApprovedEvent, PartnerEnrolledEvent, PartnerLevelUpEvent, PayoutCancelledEvent, PayoutFailedEvent, PayoutScheduledEvent, PayoutSentEvent, PayoutSubmittedEvent, PrivacyRequestCompletedEvent, RefereeRewardEarnedEvent, ReferralApprovedEvent, ReferralCreatedEvent, ReferralHeldEvent, ReferralPausedEvent, ReferralReassignedEvent, ReferralRejectedEvent, ReferralResumedEvent, ReferralVoidedEvent, RoiPatternDetectedEvent, RoiPaybackReachedEvent, TaxFormDeliveredEvent, WebhookEndpointDisabledEvent, WebhookEndpointFailingEvent, WebhookEndpointRecoveredEvent, BaseWebhookEvent]
+WebhookEvent = Union[BillingEventRecordedEvent, ClickRecordedEvent, CommissionEarnedEvent, CommissionReversedEvent, CommissionSettledEvent, CreditRedeemedEvent, CustomerAliasedEvent, DealSubmittedEvent, DisputeResolvedEvent, FraudCaseOpenedEvent, PartnerAppliedEvent, PartnerApprovedEvent, PartnerEnrolledEvent, PartnerLevelUpEvent, PayoutCancelledEvent, PayoutFailedEvent, PayoutScheduledEvent, PayoutSentEvent, PayoutSubmittedEvent, PrivacyRequestCompletedEvent, RefereeRewardEarnedEvent, ReferralApprovedEvent, ReferralCreatedEvent, ReferralHeldEvent, ReferralPausedEvent, ReferralReassignedEvent, ReferralRejectedEvent, ReferralResumedEvent, ReferralVoidedEvent, RoiPatternDetectedEvent, RoiPaybackReachedEvent, StripeCreditAppliedEvent, StripeCreditFailedEvent, TaxFormDeliveredEvent, WebhookEndpointDisabledEvent, WebhookEndpointFailingEvent, WebhookEndpointRecoveredEvent, BaseWebhookEvent]
 
 #: Every topic the API publishes.
-TOPICS: Tuple[str, ...] = ("billing_event.recorded", "click.recorded", "commission.earned", "commission.reversed", "commission.settled", "credit.redeemed", "customer.aliased", "deal.submitted", "dispute.resolved", "fraud.case_opened", "partner.applied", "partner.approved", "partner.enrolled", "partner.level_up", "payout.cancelled", "payout.failed", "payout.scheduled", "payout.sent", "payout.submitted", "privacy.request_completed", "referee_reward.earned", "referral.approved", "referral.created", "referral.held", "referral.paused", "referral.reassigned", "referral.rejected", "referral.resumed", "referral.voided", "roi.pattern_detected", "roi.payback_reached", "tax.form_delivered", "webhook_endpoint.disabled", "webhook_endpoint.failing", "webhook_endpoint.recovered")
+TOPICS: Tuple[str, ...] = ("billing_event.recorded", "click.recorded", "commission.earned", "commission.reversed", "commission.settled", "credit.redeemed", "customer.aliased", "deal.submitted", "dispute.resolved", "fraud.case_opened", "partner.applied", "partner.approved", "partner.enrolled", "partner.level_up", "payout.cancelled", "payout.failed", "payout.scheduled", "payout.sent", "payout.submitted", "privacy.request_completed", "referee_reward.earned", "referral.approved", "referral.created", "referral.held", "referral.paused", "referral.reassigned", "referral.rejected", "referral.resumed", "referral.voided", "roi.pattern_detected", "roi.payback_reached", "stripe_credit.applied", "stripe_credit.failed", "tax.form_delivered", "webhook_endpoint.disabled", "webhook_endpoint.failing", "webhook_endpoint.recovered")
