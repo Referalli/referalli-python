@@ -92,6 +92,10 @@ class NotFoundError(ApiError):
     """``not_found`` (HTTP 404)."""
 
 
+class NotEnrolledError(ApiError):
+    """``not_enrolled`` (HTTP 404)."""
+
+
 class ConflictError(ApiError):
     """``conflict`` (HTTP 409)."""
 
@@ -102,6 +106,10 @@ class IdempotencyInProgressError(ApiError):
 
 class StripeKeyRequiredError(ApiError):
     """``stripe_key_required`` (HTTP 409)."""
+
+
+class CreditCredentialsRequiredError(ApiError):
+    """``credit_credentials_required`` (HTTP 409)."""
 
 
 class ApiKeyExpiredError(ApiError):
@@ -144,6 +152,18 @@ class StripeKeyPermissionError(ApiError):
     """``stripe_key_permission`` (HTTP 422)."""
 
 
+class ProviderCredentialsInvalidError(ApiError):
+    """``provider_credentials_invalid`` (HTTP 422)."""
+
+
+class ProviderCredentialsWrongModeError(ApiError):
+    """``provider_credentials_wrong_mode`` (HTTP 422)."""
+
+
+class ProviderPermissionError(ApiError):
+    """``provider_permission`` (HTTP 422)."""
+
+
 class PayloadTooLargeError(ApiError):
     """``payload_too_large`` (HTTP 413)."""
 
@@ -166,6 +186,10 @@ class AtlasError(ApiError):
 
 class StripeUnavailableError(ApiError):
     """``stripe_unavailable`` (HTTP 502)."""
+
+
+class ProviderUnavailableError(ApiError):
+    """``provider_unavailable`` (HTTP 502)."""
 
 
 class SsoProviderError(ApiError):
@@ -191,9 +215,11 @@ ERROR_CLASSES: Dict[str, Type[ApiError]] = {
     "program_scoped_key": ProgramScopedKeyError,
     "restricted_session": RestrictedSessionError,
     "not_found": NotFoundError,
+    "not_enrolled": NotEnrolledError,
     "conflict": ConflictError,
     "idempotency_in_progress": IdempotencyInProgressError,
     "stripe_key_required": StripeKeyRequiredError,
+    "credit_credentials_required": CreditCredentialsRequiredError,
     "api_key_expired": ApiKeyExpiredError,
     "replay": ReplayError,
     "live_mode_only": LiveModeOnlyError,
@@ -204,12 +230,16 @@ ERROR_CLASSES: Dict[str, Type[ApiError]] = {
     "stripe_key_invalid": StripeKeyInvalidError,
     "stripe_key_wrong_mode": StripeKeyWrongModeError,
     "stripe_key_permission": StripeKeyPermissionError,
+    "provider_credentials_invalid": ProviderCredentialsInvalidError,
+    "provider_credentials_wrong_mode": ProviderCredentialsWrongModeError,
+    "provider_permission": ProviderPermissionError,
     "payload_too_large": PayloadTooLargeError,
     "connection_paused": ConnectionPausedError,
     "rate_limited": RateLimitedError,
     "internal_error": InternalServerError,
     "atlas_error": AtlasError,
     "stripe_unavailable": StripeUnavailableError,
+    "provider_unavailable": ProviderUnavailableError,
     "sso_provider_error": SsoProviderError,
     "sso_not_configured": SsoNotConfiguredError,
 }
