@@ -301,6 +301,44 @@ CommissionRule = TypedDict("CommissionRule", {
     "createdAt": str,
 })
 
+ProgramTermsBaseOption1 = TypedDict("ProgramTermsBaseOption1", {
+    "kind": Literal["percent"],
+    "percentBps": int,
+})
+
+ProgramTermsBaseOption2 = TypedDict("ProgramTermsBaseOption2", {
+    "kind": Literal["fixed"],
+    "amountMinor": int,
+    "currency": str,
+})
+
+ProgramTermsRecurringOption1 = TypedDict("ProgramTermsRecurringOption1", {
+    "type": Literal["one_time"],
+})
+
+ProgramTermsRecurringOption2 = TypedDict("ProgramTermsRecurringOption2", {
+    "type": Literal["lifetime"],
+})
+
+ProgramTermsRecurringOption3 = TypedDict("ProgramTermsRecurringOption3", {
+    "type": Literal["months"],
+    "months": int,
+})
+
+ProgramTermsSummary = TypedDict("ProgramTermsSummary", {
+    "en": str,
+})
+
+ProgramTerms = TypedDict("ProgramTerms", {
+    "programId": str,
+    "ruleVersion": int,
+    "base": Union["ProgramTermsBaseOption1", "ProgramTermsBaseOption2"],
+    "recurring": Union["ProgramTermsRecurringOption1", "ProgramTermsRecurringOption2", "ProgramTermsRecurringOption3"],
+    "holdDays": int,
+    "ratesVary": bool,
+    "summary": "ProgramTermsSummary",
+})
+
 BillingFilter = TypedDict("BillingFilter", {
     "metadata": NotRequired[Dict[str, str]],
     "productIds": NotRequired[List[str]],
@@ -392,7 +430,8 @@ BillingConnection = TypedDict("BillingConnection", {
     "id": str,
     "provider": str,
     "name": str,
-    "status": Literal["active", "paused"],
+    "status": Literal["active", "paused", "awaiting_secret"],
+    "programIds": Optional[List[str]],
     "createdAt": str,
     "webhookUrl": str,
     "needsCredentials": bool,
@@ -400,16 +439,21 @@ BillingConnection = TypedDict("BillingConnection", {
     "valueMapping": Optional["ValueMapping"],
     "filter": Optional["BillingFilter"],
     "customerRefMetadataKey": NotRequired[Optional[str]],
+    "stripeWebhookEndpointId": NotRequired[Optional[str]],
     "rotation": "BillingConnectionRotation",
 })
 
 CreatedBillingConnection = TypedDict("CreatedBillingConnection", {
     "id": str,
     "provider": str,
+    "status": Literal["active", "awaiting_secret"],
     "webhookSecret": str,
     "webhookUrl": str,
     "filter": Optional["BillingFilter"],
     "customerRefMetadataKey": NotRequired[Optional[str]],
+    "programIds": Optional[List[str]],
+    "stripeWebhookEndpointId": NotRequired[str],
+    "reused": NotRequired[bool],
 })
 
 BillingEvent = TypedDict("BillingEvent", {
@@ -426,7 +470,7 @@ BillingEvent = TypedDict("BillingEvent", {
     "connectionId": Optional[str],
     "productRef": str,
     "status": Literal["processed", "ignored_by_filter"],
-    "ignoredReason": Optional[Literal["filter", "internal_customer"]],
+    "ignoredReason": Optional[Literal["filter", "internal_customer", "no_referral_in_scope"]],
     "catalog": Optional[Dict[str, List[str]]],
 })
 
@@ -3010,6 +3054,7 @@ GetPartnersIdSummaryResponse = TypedDict("GetPartnersIdSummaryResponse", {
     "balances": List["Balance"],
     "code": Optional[str],
     "linkUrl": Optional[str],
+    "terms": Optional["ProgramTerms"],
 })
 
 PostCommissionsApproveDueResponse = TypedDict("PostCommissionsApproveDueResponse", {
@@ -7155,6 +7200,7 @@ GetProgramsIdStripeCreditsResponse = TypedDict("GetProgramsIdStripeCreditsRespon
     "refereeRewards": bool,
     "balanceCurrency": Optional[str],
     "createCustomerIfMissing": Optional["GetProgramsIdStripeCreditsResponseCreateCustomerIfMissingOption1"],
+    "waitForCustomer": bool,
     "keyConnected": bool,
     "hasOwnKey": bool,
 })
@@ -8020,12 +8066,30 @@ PostBillingConnectionsBodyFilter = TypedDict("PostBillingConnectionsBodyFilter",
     "skus": NotRequired[List[str]],
 })
 
+PostBillingConnectionsBodyCreditRailCreateCustomerIfMissingOption1 = TypedDict("PostBillingConnectionsBodyCreditRailCreateCustomerIfMissingOption1", {
+    "metadata": NotRequired[Dict[str, str]],
+})
+
+PostBillingConnectionsBodyCreditRail = TypedDict("PostBillingConnectionsBodyCreditRail", {
+    "enabled": NotRequired[bool],
+    "referrerMatch": NotRequired[Literal["billing_link", "metadata", "email"]],
+    "metadataKey": NotRequired[str],
+    "refereeRewards": NotRequired[bool],
+    "balanceCurrency": NotRequired[Optional[str]],
+    "createCustomerIfMissing": NotRequired[Optional["PostBillingConnectionsBodyCreditRailCreateCustomerIfMissingOption1"]],
+    "waitForCustomer": NotRequired[bool],
+    "programId": str,
+})
+
 PostBillingConnectionsBody = TypedDict("PostBillingConnectionsBody", {
     "provider": Literal["stripe", "paddle", "lemonsqueezy", "polar", "chargebee", "shopify", "generic", "recurly", "braintree", "woocommerce", "bigcommerce"],
     "name": NotRequired[str],
     "webhookSecret": NotRequired[str],
     "filter": NotRequired["PostBillingConnectionsBodyFilter"],
     "customerRefMetadataKey": NotRequired[Optional[str]],
+    "programIds": NotRequired[Optional[List[str]]],
+    "stripeKey": NotRequired[str],
+    "creditRail": NotRequired["PostBillingConnectionsBodyCreditRail"],
 })
 
 PutBillingConnectionsIdSecretBody = TypedDict("PutBillingConnectionsIdSecretBody", {
@@ -8051,6 +8115,7 @@ PatchBillingConnectionsIdBody = TypedDict("PatchBillingConnectionsIdBody", {
     "name": NotRequired[str],
     "filter": NotRequired[Optional["PatchBillingConnectionsIdBodyFilterOption1"]],
     "customerRefMetadataKey": NotRequired[Optional[str]],
+    "programIds": NotRequired[Optional[List[str]]],
 })
 
 PutBillingConnectionsIdValueMappingBody = TypedDict("PutBillingConnectionsIdValueMappingBody", {
@@ -9057,6 +9122,7 @@ PutProgramsIdStripeCreditsBody = TypedDict("PutProgramsIdStripeCreditsBody", {
     "refereeRewards": NotRequired[bool],
     "balanceCurrency": NotRequired[Optional[str]],
     "createCustomerIfMissing": NotRequired[Optional["PutProgramsIdStripeCreditsBodyCreateCustomerIfMissingOption1"]],
+    "waitForCustomer": NotRequired[bool],
     "secretKey": NotRequired[Optional[str]],
 })
 
