@@ -104,6 +104,10 @@ class StripeKeyRequiredError(ApiError):
     """``stripe_key_required`` (HTTP 409)."""
 
 
+class ApiKeyExpiredError(ApiError):
+    """``api_key_expired`` (HTTP 409)."""
+
+
 class ReplayError(ApiError):
     """``replay`` (HTTP 409)."""
 
@@ -128,6 +132,18 @@ class IdempotencyKeyReusedError(ApiError):
     """``idempotency_key_reused`` (HTTP 422)."""
 
 
+class StripeKeyInvalidError(ApiError):
+    """``stripe_key_invalid`` (HTTP 422)."""
+
+
+class StripeKeyWrongModeError(ApiError):
+    """``stripe_key_wrong_mode`` (HTTP 422)."""
+
+
+class StripeKeyPermissionError(ApiError):
+    """``stripe_key_permission`` (HTTP 422)."""
+
+
 class PayloadTooLargeError(ApiError):
     """``payload_too_large`` (HTTP 413)."""
 
@@ -146,6 +162,10 @@ class InternalServerError(ApiError):
 
 class AtlasError(ApiError):
     """``atlas_error`` (HTTP 502)."""
+
+
+class StripeUnavailableError(ApiError):
+    """``stripe_unavailable`` (HTTP 502)."""
 
 
 class SsoProviderError(ApiError):
@@ -174,17 +194,22 @@ ERROR_CLASSES: Dict[str, Type[ApiError]] = {
     "conflict": ConflictError,
     "idempotency_in_progress": IdempotencyInProgressError,
     "stripe_key_required": StripeKeyRequiredError,
+    "api_key_expired": ApiKeyExpiredError,
     "replay": ReplayError,
     "live_mode_only": LiveModeOnlyError,
     "test_mode_only": TestModeOnlyError,
     "test_mode_unsupported": TestModeUnsupportedError,
     "gone": GoneError,
     "idempotency_key_reused": IdempotencyKeyReusedError,
+    "stripe_key_invalid": StripeKeyInvalidError,
+    "stripe_key_wrong_mode": StripeKeyWrongModeError,
+    "stripe_key_permission": StripeKeyPermissionError,
     "payload_too_large": PayloadTooLargeError,
     "connection_paused": ConnectionPausedError,
     "rate_limited": RateLimitedError,
     "internal_error": InternalServerError,
     "atlas_error": AtlasError,
+    "stripe_unavailable": StripeUnavailableError,
     "sso_provider_error": SsoProviderError,
     "sso_not_configured": SsoNotConfiguredError,
 }

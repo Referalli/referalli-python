@@ -1930,6 +1930,50 @@ PrivacyRequestCompletedEvent = TypedDict("PrivacyRequestCompletedEvent", {
     "data": "PrivacyRequestCompletedEventData",
 })
 
+# `data` of a `api_key.expiring` event: Sent 30, 7 and 1 days before an API key with an expiry stops working (once each; a key first seen inside a window gets only that notice). Rotate it with `POST /v1/api-keys/{id}/rotate` or extend it with `PATCH /v1/api-keys/{id}`. A key rotated out (in its grace period) gets no notice.
+ApiKeyExpiringEventData = TypedDict("ApiKeyExpiringEventData", {
+    "keyId": str,
+    "name": str,
+    "prefix": str,
+    "owner": Optional[str],
+    "expiresAt": str,
+    "daysBefore": int,
+})
+
+# An API key expires soon: the `api_key.expiring` delivery body.
+ApiKeyExpiringEvent = TypedDict("ApiKeyExpiringEvent", {
+    "id": str,
+    "topic": Literal["api_key.expiring"],
+    "orgId": str,
+    "livemode": bool,
+    "createdAt": str,
+    "data": "ApiKeyExpiringEventData",
+})
+
+FxRatesUpdatedEventDataPairsItem = TypedDict("FxRatesUpdatedEventDataPairsItem", {
+    "base": str,
+    "quote": str,
+    "rate": Optional[str],
+})
+
+# `data` of a `fx.rates_updated` event: Sent when the rates your cross-currency payouts convert at change: a rate recorded with `POST /v1/fx-rates` (`recorded`), new daily feed rates (`feed_synced`, once per sync that inserted any), or a manual rate cleared back to the feed (`override_cleared`, `rate` null). Read the current rates with `GET /v1/fx-rates`. Org-wide, so program-scoped webhook endpoints never get it.
+FxRatesUpdatedEventData = TypedDict("FxRatesUpdatedEventData", {
+    "reason": Literal["recorded", "feed_synced", "override_cleared"],
+    "source": str,
+    "effectiveAt": Optional[str],
+    "pairs": List["FxRatesUpdatedEventDataPairsItem"],
+})
+
+# The org's FX rates changed: the `fx.rates_updated` delivery body.
+FxRatesUpdatedEvent = TypedDict("FxRatesUpdatedEvent", {
+    "id": str,
+    "topic": Literal["fx.rates_updated"],
+    "orgId": str,
+    "livemode": bool,
+    "createdAt": str,
+    "data": "FxRatesUpdatedEventData",
+})
+
 # `data` of a `webhook_endpoint.disabled` event: Sent to your other active endpoints when one is disabled after every delivery failed for 72 hours (or 1000 attempts in a row).
 WebhookEndpointDisabledEventData = TypedDict("WebhookEndpointDisabledEventData", {
     "endpointId": str,
@@ -1982,8 +2026,10 @@ StripeCreditAppliedEventData = TypedDict("StripeCreditAppliedEventData", {
     "customerRef": Optional[str],
     "amountMinor": int,
     "currency": str,
+    "appliedAmountMinor": Optional[int],
+    "appliedCurrency": Optional[str],
     "stripeCustomerId": Optional[str],
-    "status": Literal["pending", "applied", "failed", "no_customer", "canceled"],
+    "status": Literal["pending", "applied", "failed", "no_customer", "ambiguous_customer", "fx_rate_missing", "canceled"],
     "attempts": int,
     "stripeBalanceTransactionId": Optional[str],
     "lastError": Optional[str],
@@ -2001,7 +2047,7 @@ StripeCreditAppliedEvent = TypedDict("StripeCreditAppliedEvent", {
     "data": "StripeCreditAppliedEventData",
 })
 
-# `data` of a `stripe_credit.failed` event: The Stripe balance credit rail stopped retrying a credit or debit after its last attempt: no Stripe customer matched (`no_customer`) or Stripe refused it (`failed`). `lastError` says why.
+# `data` of a `stripe_credit.failed` event: The Stripe balance credit rail stopped retrying a credit or debit after its last attempt: no Stripe customer matched (`no_customer`), several did (`ambiguous_customer`), no FX rate converts to the balance currency (`fx_rate_missing`) or Stripe refused it (`failed`). `POST /v1/programs/{id}/stripe-credits/requeue` gives the first three another round. `lastError` says why.
 StripeCreditFailedEventData = TypedDict("StripeCreditFailedEventData", {
     "id": str,
     "programId": str,
@@ -2012,8 +2058,10 @@ StripeCreditFailedEventData = TypedDict("StripeCreditFailedEventData", {
     "customerRef": Optional[str],
     "amountMinor": int,
     "currency": str,
+    "appliedAmountMinor": Optional[int],
+    "appliedCurrency": Optional[str],
     "stripeCustomerId": Optional[str],
-    "status": Literal["pending", "applied", "failed", "no_customer", "canceled"],
+    "status": Literal["pending", "applied", "failed", "no_customer", "ambiguous_customer", "fx_rate_missing", "canceled"],
     "attempts": int,
     "stripeBalanceTransactionId": Optional[str],
     "lastError": Optional[str],
@@ -2607,6 +2655,8 @@ PostProgramsIdReferrersResponse = TypedDict("PostProgramsIdReferrersResponse", {
     "linkUrl": Optional[str],
 })
 
+PostProgramsIdEnrollmentsResponse: TypeAlias = "Any"
+
 GetProgramsIdEnrollmentsResponseDataItem = TypedDict("GetProgramsIdEnrollmentsResponseDataItem", {
     "id": str,
     "partnerId": str,
@@ -2634,6 +2684,8 @@ PostProgramsIdEnrollmentsEnrollmentIdRejectResponse = TypedDict("PostProgramsIdE
     "id": str,
     "status": Literal["rejected"],
 })
+
+PostPartnersResponse: TypeAlias = "Any"
 
 GetPartnersResponse = TypedDict("GetPartnersResponse", {
     "object": Literal["list"],
@@ -2686,6 +2738,8 @@ PatchApiKeysIdResponse = TypedDict("PatchApiKeysIdResponse", {
     "expiresAt": Optional[str],
     "programIds": Optional[List[str]],
 })
+
+PostApiKeysIdRotateResponse: TypeAlias = "Any"
 
 DeleteApiKeysIdResponse = TypedDict("DeleteApiKeysIdResponse", {
     "ok": bool,
@@ -3714,6 +3768,7 @@ PostWebhookEndpointsResponse = TypedDict("PostWebhookEndpointsResponse", {
     "programIds": Optional[List[str]],
     "legacySignature": bool,
     "alertContacts": List[str],
+    "status": Literal["active", "paused"],
     "secret": str,
 })
 
@@ -3760,6 +3815,42 @@ PostSandboxSimulateResponse = TypedDict("PostSandboxSimulateResponse", {
     "conversions": int,
     "linesCreated": int,
     "reversals": int,
+})
+
+GetSandboxStripeFixturesResponseDataItem = TypedDict("GetSandboxStripeFixturesResponseDataItem", {
+    "event": str,
+    "overrides": List[str],
+})
+
+GetSandboxStripeFixturesResponse = TypedDict("GetSandboxStripeFixturesResponse", {
+    "data": List["GetSandboxStripeFixturesResponseDataItem"],
+})
+
+PostSandboxStripeFixturesResponseResultsItem = TypedDict("PostSandboxStripeFixturesResponseResultsItem", {
+    "duplicate": bool,
+    "billingEventId": Optional[str],
+    "conversions": int,
+    "linesCreated": int,
+    "reversals": int,
+    "ignored": NotRequired[str],
+})
+
+PostSandboxStripeFixturesResponseCommissionsItem = TypedDict("PostSandboxStripeFixturesResponseCommissionsItem", {
+    "id": str,
+    "type": str,
+    "partnerId": str,
+    "amountMinor": int,
+    "currency": str,
+    "relatedCommissionId": Optional[str],
+})
+
+PostSandboxStripeFixturesResponse = TypedDict("PostSandboxStripeFixturesResponse", {
+    "eventId": str,
+    "event": str,
+    "received": int,
+    "results": List["PostSandboxStripeFixturesResponseResultsItem"],
+    "commissions": List["PostSandboxStripeFixturesResponseCommissionsItem"],
+    "payload": "GetOpenapiJsonResponse",
 })
 
 PostImportProviderResponse = TypedDict("PostImportProviderResponse", {
@@ -7052,13 +7143,25 @@ GetStripeCreditsConnectionResponse = TypedDict("GetStripeCreditsConnectionRespon
     "connectedAt": Optional[str],
 })
 
+GetProgramsIdStripeCreditsResponseCreateCustomerIfMissingOption1 = TypedDict("GetProgramsIdStripeCreditsResponseCreateCustomerIfMissingOption1", {
+    "metadata": NotRequired[Dict[str, str]],
+})
+
 GetProgramsIdStripeCreditsResponse = TypedDict("GetProgramsIdStripeCreditsResponse", {
     "programId": str,
     "enabled": bool,
     "referrerMatch": Literal["billing_link", "metadata", "email"],
     "metadataKey": Optional[str],
     "refereeRewards": bool,
+    "balanceCurrency": Optional[str],
+    "createCustomerIfMissing": Optional["GetProgramsIdStripeCreditsResponseCreateCustomerIfMissingOption1"],
     "keyConnected": bool,
+    "hasOwnKey": bool,
+})
+
+PostProgramsIdStripeCreditsRequeueResponse = TypedDict("PostProgramsIdStripeCreditsRequeueResponse", {
+    "requeued": int,
+    "creditIds": List[str],
 })
 
 GetProgramsIdStripeCreditsLogResponseDataItem = TypedDict("GetProgramsIdStripeCreditsLogResponseDataItem", {
@@ -7071,8 +7174,10 @@ GetProgramsIdStripeCreditsLogResponseDataItem = TypedDict("GetProgramsIdStripeCr
     "customerRef": Optional[str],
     "amountMinor": int,
     "currency": str,
+    "appliedAmountMinor": Optional[int],
+    "appliedCurrency": Optional[str],
     "stripeCustomerId": Optional[str],
-    "status": Literal["pending", "applied", "failed", "no_customer", "canceled"],
+    "status": Literal["pending", "applied", "failed", "no_customer", "ambiguous_customer", "fx_rate_missing", "canceled"],
     "attempts": int,
     "stripeBalanceTransactionId": Optional[str],
     "lastError": Optional[str],
@@ -7618,9 +7723,19 @@ PostProgramsIdReferrersBody = TypedDict("PostProgramsIdReferrersBody", {
     "code": NotRequired[str],
 })
 
+PostProgramsIdEnrollmentsBodyMintLink = TypedDict("PostProgramsIdEnrollmentsBodyMintLink", {
+    "destinationUrl": NotRequired[str],
+})
+
+PostProgramsIdEnrollmentsBodyMint = TypedDict("PostProgramsIdEnrollmentsBodyMint", {
+    "coupon": NotRequired[bool],
+    "link": NotRequired["PostProgramsIdEnrollmentsBodyMintLink"],
+})
+
 PostProgramsIdEnrollmentsBody = TypedDict("PostProgramsIdEnrollmentsBody", {
     "partnerId": str,
     "externalRef": NotRequired[str],
+    "mint": NotRequired["PostProgramsIdEnrollmentsBodyMint"],
 })
 
 PostPartnersBody = TypedDict("PostPartnersBody", {
@@ -7642,7 +7757,7 @@ PatchPartnersIdBody = TypedDict("PatchPartnersIdBody", {
 
 PostApiKeysBody = TypedDict("PostApiKeysBody", {
     "name": str,
-    "scopes": NotRequired[List[Literal["admin", "full", "read", "programs:read", "programs:write", "partners:read", "partners:write", "links:read", "links:write", "events:read", "events:write", "referrals:read", "referrals:write", "commissions:read", "commissions:write", "payouts:read", "payouts:write", "billing:read", "billing:write", "webhooks:read", "webhooks:write", "analytics:read", "analytics:write", "fraud:read", "fraud:write", "privacy:read", "privacy:write", "team:read", "team:write", "org:read", "org:write", "integrations:read", "integrations:write", "growth:read", "growth:write", "audit:read", "audit:write"]]],
+    "scopes": NotRequired[List[Literal["admin", "api_keys:mint", "full", "read", "programs:read", "programs:write", "partners:read", "partners:write", "links:read", "links:write", "events:read", "events:write", "referrals:read", "referrals:write", "commissions:read", "commissions:write", "payouts:read", "payouts:write", "billing:read", "billing:write", "webhooks:read", "webhooks:write", "analytics:read", "analytics:write", "fraud:read", "fraud:write", "privacy:read", "privacy:write", "team:read", "team:write", "org:read", "org:write", "integrations:read", "integrations:write", "growth:read", "growth:write", "audit:read", "audit:write"]]],
     "publishable": NotRequired[bool],
     "allowedOrigins": NotRequired[List[str]],
     "apiVersion": NotRequired[str],
@@ -7657,6 +7772,10 @@ PatchApiKeysIdBody = TypedDict("PatchApiKeysIdBody", {
     "owner": NotRequired[Optional[str]],
     "expiresInDays": NotRequired[Optional[int]],
     "programIds": NotRequired[Optional[List[str]]],
+})
+
+PostApiKeysIdRotateBody = TypedDict("PostApiKeysIdRotateBody", {
+    "graceHours": NotRequired[int],
 })
 
 PostTestClockAdvanceBody = TypedDict("PostTestClockAdvanceBody", {
@@ -8159,6 +8278,7 @@ PostWebhookEndpointsBody = TypedDict("PostWebhookEndpointsBody", {
     "legacySignature": NotRequired[bool],
     "programIds": NotRequired[Optional[List[str]]],
     "alertContacts": NotRequired[List[str]],
+    "status": NotRequired[Literal["active", "paused"]],
 })
 
 PatchWebhookEndpointsIdBody = TypedDict("PatchWebhookEndpointsIdBody", {
@@ -8176,6 +8296,22 @@ PostSandboxSimulateBody = TypedDict("PostSandboxSimulateBody", {
     "scenario": NotRequired[Literal["subscription", "refund", "churn"]],
     "priceMinor": NotRequired[int],
     "months": NotRequired[int],
+})
+
+PostSandboxStripeFixturesBodyOverrides = TypedDict("PostSandboxStripeFixturesBodyOverrides", {
+    "customerRef": NotRequired[str],
+    "amountMinor": NotRequired[int],
+    "currency": NotRequired[str],
+    "metadata": NotRequired[Dict[str, str]],
+    "invoiceId": NotRequired[str],
+    "chargeId": NotRequired[str],
+})
+
+PostSandboxStripeFixturesBody = TypedDict("PostSandboxStripeFixturesBody", {
+    "connectionId": str,
+    "event": Literal["invoice.paid", "charge.refunded", "charge.dispute.created", "customer.created", "customer.updated", "customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted"],
+    "eventId": NotRequired[str],
+    "overrides": NotRequired["PostSandboxStripeFixturesBodyOverrides"],
 })
 
 PostImportProviderBody = TypedDict("PostImportProviderBody", {
@@ -8910,11 +9046,22 @@ PutStripeCreditsConnectionBody = TypedDict("PutStripeCreditsConnectionBody", {
     "secretKey": str,
 })
 
+PutProgramsIdStripeCreditsBodyCreateCustomerIfMissingOption1 = TypedDict("PutProgramsIdStripeCreditsBodyCreateCustomerIfMissingOption1", {
+    "metadata": NotRequired[Dict[str, str]],
+})
+
 PutProgramsIdStripeCreditsBody = TypedDict("PutProgramsIdStripeCreditsBody", {
     "enabled": bool,
     "referrerMatch": NotRequired[Literal["billing_link", "metadata", "email"]],
     "metadataKey": NotRequired[str],
     "refereeRewards": NotRequired[bool],
+    "balanceCurrency": NotRequired[Optional[str]],
+    "createCustomerIfMissing": NotRequired[Optional["PutProgramsIdStripeCreditsBodyCreateCustomerIfMissingOption1"]],
+    "secretKey": NotRequired[Optional[str]],
+})
+
+PostProgramsIdStripeCreditsRequeueBody = TypedDict("PostProgramsIdStripeCreditsRequeueBody", {
+    "creditIds": NotRequired[List[str]],
 })
 
 PostGraphqlBody = TypedDict("PostGraphqlBody", {
