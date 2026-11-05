@@ -70,6 +70,7 @@ ProgramSettings = TypedDict("ProgramSettings", {
     "allowPaidSearch": bool,
     "challengeLinks": bool,
     "settlement": Literal["payout", "merchant_credit"],
+    "signupPaymentGraceMinutes": int,
     "riskPolicy": "ProgramSettingsRiskPolicy",
     "widget": "ProgramSettingsWidget",
     "refereeReward": NotRequired[Optional["GetOpenapiJsonResponse"]],
@@ -233,6 +234,7 @@ AssociateResponseReferralOption1 = TypedDict("AssociateResponseReferralOption1",
     "orgId": str,
 })
 
+# Why a partner was skipped or the referral held, in English (no codes here). The matched referral carries its own `reasoning.notes` and `reasoning.noteCodes`.
 AssociateResponseReasoning = TypedDict("AssociateResponseReasoning", {
     "notes": List[str],
 })
@@ -240,6 +242,11 @@ AssociateResponseReasoning = TypedDict("AssociateResponseReasoning", {
 AssociateResponse = TypedDict("AssociateResponse", {
     "referral": Optional["AssociateResponseReferralOption1"],
     "reasoning": NotRequired["AssociateResponseReasoning"],
+})
+
+HandoffToken = TypedDict("HandoffToken", {
+    "handoffToken": str,
+    "expiresAt": str,
 })
 
 CommissionEvent = TypedDict("CommissionEvent", {
@@ -325,8 +332,18 @@ ProgramTermsRecurringOption3 = TypedDict("ProgramTermsRecurringOption3", {
     "months": int,
 })
 
+# The same sentence in each partner-portal locale.
 ProgramTermsSummary = TypedDict("ProgramTermsSummary", {
     "en": str,
+    "es": str,
+    "de": str,
+    "fr": str,
+    "pt": str,
+    "it": str,
+    "nl": str,
+    "sv": str,
+    "ja": str,
+    "zh": str,
 })
 
 ProgramTerms = TypedDict("ProgramTerms", {
@@ -337,6 +354,8 @@ ProgramTerms = TypedDict("ProgramTerms", {
     "holdDays": int,
     "ratesVary": bool,
     "summary": "ProgramTermsSummary",
+    "locale": NotRequired[str],
+    "text": NotRequired[str],
 })
 
 BillingFilter = TypedDict("BillingFilter", {
@@ -437,6 +456,7 @@ BillingConnection = TypedDict("BillingConnection", {
     "needsCredentials": bool,
     "hasCredentials": bool,
     "valueMapping": Optional["ValueMapping"],
+    "maxAmountMinor": Optional[int],
     "filter": Optional["BillingFilter"],
     "customerRefMetadataKey": NotRequired[Optional[str]],
     "stripeWebhookEndpointId": NotRequired[Optional[str]],
@@ -472,8 +492,9 @@ BillingEvent = TypedDict("BillingEvent", {
     "occurredAt": str,
     "connectionId": Optional[str],
     "productRef": str,
-    "status": Literal["processed", "ignored_by_filter"],
-    "ignoredReason": Optional[Literal["filter", "internal_customer", "no_referral_in_scope", "identity_unresolved", "identity_ambiguous"]],
+    "status": Literal["processed", "ignored_by_filter", "parked", "held"],
+    "parkedUntil": Optional[str],
+    "ignoredReason": Optional[Literal["filter", "internal_customer", "no_referral_in_scope", "identity_unresolved", "identity_ambiguous", "amount_over_limit", "occurred_in_future"]],
     "catalog": Optional[Dict[str, List[str]]],
 })
 
@@ -738,6 +759,28 @@ Org = TypedDict("Org", {
     "liveOrgId": NotRequired[str],
 })
 
+TrackingTokensLive = TypedDict("TrackingTokensLive", {
+    "orgId": str,
+    "trackingToken": str,
+    "scriptUrl": str,
+    "linkBaseUrl": str,
+    "linkTemplate": str,
+})
+
+TrackingTokensTest = TypedDict("TrackingTokensTest", {
+    "orgId": str,
+    "trackingToken": str,
+    "scriptUrl": str,
+    "linkBaseUrl": str,
+    "linkTemplate": str,
+})
+
+TrackingTokens = TypedDict("TrackingTokens", {
+    "mode": Literal["live", "test"],
+    "live": "TrackingTokensLive",
+    "test": "TrackingTokensTest",
+})
+
 Member = TypedDict("Member", {
     "userId": str,
     "role": Literal["owner", "admin", "finance", "analyst", "support"],
@@ -817,6 +860,12 @@ WidgetSession = TypedDict("WidgetSession", {
     "partner": "WidgetSessionPartner",
 })
 
+AuthConnectionLastErrorOption1 = TypedDict("AuthConnectionLastErrorOption1", {
+    "at": str,
+    "code": str,
+    "message": str,
+})
+
 AuthConnectionRotation = TypedDict("AuthConnectionRotation", {
     "inProgress": bool,
     "previousSecretExpiresAt": NotRequired[str],
@@ -829,7 +878,10 @@ AuthConnection = TypedDict("AuthConnection", {
     "name": str,
     "status": str,
     "createdAt": str,
+    "lastSignupAt": NotRequired[Optional[str]],
+    "lastError": NotRequired[Optional["AuthConnectionLastErrorOption1"]],
     "rotation": "AuthConnectionRotation",
+    "programBound": NotRequired[bool],
     "instanceId": NotRequired[Optional[str]],
     "appId": NotRequired[Optional[str]],
     "autoEnrollUsers": NotRequired[bool],
@@ -849,6 +901,7 @@ CreatedAuthConnection = TypedDict("CreatedAuthConnection", {
     "docsUrl": NotRequired[Optional[str]],
     "metadataKeys": NotRequired[Dict[str, str]],
     "programId": NotRequired[str],
+    "programBound": NotRequired[bool],
     "instanceId": NotRequired[str],
     "appId": NotRequired[str],
     "autoEnrollUsers": NotRequired[bool],
@@ -1283,6 +1336,7 @@ RoiGrant = TypedDict("RoiGrant", {
 
 RoiPatternEntrySubject = TypedDict("RoiPatternEntrySubject", {
     "customerRef": NotRequired[str],
+    "customerRefHash": NotRequired[str],
     "partnerId": NotRequired[str],
 })
 
@@ -1579,6 +1633,25 @@ CustomerAliasedEvent = TypedDict("CustomerAliasedEvent", {
     "livemode": bool,
     "createdAt": str,
     "data": "CustomerAliasedEventData",
+})
+
+# `data` of a `billing_account.owner_changed` event: An organization the app bills under has a new owner, a new id (`previousAccountRef` is the old one) or was deleted (`deleted`, no owner), set with `PUT /v1/billing/accounts/{accountRef}/owner`, `DELETE /v1/billing/accounts/{accountRef}` or by an auth platform. Its payments earn for `ownerCustomerRef`'s referral.
+BillingAccountOwnerChangedEventData = TypedDict("BillingAccountOwnerChangedEventData", {
+    "accountRef": str,
+    "ownerCustomerRef": Optional[str],
+    "previousOwnerCustomerRef": Optional[str],
+    "previousAccountRef": Optional[str],
+    "deleted": bool,
+})
+
+# A billing account's owner changed: the `billing_account.owner_changed` delivery body.
+BillingAccountOwnerChangedEvent = TypedDict("BillingAccountOwnerChangedEvent", {
+    "id": str,
+    "topic": Literal["billing_account.owner_changed"],
+    "orgId": str,
+    "livemode": bool,
+    "createdAt": str,
+    "data": "BillingAccountOwnerChangedEventData",
 })
 
 # `data` of a `commission.earned` event: A payment (or a signup, trial or product-event bounty) earned a partner a commission line. Payment fields are null for bounties.
@@ -1904,6 +1977,47 @@ BillingEventRecordedEvent = TypedDict("BillingEventRecordedEvent", {
     "livemode": bool,
     "createdAt": str,
     "data": "BillingEventRecordedEventData",
+})
+
+# `data` of a `billing_event.held` event: A payment over its connection's `maxAmountMinor`, or dated more than a day ahead, earned nothing and waits for POST /v1/billing/events/{id}/release.
+BillingEventHeldEventData = TypedDict("BillingEventHeldEventData", {
+    "billingEventId": str,
+    "reason": Literal["amount_over_limit", "occurred_in_future"],
+    "customerRef": str,
+    "invoiceRef": str,
+    "currency": str,
+    "amountMinor": int,
+})
+
+# A payment was held for review: the `billing_event.held` delivery body.
+BillingEventHeldEvent = TypedDict("BillingEventHeldEvent", {
+    "id": str,
+    "topic": Literal["billing_event.held"],
+    "orgId": str,
+    "livemode": bool,
+    "createdAt": str,
+    "data": "BillingEventHeldEventData",
+})
+
+# `data` of a `billing_event.expired` event: A refund or dispute waited 7 days for a payment that never arrived, and reversed nothing. A payment arriving later earns in full; adjust it by hand if the refund still applies.
+BillingEventExpiredEventData = TypedDict("BillingEventExpiredEventData", {
+    "billingEventId": str,
+    "type": Literal["refund", "dispute"],
+    "customerRef": str,
+    "invoiceRef": Optional[str],
+    "chargeRef": Optional[str],
+    "currency": str,
+    "amountMinor": int,
+})
+
+# A parked refund or dispute expired: the `billing_event.expired` delivery body.
+BillingEventExpiredEvent = TypedDict("BillingEventExpiredEvent", {
+    "id": str,
+    "topic": Literal["billing_event.expired"],
+    "orgId": str,
+    "livemode": bool,
+    "createdAt": str,
+    "data": "BillingEventExpiredEventData",
 })
 
 # `data` of a `roi.payback_reached` event: Once per credit grant, the first time its recipient's profit after it covered its cost. A later refund that un-pays it doesn't fire it again.
@@ -2282,6 +2396,13 @@ WebhookEndpointRecoveredEvent = TypedDict("WebhookEndpointRecoveredEvent", {
     "livemode": bool,
     "createdAt": str,
     "data": "WebhookEndpointRecoveredEventData",
+})
+
+GetTOrgTokenConfigJsonResponse = TypedDict("GetTOrgTokenConfigJsonResponse", {
+    "cookieWindowDays": int,
+    "cookieName": str,
+    "legacyCookieName": str,
+    "storageKeys": List[str],
 })
 
 PostTOrgTokenVisitResponse = TypedDict("PostTOrgTokenVisitResponse", {
@@ -2827,6 +2948,12 @@ GetOrgReferralParamsResponse = TypedDict("GetOrgReferralParamsResponse", {
     "params": List[str],
 })
 
+GetProgramsHandleAvailabilityResponse = TypedDict("GetProgramsHandleAvailabilityResponse", {
+    "handle": str,
+    "available": bool,
+    "reason": NotRequired[Literal["taken", "invalid"]],
+})
+
 GetProgramsResponse = TypedDict("GetProgramsResponse", {
     "object": Literal["list"],
     "data": List["Program"],
@@ -3227,6 +3354,30 @@ GetBillingConnectionsResponse = TypedDict("GetBillingConnectionsResponse", {
     "next_cursor": Optional[str],
 })
 
+PostBillingConnectionsIdEventsResponse = TypedDict("PostBillingConnectionsIdEventsResponse", {
+    "received": int,
+    "results": List["PostBillingEventsIdReleaseResponse"],
+})
+
+PutBillingAccountsAccountRefOwnerResponse = TypedDict("PutBillingAccountsAccountRefOwnerResponse", {
+    "accountRef": str,
+    "ownerCustomerRef": Optional[str],
+    "previousOwnerCustomerRef": Optional[str],
+    "changed": bool,
+    "relinked": int,
+    "reprocessedPayments": int,
+    "renamedFrom": Optional[str],
+    "deleted": bool,
+})
+
+GetBillingAccountsAccountRefResponse = TypedDict("GetBillingAccountsAccountRefResponse", {
+    "accountRef": str,
+    "ownerCustomerRef": Optional[str],
+    "since": str,
+    "renamedTo": Optional[str],
+    "deleted": bool,
+})
+
 PutBillingConnectionsIdValueMappingResponse = TypedDict("PutBillingConnectionsIdValueMappingResponse", {
     "id": str,
     "valueMapping": "ValueMapping",
@@ -3249,6 +3400,16 @@ GetBillingEventsResponse = TypedDict("GetBillingEventsResponse", {
     "data": List["BillingEvent"],
     "has_more": bool,
     "next_cursor": Optional[str],
+})
+
+PostBillingEventsIdReleaseResponse = TypedDict("PostBillingEventsIdReleaseResponse", {
+    "duplicate": bool,
+    "billingEventId": Optional[str],
+    "conversions": int,
+    "linesCreated": int,
+    "reversals": int,
+    "ignored": NotRequired[Literal["filter", "internal_customer"]],
+    "held": NotRequired[Literal["amount_over_limit", "occurred_in_future"]],
 })
 
 PostBillingInternalCustomersResponse = TypedDict("PostBillingInternalCustomersResponse", {
@@ -4002,13 +4163,60 @@ PostWebhookEndpointsIdReplayResponse = TypedDict("PostWebhookEndpointsIdReplayRe
     "replayed": int,
 })
 
-PostSandboxSimulateResponse = TypedDict("PostSandboxSimulateResponse", {
+PostSandboxSimulateResponseValueOption1 = TypedDict("PostSandboxSimulateResponseValueOption1", {
     "customerRef": str,
     "events": int,
     "conversions": int,
     "linesCreated": int,
     "reversals": int,
 })
+
+PostSandboxSimulateResponseValueOption2StepsItemOption1 = TypedDict("PostSandboxSimulateResponseValueOption2StepsItemOption1", {
+    "step": Literal["signup"],
+    "ok": bool,
+    "via": Literal["auth_connection", "associate"],
+    "customerRef": str,
+    "referralId": Optional[str],
+    "partnerId": Optional[str],
+    "notes": List[str],
+})
+
+PostSandboxSimulateResponseValueOption2StepsItemOption2ResultsItem = TypedDict("PostSandboxSimulateResponseValueOption2StepsItemOption2ResultsItem", {
+    "duplicate": bool,
+    "billingEventId": Optional[str],
+    "conversions": int,
+    "linesCreated": int,
+    "reversals": int,
+    "ignored": NotRequired[str],
+})
+
+PostSandboxSimulateResponseValueOption2StepsItemOption2 = TypedDict("PostSandboxSimulateResponseValueOption2StepsItemOption2", {
+    "step": Literal["payment"],
+    "ok": bool,
+    "billingConnectionId": str,
+    "provider": str,
+    "eventId": Optional[str],
+    "results": List["PostSandboxSimulateResponseValueOption2StepsItemOption2ResultsItem"],
+    "notes": List[str],
+})
+
+PostSandboxSimulateResponseValueOption2CommissionsItem = TypedDict("PostSandboxSimulateResponseValueOption2CommissionsItem", {
+    "id": str,
+    "type": str,
+    "partnerId": str,
+    "amountMinor": int,
+    "currency": str,
+    "relatedCommissionId": Optional[str],
+})
+
+PostSandboxSimulateResponseValueOption2 = TypedDict("PostSandboxSimulateResponseValueOption2", {
+    "scenario": Literal["signup_and_pay"],
+    "ok": bool,
+    "steps": List[Union["PostSandboxSimulateResponseValueOption2StepsItemOption1", "PostSandboxSimulateResponseValueOption2StepsItemOption2"]],
+    "commissions": List["PostSandboxSimulateResponseValueOption2CommissionsItem"],
+})
+
+PostSandboxSimulateResponse: TypeAlias = "Union[PostSandboxSimulateResponseValueOption1, PostSandboxSimulateResponseValueOption2]"
 
 GetSandboxBillingFixturesResponseDataItem = TypedDict("GetSandboxBillingFixturesResponseDataItem", {
     "provider": str,
@@ -5095,6 +5303,7 @@ PostPrivacyForgetResponseCustomersItem = TypedDict("PostPrivacyForgetResponseCus
 PostPrivacyForgetResponse = TypedDict("PostPrivacyForgetResponse", {
     "ok": bool,
     "pseudonym": NotRequired[str],
+    "alreadyErased": NotRequired[bool],
     "partners": NotRequired[List["PostPrivacyForgetResponsePartnersItem"]],
     "customers": NotRequired[List["PostPrivacyForgetResponseCustomersItem"]],
 })
@@ -5351,9 +5560,11 @@ GetAuthConnectionsIdExportResponse = TypedDict("GetAuthConnectionsIdExportRespon
     "partner": Optional["PartnerExport"],
 })
 
-# What the connection takes beyond sign-ups: `partners` is user-chosen referral codes through `/partners`.
+# What the connection takes beyond sign-ups: `partners` is user-chosen referral codes through `/partners`; `origins` is setting its own `allowedOrigins` through `PUT …/origins`; `accounts` is organization owners through `/accounts`.
 PostAuthConnectionsIdPingResponseCapabilities = TypedDict("PostAuthConnectionsIdPingResponseCapabilities", {
     "partners": bool,
+    "origins": bool,
+    "accounts": bool,
 })
 
 PostAuthConnectionsIdPingResponse = TypedDict("PostAuthConnectionsIdPingResponse", {
@@ -5364,6 +5575,16 @@ PostAuthConnectionsIdPingResponse = TypedDict("PostAuthConnectionsIdPingResponse
     "autoEnrollUsers": bool,
     "serverTime": str,
     "capabilities": "PostAuthConnectionsIdPingResponseCapabilities",
+})
+
+PutAuthConnectionsIdOriginsResponse = TypedDict("PutAuthConnectionsIdOriginsResponse", {
+    "id": str,
+    "allowedOrigins": List[str],
+})
+
+PatchAuthConnectionsIdOriginsResponse = TypedDict("PatchAuthConnectionsIdOriginsResponse", {
+    "id": str,
+    "allowedOrigins": List[str],
 })
 
 PostAuthConnectionsIdAliasesResponse = TypedDict("PostAuthConnectionsIdAliasesResponse", {
@@ -5405,6 +5626,18 @@ GetAuthConnectionsIdUsersCustomerRefReferralResponse = TypedDict("GetAuthConnect
     "code": Optional[str],
     "linkUrl": Optional[str],
     "enrolledAt": str,
+})
+
+PostAuthConnectionsIdAccountsResponse = TypedDict("PostAuthConnectionsIdAccountsResponse", {
+    "ok": bool,
+    "accountRef": str,
+    "ownerCustomerRef": Optional[str],
+    "previousOwnerCustomerRef": Optional[str],
+    "changed": bool,
+    "relinked": int,
+    "reprocessedPayments": int,
+    "renamedFrom": Optional[str],
+    "deleted": bool,
 })
 
 PostAuthConnectionsIdSignalsResponseReferralsItem = TypedDict("PostAuthConnectionsIdSignalsResponseReferralsItem", {
@@ -5628,6 +5861,7 @@ GetPublicProgramsHandleResponse = TypedDict("GetPublicProgramsHandleResponse", {
     "pitch": str,
     "autoApprove": bool,
     "commission": Optional["GetOpenapiJsonResponse"],
+    "terms": Optional["ProgramTerms"],
     "branding": "GetPublicProgramsHandleResponseBranding",
 })
 
@@ -7468,18 +7702,9 @@ GetProgramsIdCreditRailLogResponse = TypedDict("GetProgramsIdCreditRailLogRespon
     "next_cursor": Optional[str],
 })
 
-PostWebhooksBillingConnectionIdResponseResultsItem = TypedDict("PostWebhooksBillingConnectionIdResponseResultsItem", {
-    "duplicate": bool,
-    "billingEventId": Optional[str],
-    "conversions": int,
-    "linesCreated": int,
-    "reversals": int,
-    "ignored": NotRequired[Literal["filter", "internal_customer"]],
-})
-
 PostWebhooksBillingConnectionIdResponse = TypedDict("PostWebhooksBillingConnectionIdResponse", {
     "received": int,
-    "results": List["PostWebhooksBillingConnectionIdResponseResultsItem"],
+    "results": List["PostBillingEventsIdReleaseResponse"],
 })
 
 PostWebhooksAuthConnectionIdResponseResultsItem = TypedDict("PostWebhooksAuthConnectionIdResponseResultsItem", {
@@ -7878,6 +8103,7 @@ PostProgramsBody = TypedDict("PostProgramsBody", {
     "allowPaidSearch": NotRequired[bool],
     "challengeLinks": NotRequired[bool],
     "settlement": NotRequired[Literal["payout", "merchant_credit"]],
+    "signupPaymentGraceMinutes": NotRequired[int],
     "riskPolicy": NotRequired["PostProgramsBodyRiskPolicy"],
     "widget": NotRequired["PostProgramsBodyWidget"],
     "mobileApp": NotRequired[Optional["PostProgramsBodyMobileAppOption1"]],
@@ -7963,6 +8189,7 @@ PatchProgramsIdBodySettings = TypedDict("PatchProgramsIdBodySettings", {
     "allowPaidSearch": NotRequired[bool],
     "challengeLinks": NotRequired[bool],
     "settlement": NotRequired[Literal["payout", "merchant_credit"]],
+    "signupPaymentGraceMinutes": NotRequired[int],
     "riskPolicy": NotRequired["PatchProgramsIdBodySettingsRiskPolicy"],
     "widget": NotRequired["PatchProgramsIdBodySettingsWidget"],
     "mobileApp": NotRequired[Optional["PatchProgramsIdBodySettingsMobileAppOption1"]],
@@ -7985,6 +8212,7 @@ PatchProgramsIdBody = TypedDict("PatchProgramsIdBody", {
     "allowPaidSearch": NotRequired[bool],
     "challengeLinks": NotRequired[bool],
     "settlement": NotRequired[Literal["payout", "merchant_credit"]],
+    "signupPaymentGraceMinutes": NotRequired[int],
     "riskPolicy": NotRequired["PatchProgramsIdBodyRiskPolicy"],
     "widget": NotRequired["PatchProgramsIdBodyWidget"],
     "mobileApp": NotRequired[Optional["PatchProgramsIdBodyMobileAppOption1"]],
@@ -8033,20 +8261,24 @@ PatchPartnersIdBody = TypedDict("PatchPartnersIdBody", {
 
 PostApiKeysBody = TypedDict("PostApiKeysBody", {
     "name": str,
-    "scopes": NotRequired[List[Literal["admin", "api_keys:mint", "full", "read", "programs:read", "programs:write", "partners:read", "partners:write", "links:read", "links:write", "events:read", "events:write", "referrals:read", "referrals:write", "commissions:read", "commissions:write", "payouts:read", "payouts:write", "billing:read", "billing:write", "webhooks:read", "webhooks:write", "analytics:read", "analytics:write", "fraud:read", "fraud:write", "privacy:read", "privacy:write", "team:read", "team:write", "org:read", "org:write", "integrations:read", "integrations:write", "growth:read", "growth:write", "audit:read", "audit:write"]]],
+    "scopes": NotRequired[List[Literal["admin", "api_keys:mint", "full", "read", "connections:read", "connections:write", "programs:read", "programs:write", "partners:read", "partners:write", "links:read", "links:write", "events:read", "events:write", "referrals:read", "referrals:write", "commissions:read", "commissions:write", "payouts:read", "payouts:write", "billing:read", "billing:write", "webhooks:read", "webhooks:write", "analytics:read", "analytics:write", "fraud:read", "fraud:write", "privacy:read", "privacy:write", "team:read", "team:write", "org:read", "org:write", "integrations:read", "integrations:write", "growth:read", "growth:write", "audit:read", "audit:write"]]],
     "publishable": NotRequired[bool],
     "allowedOrigins": NotRequired[List[str]],
     "apiVersion": NotRequired[str],
     "mode": NotRequired[Literal["live", "test", "both"]],
     "owner": NotRequired[str],
     "expiresInDays": NotRequired[int],
+    "expiresAt": NotRequired[str],
     "programIds": NotRequired[List[str]],
 })
 
 PatchApiKeysIdBody = TypedDict("PatchApiKeysIdBody", {
+    "name": NotRequired[str],
+    "scopes": NotRequired[List[Literal["admin", "api_keys:mint", "full", "read", "connections:read", "connections:write", "programs:read", "programs:write", "partners:read", "partners:write", "links:read", "links:write", "events:read", "events:write", "referrals:read", "referrals:write", "commissions:read", "commissions:write", "payouts:read", "payouts:write", "billing:read", "billing:write", "webhooks:read", "webhooks:write", "analytics:read", "analytics:write", "fraud:read", "fraud:write", "privacy:read", "privacy:write", "team:read", "team:write", "org:read", "org:write", "integrations:read", "integrations:write", "growth:read", "growth:write", "audit:read", "audit:write"]]],
     "apiVersion": NotRequired[str],
     "owner": NotRequired[Optional[str]],
     "expiresInDays": NotRequired[Optional[int]],
+    "expiresAt": NotRequired[Optional[str]],
     "programIds": NotRequired[Optional[List[str]]],
 })
 
@@ -8123,6 +8355,7 @@ PostReferralsAssociateBody = TypedDict("PostReferralsAssociateBody", {
     "anonId": NotRequired[str],
     "referralToken": NotRequired[str],
     "couponCode": NotRequired[str],
+    "handoffToken": NotRequired[str],
     "emailHash": NotRequired[str],
     "ip": NotRequired[str],
     "ua": NotRequired[str],
@@ -8130,6 +8363,12 @@ PostReferralsAssociateBody = TypedDict("PostReferralsAssociateBody", {
     "occurredAt": NotRequired[str],
     "emailDomain": NotRequired[str],
     "consent": NotRequired["PostReferralsAssociateBodyConsent"],
+})
+
+PostReferralsHandoffTokensBody = TypedDict("PostReferralsHandoffTokensBody", {
+    "anonId": NotRequired[str],
+    "clickId": NotRequired[str],
+    "code": NotRequired[str],
 })
 
 PatchReferralsIdBody = TypedDict("PatchReferralsIdBody", {
@@ -8353,6 +8592,16 @@ PatchBillingConnectionsIdBody = TypedDict("PatchBillingConnectionsIdBody", {
     "filter": NotRequired[Optional["PatchBillingConnectionsIdBodyFilterOption1"]],
     "customerRefMetadataKey": NotRequired[Optional[str]],
     "programIds": NotRequired[Optional[List[str]]],
+    "maxAmountMinor": NotRequired[Optional[int]],
+})
+
+PostBillingConnectionsIdEventsBody = TypedDict("PostBillingConnectionsIdEventsBody", {
+    "events": List[Dict[str, Any]],
+})
+
+PutBillingAccountsAccountRefOwnerBody = TypedDict("PutBillingAccountsAccountRefOwnerBody", {
+    "ownerCustomerRef": NotRequired[str],
+    "previousAccountRef": NotRequired[str],
 })
 
 PutBillingConnectionsIdValueMappingBody = TypedDict("PutBillingConnectionsIdValueMappingBody", {
@@ -8594,10 +8843,16 @@ PatchWebhookEndpointsIdBody = TypedDict("PatchWebhookEndpointsIdBody", {
 
 PostSandboxSimulateBody = TypedDict("PostSandboxSimulateBody", {
     "programId": str,
-    "partnerId": str,
-    "scenario": NotRequired[Literal["subscription", "refund", "churn"]],
+    "partnerId": NotRequired[str],
+    "scenario": NotRequired[Literal["subscription", "refund", "churn", "signup_and_pay"]],
     "priceMinor": NotRequired[int],
     "months": NotRequired[int],
+    "code": NotRequired[str],
+    "authConnectionId": NotRequired[str],
+    "billingConnectionId": NotRequired[str],
+    "customerRef": NotRequired[str],
+    "amountMinor": NotRequired[int],
+    "currency": NotRequired[str],
 })
 
 PostSandboxBillingFixturesBodyOverrides = TypedDict("PostSandboxBillingFixturesBodyOverrides", {
@@ -9116,10 +9371,6 @@ PostAuthConnectionsBody = TypedDict("PostAuthConnectionsBody", {
     "allowedOrigins": NotRequired[List[str]],
 })
 
-PutAuthConnectionsIdSecretBody = TypedDict("PutAuthConnectionsIdSecretBody", {
-    "secret": str,
-})
-
 PatchAuthConnectionsIdBodyTokenVerificationOption1Claims = TypedDict("PatchAuthConnectionsIdBodyTokenVerificationOption1Claims", {
     "customerRef": NotRequired[str],
     "email": NotRequired[str],
@@ -9148,6 +9399,10 @@ PatchAuthConnectionsIdBody = TypedDict("PatchAuthConnectionsIdBody", {
     "signatureVersion": NotRequired[Literal["v1+v2", "v2"]],
     "tokenVerification": NotRequired[Optional["PatchAuthConnectionsIdBodyTokenVerificationOption1"]],
     "allowedOrigins": NotRequired[List[str]],
+})
+
+PutAuthConnectionsIdSecretBody = TypedDict("PutAuthConnectionsIdSecretBody", {
+    "secret": str,
 })
 
 PostAuthConnectionsIdSignupsBodyReferral = TypedDict("PostAuthConnectionsIdSignupsBodyReferral", {
@@ -9198,6 +9453,14 @@ PostAuthConnectionsIdEraseBody = TypedDict("PostAuthConnectionsIdEraseBody", {
     "customerRef": str,
 })
 
+PutAuthConnectionsIdOriginsBody = TypedDict("PutAuthConnectionsIdOriginsBody", {
+    "allowedOrigins": List[str],
+})
+
+PatchAuthConnectionsIdOriginsBody = TypedDict("PatchAuthConnectionsIdOriginsBody", {
+    "allowedOrigins": List[str],
+})
+
 PostAuthConnectionsIdAliasesBody = TypedDict("PostAuthConnectionsIdAliasesBody", {
     "fromCustomerRef": str,
     "toCustomerRef": str,
@@ -9217,6 +9480,13 @@ PostAuthConnectionsIdWidgetTokensBody = TypedDict("PostAuthConnectionsIdWidgetTo
     "emailVerified": NotRequired[bool],
     "displayName": NotRequired[str],
     "ttlSeconds": NotRequired[int],
+})
+
+PostAuthConnectionsIdAccountsBody = TypedDict("PostAuthConnectionsIdAccountsBody", {
+    "accountRef": str,
+    "ownerCustomerRef": NotRequired[str],
+    "previousAccountRef": NotRequired[str],
+    "deleted": NotRequired[bool],
 })
 
 PostAuthConnectionsIdSignalsBody = TypedDict("PostAuthConnectionsIdSignalsBody", {
@@ -9388,6 +9658,7 @@ PostOrgsOrgIdPrivacyExecutorKeyBody = TypedDict("PostOrgsOrgIdPrivacyExecutorKey
     "orgId": NotRequired[str],
     "nonce": NotRequired[str],
     "iat": NotRequired[int],
+    "programIds": NotRequired[List[str]],
 })
 
 PutOrgHostedPagesBodyConsent = TypedDict("PutOrgHostedPagesBodyConsent", {

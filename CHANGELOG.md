@@ -2,6 +2,10 @@
 
 All notable changes to this SDK are documented here. It follows [Semantic Versioning](https://semver.org).
 
+## 0.3.0 - 2026-11-05
+
+- API version `2026-11-05`: unknown query parameters are refused, payments can be `held` (`POST /v1/billing/events/{id}/release`, `maxAmountMinor`, `billing_event.held`), and erasure retries return `alreadyErased`.
+
 ## 0.2.0 - 2026-10-24
 
 - API 2026-11-01 additions: 56 new operations (inbound signup connectors, billing product filters, per-org SSO and partner-portal sign-in, support-tool context cards, data-rights executors, account closure, rewards, integration health, plans, the event feed and bulk webhook replay) and 2 webhook topics (`webhook_endpoint.failing`, `webhook_endpoint.recovered`).

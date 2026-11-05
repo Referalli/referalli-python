@@ -22,11 +22,11 @@ class Operations:
     def delete_api_keys_id(self, id: str, *, cascade: Optional[Literal["true", "false"]] = None, pair: Optional[Literal["true", "false"]] = None, idempotency_key: Optional[str] = None) -> DeleteApiKeysIdResponse:
         """Revoke an API key. DELETE /v1/api-keys/{id}
 
-        Revokes a key at once. `cascade=true` also revokes every key it minted (and theirs); `pair=true` also revokes its live/test twin. Returns the revoked ids. Needs an owner or admin session, or an API key with the `admin` scope. Audited.
+        Revokes a key at once. `cascade=true` also revokes every key it minted (and theirs); `pair=true` also revokes its live/test twin. Returns the revoked ids. Needs an owner or admin session, or an API key with the `admin` scope. A key holding `api_keys:mint` may also do this for keys it minted itself (403 for any other). Audited.
 
-        **Auth:** an API key with `team:write`, or a session of any role.
+        **Auth:** an API key with `api_keys:mint`, or a session of any role.
 
-        **Scopes:** `team:write`, `full`, `admin`.
+        **Scopes:** `api_keys:mint`, `admin`.
 
         cascade: true: also revoke every key this key minted, and theirs.
         pair: true: also revoke its live/test twin.
@@ -54,6 +54,17 @@ class Operations:
         **Scopes:** `integrations:write`, `connections:write`, `full`, `admin`.
         """
         return self._request("DELETE", f"/v1/auth/connections/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def delete_billing_accounts_account_ref(self, account_ref: str, *, idempotency_key: Optional[str] = None) -> PutBillingAccountsAccountRefOwnerResponse:
+        """Delete a billing account. DELETE /v1/billing/accounts/{accountRef}
+
+        The organization was deleted: it has no owner from now on, and its provider customers stop resolving to the old owner, so later payments under it earn nothing. Commissions already earned stay, and refunds still reverse them. Setting an owner again restores it for later payments (payments made while it was deleted are not replayed). Returns the same shape as `PUT …/owner` with `deleted: true` and `ownerCustomerRef: null`; deleting an account with nothing recorded (or already deleted) answers `changed: false`. Publishes `billing_account.owner_changed`. Needs `billing:write`. Audited.
+
+        **Auth:** an API key with `billing:write`, or a session with role `owner`, `admin`.
+
+        **Scopes:** `billing:write`, `full`, `admin`.
+        """
+        return self._request("DELETE", f"/v1/billing/accounts/{_seg(account_ref)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def delete_billing_connections_id(self, id: str, *, idempotency_key: Optional[str] = None) -> DeleteBillingConnectionsIdResponse:
         """Delete a billing connection. DELETE /v1/billing/connections/{id}
@@ -588,7 +599,7 @@ class Operations:
     def get_auth_connections(self, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[AuthConnection]:
         """List auth connections. GET /v1/auth/connections
 
-        Auth-platform connections with provider, program, status, signature version and rotation state. Secrets are never returned.
+        Auth-platform connections with provider, program, status, signature version, rotation state and `lastSignupAt` (when it last filed a new sign-up; null when never). Secrets are never returned.
 
         **Auth:** an API key with `integrations:read`, or a session of any role.
 
@@ -605,6 +616,17 @@ class Operations:
     def get_auth_connections_iter(self, *, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Iterator[AuthConnection]:
         """Every item of ``get_auth_connections``, following the pages."""
         return self._paginate(lambda cursor: self.get_auth_connections(limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
+
+    def get_auth_connections_id(self, id: str, *, idempotency_key: Optional[str] = None) -> AuthConnection:
+        """Get an auth connection. GET /v1/auth/connections/{id}
+
+        One auth-platform connection, as in the list: provider, program, status, `allowedOrigins`, `tokenVerification` (without its secret), signature version and rotation state. Secrets are never returned. Unknown or deleted connections are 404.
+
+        **Auth:** an API key with `integrations:read`, or a session of any role.
+
+        **Scopes:** `integrations:read`, `integrations:write`, `connections:read`, `connections:write`, `read`, `full`, `admin`.
+        """
+        return self._request("GET", f"/v1/auth/connections/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def get_auth_connections_id_export(self, id: str, *, customer_ref: str, idempotency_key: Optional[str] = None) -> GetAuthConnectionsIdExportResponse:
         """Export a user (signed protocol). GET /v1/auth/connections/{id}/export
@@ -644,6 +666,17 @@ class Operations:
         """
         return self._request("GET", f"/v1/auth/providers", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    def get_billing_accounts_account_ref(self, account_ref: str, *, idempotency_key: Optional[str] = None) -> GetBillingAccountsAccountRefResponse:
+        """Get a billing account's owner. GET /v1/billing/accounts/{accountRef}
+
+        What is recorded for a billing account: `{ accountRef, ownerCustomerRef, since, renamedTo, deleted }`. A renamed id answers with `renamedTo` (and `ownerCustomerRef: null`); it follows that account. `404` when nothing is recorded.
+
+        **Auth:** an API key with `billing:read`, or a session of any role.
+
+        **Scopes:** `billing:read`, `billing:write`, `read`, `full`, `admin`.
+        """
+        return self._request("GET", f"/v1/billing/accounts/{_seg(account_ref)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     def get_billing_connections(self, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[BillingConnection]:
         """List billing connections. GET /v1/billing/connections
 
@@ -676,10 +709,10 @@ class Operations:
         """
         return self._request("GET", f"/v1/billing/connections/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
-    def get_billing_events(self, *, customer_ref: Optional[str] = None, status: Optional[Literal["processed", "ignored_by_filter"]] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[BillingEvent]:
+    def get_billing_events(self, *, customer_ref: Optional[str] = None, status: Optional[Literal["processed", "ignored_by_filter", "parked", "held"]] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[BillingEvent]:
         """List billing events. GET /v1/billing/events
 
-        Payments, refunds and other billing events received from every connection, newest first. Filter with `customerRef`, or `status=ignored_by_filter` for the events a product filter or the internal-customer list set aside (recorded, never processed). `ignoredReason: "no_referral_in_scope"` (with `status: "processed"`) marks a payment on a connection limited to some programs from a customer referred only in other programs: it earned nothing.
+        Payments, refunds and other billing events received from every connection, newest first. Filter with `customerRef`, or `status=ignored_by_filter` for the events a product filter or the internal-customer list set aside (recorded, never processed), or `status=parked` for the refunds and disputes waiting for their payment: applied when it arrives, or dropped after 7 days with a `billing_event.expired` webhook event. `ignoredReason: "no_referral_in_scope"` (with `status: "processed"`) marks a payment on a connection limited to some programs from a customer referred only in other programs: it earned nothing.
 
         **Auth:** an API key with `billing:read`, or a session of any role.
 
@@ -693,7 +726,7 @@ class Operations:
         """
         return self._request("GET", f"/v1/billing/events", query={"customerRef": customer_ref, "status": status, "limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
 
-    def get_billing_events_iter(self, *, customer_ref: Optional[str] = None, status: Optional[Literal["processed", "ignored_by_filter"]] = None, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Iterator[BillingEvent]:
+    def get_billing_events_iter(self, *, customer_ref: Optional[str] = None, status: Optional[Literal["processed", "ignored_by_filter", "parked", "held"]] = None, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Iterator[BillingEvent]:
         """Every item of ``get_billing_events``, following the pages."""
         return self._paginate(lambda cursor: self.get_billing_events(customer_ref=customer_ref, status=status, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
@@ -852,7 +885,7 @@ class Operations:
         """Every item of ``get_commission_rules``, following the pages."""
         return self._paginate(lambda cursor: self.get_commission_rules(program_id=program_id, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
-    def get_commissions(self, *, partner_id: Optional[str] = None, program_id: Optional[str] = None, type_: Optional[Literal["earned", "adjusted", "reversed", "approved", "paid"]] = None, referral_id: Optional[str] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[CommissionEvent]:
+    def get_commissions(self, *, partner_id: Optional[str] = None, program_id: Optional[str] = None, type_: Optional[Literal["earned", "adjusted", "reversed", "approved", "paid"]] = None, referral_id: Optional[str] = None, customer_ref: Optional[str] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[CommissionEvent]:
         """List commission ledger events. GET /v1/commissions
 
         The append-only commission ledger, newest first: `earned` lines and the `approved`, `paid`, `reversed` and `adjusted` events recorded against them (`relatedCommissionId`). Filter by `partnerId`, `programId`, `type` or `referralId`.
@@ -867,11 +900,11 @@ class Operations:
         created[gte]: Only items created at or after this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
         created[lte]: Only items created at or before this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
         """
-        return self._request("GET", f"/v1/commissions", query={"partnerId": partner_id, "programId": program_id, "type": type_, "referralId": referral_id, "limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
+        return self._request("GET", f"/v1/commissions", query={"partnerId": partner_id, "programId": program_id, "type": type_, "referralId": referral_id, "customerRef": customer_ref, "limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
 
-    def get_commissions_iter(self, *, partner_id: Optional[str] = None, program_id: Optional[str] = None, type_: Optional[Literal["earned", "adjusted", "reversed", "approved", "paid"]] = None, referral_id: Optional[str] = None, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Iterator[CommissionEvent]:
+    def get_commissions_iter(self, *, partner_id: Optional[str] = None, program_id: Optional[str] = None, type_: Optional[Literal["earned", "adjusted", "reversed", "approved", "paid"]] = None, referral_id: Optional[str] = None, customer_ref: Optional[str] = None, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Iterator[CommissionEvent]:
         """Every item of ``get_commissions``, following the pages."""
-        return self._paginate(lambda cursor: self.get_commissions(partner_id=partner_id, program_id=program_id, type_=type_, referral_id=referral_id, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
+        return self._paginate(lambda cursor: self.get_commissions(partner_id=partner_id, program_id=program_id, type_=type_, referral_id=referral_id, customer_ref=customer_ref, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
     def get_commissions_id(self, id: str, *, idempotency_key: Optional[str] = None) -> CommissionLine:
         """Get a commission. GET /v1/commissions/{id}
@@ -1302,11 +1335,11 @@ class Operations:
     def get_me(self, *, idempotency_key: Optional[str] = None) -> GetMeResponse:
         """Get the current caller. GET /v1/me
 
-        Who is calling. With a user session: the user and their org memberships (no `x-org-id` needed). With an API key: `{ user: null, memberships: [], apiKey, org: { id, name } }`, where `apiKey` holds the key (name, prefix, scopes, pinned `apiVersion`, `livemode`, owner, expiry, `programIds`). The mode is `apiKey.livemode`; there is no top-level `livemode`.
+        Who is calling. With a user session: the user and their org memberships (no `x-org-id` needed). With an API key: `{ user: null, memberships: [], apiKey, org: { id, name } }`, where `apiKey` holds the key (name, prefix, scopes, pinned `apiVersion`, `livemode`, owner, expiry, `programIds`). The mode is `apiKey.livemode`; there is no top-level `livemode`. Any key may call it, whatever its scopes.
 
-        **Auth:** an API key with `team:read`, or a session of any role.
+        **Auth:** an API key with `null`, or a session of any role.
 
-        **Scopes:** `team:read`, `team:write`, `read`, `full`, `admin`.
+        **Scopes:** .
         """
         return self._request("GET", f"/v1/me", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
@@ -1579,6 +1612,17 @@ class Operations:
         **Scopes:** `org:read`, `org:write`, `read`, `full`, `admin`.
         """
         return self._request("GET", f"/v1/org/tracking-consent", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    def get_org_tracking_tokens(self, *, idempotency_key: Optional[str] = None) -> TrackingTokens:
+        """Both modes' tracking tokens. GET /v1/org/tracking-tokens
+
+        The org's public tracking values for live and test mode, labelled: `{ mode, live, test }`, each with `orgId`, `trackingToken`, `scriptUrl` (aff.js), `linkBaseUrl` (the verified link domain, else Referalli's origin) and `linkTemplate` (`…/go/{token}/{code}`). `mode` is the caller's. Any key reads both, live or test; nothing else crosses modes. The test org is created on first use.
+
+        **Auth:** an API key with `org:read`, or a session of any role.
+
+        **Scopes:** `org:read`, `org:write`, `read`, `full`, `admin`.
+        """
+        return self._request("GET", f"/v1/org/tracking-tokens", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def get_outreach(self, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetOutreachResponseDataItem]:
         """List outreach messages. GET /v1/outreach
@@ -2474,6 +2518,17 @@ class Operations:
         """Every item of ``get_programs``, following the pages."""
         return self._paginate(lambda cursor: self.get_programs(slug=slug, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
+    def get_programs_handle_availability(self, *, handle: str, idempotency_key: Optional[str] = None) -> GetProgramsHandleAvailabilityResponse:
+        """Check a public handle. GET /v1/programs/handle-availability
+
+        Whether `handle` can be set as a program's `publicHandle`, using the same rules as `POST`/`PATCH /v1/programs`: `available: false` with `reason: "invalid"` when it is not 3 to 48 characters of `a-z`, `0-9` and `-`, or `reason: "taken"` when any program (in any org, including your own) already has it. Handles are claimed only by setting them, so a free handle can still be taken before you do; the setter's `409` names `details.field: "publicHandle"`.
+
+        **Auth:** an API key with `programs:read`, or a session of any role.
+
+        **Scopes:** `programs:read`, `programs:write`, `read`, `full`, `admin`.
+        """
+        return self._request("GET", f"/v1/programs/handle-availability", query={"handle": handle}, body=None, idempotency_key=idempotency_key, kind="json")
+
     def get_programs_id(self, id: str, *, idempotency_key: Optional[str] = None) -> Program:
         """Get a program. GET /v1/programs/{id}
 
@@ -2657,16 +2712,16 @@ class Operations:
         """Every item of ``get_programs_id_stripe_credits_log``, following the pages."""
         return self._paginate(lambda cursor: self.get_programs_id_stripe_credits_log(id, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
-    def get_programs_id_terms(self, id: str, *, idempotency_key: Optional[str] = None) -> ProgramTerms:
+    def get_programs_id_terms(self, id: str, *, locale: Optional[str] = None, idempotency_key: Optional[str] = None) -> ProgramTerms:
         """Get a program's terms. GET /v1/programs/{id}/terms
 
-        The program's commission terms for product copy, from its latest commission rule version (`ruleVersion`): the `base` (`percentBps`, or `amountMinor` and `currency`), how long it recurs, the hold, and `summary.en`, an English sentence built deterministically from the rule, such as "20% of every payment for 12 months" or "$50.00 for the first payment only". Bounties are added (", plus $5.00 per signup"); rule conditions add "(conditions apply)"; overrides, tiers or new-vs-expansion rates set `ratesVary` and add "(rates vary)" rather than quote one rate. Partner-group rates and promotions are not included. Publishing a new rule version changes the terms on the next read. `404` when the program has no rule yet. Program-scoped keys read their own programs.
+        The program's commission terms for product copy, from its latest commission rule version (`ruleVersion`): the `base` (`percentBps`, or `amountMinor` and `currency`), how long it recurs, the hold, and `summary`, the same sentence in each partner-portal locale (`en`, `es`, `de`, `fr`, `pt`, `it`, `nl`, `sv`, `ja`, `zh`), built deterministically from the rule, such as "20% of every payment for 12 months" or "$50.00 for the first payment only". Bounties are added (", plus $5.00 per signup"); rule conditions add "(conditions apply)"; overrides, tiers or new-vs-expansion rates set `ratesVary` and add "(rates vary)" rather than quote one rate. With `?locale=de` or an `Accept-Language` header the response also names the chosen `locale` and its sentence as `text` (an unsupported language gets `en`). Bounty event names are kept as written. Partner-group rates and promotions are not included. Publishing a new rule version changes the terms on the next read. `404` when the program has no rule yet. Program-scoped keys read their own programs.
 
         **Auth:** an API key with `programs:read`, or a session of any role.
 
         **Scopes:** `programs:read`, `programs:write`, `read`, `full`, `admin`.
         """
-        return self._request("GET", f"/v1/programs/{_seg(id)}/terms", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+        return self._request("GET", f"/v1/programs/{_seg(id)}/terms", query={"locale": locale}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def get_programs_id_terms_acceptances(self, id: str, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetProgramsIdTermsAcceptancesResponseDataItem]:
         """List terms acceptances. GET /v1/programs/{id}/terms-acceptances
@@ -2710,14 +2765,14 @@ class Operations:
         """Every item of ``get_prospects``, following the pages."""
         return self._paginate(lambda cursor: self.get_prospects(status=status, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
-    def get_public_programs_handle(self, handle: str, *, idempotency_key: Optional[str] = None) -> GetPublicProgramsHandleResponse:
+    def get_public_programs_handle(self, handle: str, *, locale: Optional[str] = None, idempotency_key: Optional[str] = None) -> GetPublicProgramsHandleResponse:
         """Get a program's public page. GET /v1/public/programs/{handle}
 
-        What a program's public join page shows: the program and merchant names, pitch, cookie window, terms, base commission, branding and whether joining is approved at once. No authentication; only active live programs with a `publicHandle` are found.
+        What a program's public join page shows: the program and merchant names, pitch, cookie window, terms, base commission, branding and whether joining is approved at once. `terms` is the program's commission terms as `GET /v1/programs/{id}/terms` gives them (the rule's base, how long it recurs, hold and `summary` in each portal locale), or null when it has no rule yet; with `?locale=` or `Accept-Language` it also names the chosen `locale` and its sentence as `text`. No authentication; only active live programs with a `publicHandle` are found.
 
         **Auth:** none.
         """
-        return self._request("GET", f"/v1/public/programs/{_seg(handle)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+        return self._request("GET", f"/v1/public/programs/{_seg(handle)}", query={"locale": locale}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def get_referrals(self, *, program_id: Optional[str] = None, partner_id: Optional[str] = None, status: Optional[Literal["active", "pending_review", "paused", "void"]] = None, customer_ref: Optional[str] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[Referral]:
         """List referrals. GET /v1/referrals
@@ -3372,24 +3427,33 @@ class Operations:
     def patch_api_keys_id(self, id: str, body: PatchApiKeysIdBody, *, idempotency_key: Optional[str] = None) -> PatchApiKeysIdResponse:
         """Update an API key. PATCH /v1/api-keys/{id}
 
-        Changes a key's pinned `apiVersion`, `owner`, expiry (`expiresInDays` from now; `null` removes it) or `programIds` (`null` makes it org-wide); `apiVersion: "latest"` pins it to today's newest version. A new expiry re-arms the `api_key.expiring` notices. Revoked keys are 404. Needs an owner or admin session, or an API key with the `admin` scope. Audited.
+        Renames a key or changes its pinned `apiVersion`, `owner`, expiry (`expiresInDays` from now, or `expiresAt`, an ISO 8601 time at most 3650 days out, not both; `null` removes it) or `programIds` (`null` makes it org-wide); `apiVersion: "latest"` pins it to today's newest version. A new expiry re-arms the `api_key.expiring` notices. `name` renames it; `scopes` replaces its scopes. Revoked keys are 404. Needs an owner or admin session, or an API key with the `admin` scope. A key holding `api_keys:mint` may also do this for keys it minted itself (403 for any other), but only to narrow `scopes` and `programIds`, never widen them or make the key org-wide. Audited.
 
-        **Auth:** an API key with `team:write`, or a session of any role.
+        **Auth:** an API key with `api_keys:mint`, or a session of any role.
 
-        **Scopes:** `team:write`, `full`, `admin`.
+        **Scopes:** `api_keys:mint`, `admin`.
         """
         return self._request("PATCH", f"/v1/api-keys/{_seg(id)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     def patch_auth_connections_id(self, id: str, body: PatchAuthConnectionsIdBody, *, idempotency_key: Optional[str] = None) -> PatchAuthConnectionsIdResponse:
         """Update an auth connection. PATCH /v1/auth/connections/{id}
 
-        Pauses or resumes a connection, renames it, changes `autoEnrollUsers` or the destination of auto-created links, turns `resolveBillingCustomers` on or off, or (signed-protocol connections) sets `signatureVersion`: `v2` to require request-line signatures, `v1+v2` to accept both again. `resolveBillingCustomers` (any provider, default false): a billing customer that arrives with no customerRef (no `referalli_customer_ref` metadata, no `customerRefMetadataKey` hit) in a program this connection serves (within the billing connection's `programIds`) is resolved through this connection's users: `referalli_user_id` or `<provider>_user_id` metadata naming a user it reported, else exactly one user whose current email is the customer's and verified. The billing link is recorded as metadata would record it; none or several matches record `ignoredReason: "identity_unresolved"` / `"identity_ambiguous"` on the billing event. Explicit metadata always wins. Matching uses only the org's own data. `tokenVerification` replaces the widget-session verifier (an HS256 secret is kept when `sharedSecret` is left out; `null` removes it) and `allowedOrigins` replaces the origin list.
+        Pauses or resumes a connection, renames it, changes `autoEnrollUsers` or the destination of auto-created links, turns `resolveBillingCustomers` on or off, or (signed-protocol connections) sets `signatureVersion`: `v2` to require request-line signatures, `v1+v2` to accept both again. `resolveBillingCustomers` (any provider, default false): a billing customer that arrives with no customerRef (no `referalli_customer_ref` metadata, no `customerRefMetadataKey` hit) in a program this connection serves (within the billing connection's `programIds`) is resolved through this connection's users: `referalli_user_id` or `<provider>_user_id` metadata naming a user it reported, else exactly one user whose current email is the customer's and verified. The billing link is recorded as metadata would record it; none or several matches record `ignoredReason: "identity_unresolved"` / `"identity_ambiguous"` on the billing event. Explicit metadata always wins. Matching uses only the org's own data. `tokenVerification` replaces the widget-session verifier (an HS256 secret is kept when `sharedSecret` is left out; `null` removes it) and `allowedOrigins` replaces the origin list. The auth platform itself can also call this path, signed with the connection secret and with only `allowedOrigins` in the body (no session), to set its origins; see `PUT /v1/auth/connections/{id}/origins`.
 
         **Auth:** an API key with `integrations:write`, or a session with role `owner`, `admin`.
 
         **Scopes:** `integrations:write`, `connections:write`, `full`, `admin`.
         """
         return self._request("PATCH", f"/v1/auth/connections/{_seg(id)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def patch_auth_connections_id_origins(self, id: str, body: PatchAuthConnectionsIdOriginsBody, *, idempotency_key: Optional[str] = None) -> PatchAuthConnectionsIdOriginsResponse:
+        """Set a connection's allowed origins (signed protocol, PATCH). PATCH /v1/auth/connections/{id}/origins
+
+        The same as `PUT /v1/auth/connections/{id}/origins`. Signed with the connection secret in `x-referalli-signature: t=<unix>,v1=…,v2=…` (v2 also signs the request line; once a connection has seen v2 it requires it), with a unique `x-referalli-id` per call. The legacy header names from before the rename are also accepted, for existing integrations. Calls older than 5 minutes, reused ids (`409 replay`), paused connections (`423 connection_paused`) and unknown fields (`422`) are refused.
+
+        **Auth:** none.
+        """
+        return self._request("PATCH", f"/v1/auth/connections/{_seg(id)}/origins", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     def patch_billing_connections_id(self, id: str, body: PatchBillingConnectionsIdBody, *, idempotency_key: Optional[str] = None) -> BillingConnection:
         """Update a billing connection. PATCH /v1/billing/connections/{id}
@@ -3482,7 +3546,7 @@ class Operations:
     def patch_programs_id(self, id: str, body: PatchProgramsIdBody, *, idempotency_key: Optional[str] = None) -> Program:
         """Update a program. PATCH /v1/programs/{id}
 
-        Changes any program field or setting; omitted fields keep their value, and `publicPage` is merged. Changing `termsMd` records a new terms version. Setting `status` to `paused` or `archived` stops new attribution. `mobileApp` (iOS Team ID and bundle id, Android package and signing-certificate fingerprints) publishes the program's apps in the universal-links and App Links files on the org's link hosts. `destinationUrl` moves the program's default link destination: every link still on the old default (the widget's or a sign-in connection's) is repointed in the same call, custom destinations stay, and links already shared follow at click time; `{code}` in it becomes the link's code. Audited.
+        Changes any program field or setting; omitted fields keep their value, and `publicPage` is merged. Changing `termsMd` records a new terms version. Setting `status` to `paused` or `archived` stops new attribution. `signupPaymentGraceMinutes` (0 to 1440, default 5) is how long before the referral's sign-up time a payment still earns. `mobileApp` (iOS Team ID and bundle id, Android package and signing-certificate fingerprints) publishes the program's apps in the universal-links and App Links files on the org's link hosts. `destinationUrl` moves the program's default link destination: every link still on the old default (the widget's or a sign-in connection's) is repointed in the same call, custom destinations stay, and links already shared follow at click time; `{code}` in it becomes the link's code. A `publicHandle` another program has is `409 conflict` with `details: { field: 'publicHandle' }`. Audited.
 
         **Auth:** an API key with `programs:write`, or a session with role `owner`, `admin`.
 
@@ -3607,22 +3671,22 @@ class Operations:
     def post_api_keys(self, body: PostApiKeysBody, *, idempotency_key: Optional[str] = None) -> PostApiKeysResponse:
         """Create an API key. POST /v1/api-keys
 
-        Mints a secret key (`rk_live_…` / `rk_test_…`), shown only in this response (and in its `Idempotency-Key` replay: a retry with the same key and body within 24 hours returns this response again, secret included, without minting another). `scopes` defaults to `full`; a key can't grant scopes it doesn't hold. `mode` picks live, test or a matching pair of both (`both` returns `{ pairId, live, test }`); a test-mode caller can mint test keys only. `publishable: true` mints a browser-safe `rk_pub_` key limited to `programs:read` and `events:write` from `allowedOrigins`. `apiVersion` pins the key to a version, or `latest` (the default) to the newest version at the time of the call; the pin never moves on its own (a key keeps answering in that version after newer ones ship) until you `PATCH` it or send a `referalli-version` header. A key pinned to `2026-10-21` gets every list as a capped plain array instead of the paginated envelope. `programIds` limits the key to those programs (their partners, links, referrals, commissions, enrollments, webhook endpoints whose `programIds` are all within the key's, with their deliveries, and billing connections likewise); a program-scoped key gets 403 `program_scoped_key` on org-wide endpoints (keys, team, org settings, the rest of billing, payouts, the event feed, analytics, creating programs). An `api_keys:mint` key may also call this (and no other key endpoint): it can't mint `admin` or `api_keys:mint` keys or scopes it doesn't hold, and a program-scoped one must send `programIds` within its own (`403` otherwise). Needs an owner or admin session, or an API key with the `admin` scope. Audited.
+        Expiry is `expiresInDays` or `expiresAt` (ISO 8601, at most 3650 days out), not both. Mints a secret key (`rk_live_…` / `rk_test_…`), shown only in this response (and in its `Idempotency-Key` replay: a retry with the same key and body within 24 hours returns this response again, secret included, without minting another). `scopes` defaults to `full`; a key can't grant scopes it doesn't hold. `mode` picks live, test or a matching pair of both (`both` returns `{ pairId, live, test }`); a test-mode caller can mint test keys only. `publishable: true` mints a browser-safe `rk_pub_` key limited to `programs:read` and `events:write` from `allowedOrigins`. `apiVersion` pins the key to a version, or `latest` (the default) to the newest version at the time of the call; the pin never moves on its own (a key keeps answering in that version after newer ones ship) until you `PATCH` it or send a `referalli-version` header. A key pinned to `2026-10-21` gets every list as a capped plain array instead of the paginated envelope. `programIds` limits the key to those programs (their partners, links, referrals, commissions, enrollments, webhook endpoints whose `programIds` are all within the key's, with their deliveries, billing connections likewise, auth connections of those programs, and privacy lookup, export, forget and requests for people in those programs); a program-scoped key gets 403 `program_scoped_key` on org-wide endpoints (keys, team, org settings, the rest of billing, payouts, the event feed, analytics, creating programs). An `api_keys:mint` key may also call this (and no other key endpoint): it can't mint `admin` or `api_keys:mint` keys or scopes it doesn't hold, and a program-scoped one must send `programIds` within its own (`403` otherwise). Needs an owner or admin session, or an API key with the `admin` scope. Audited.
 
-        **Auth:** an API key with `team:write`, or a session of any role.
+        **Auth:** an API key with `api_keys:mint`, or a session of any role.
 
-        **Scopes:** `team:write`, `api_keys:mint`, `full`, `admin`.
+        **Scopes:** `api_keys:mint`, `admin`.
         """
         return self._request("POST", f"/v1/api-keys", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     def post_api_keys_id_rotate(self, id: str, body: PostApiKeysIdRotateBody, *, idempotency_key: Optional[str] = None) -> PostApiKeysIdRotateResponse:
         """Rotate an API key. POST /v1/api-keys/{id}/rotate
 
-        Mints a replacement key with the same name, scopes, origins, version pin, owner, programs and lifetime (an expiring key's new expiry is the same length from now), returned once with `rotatedFrom: { id, expiresAt }`. The old key keeps working for `graceHours` (default 24, at most 168, 0 = stop now), then expires; it gets no `api_key.expiring` notice. An expired or revoked key can't be rotated (409 `api_key_expired` / 404). Needs an owner or admin session, or an API key with the `admin` scope. Audited.
+        Mints a replacement key with the same name, scopes, origins, version pin, owner, programs and lifetime (an expiring key's new expiry is the same length from now), returned once with `rotatedFrom: { id, expiresAt }`. The old key keeps working for `graceHours` (default 24, at most 168, 0 = stop now), then expires; it gets no `api_key.expiring` notice. An expired or revoked key can't be rotated (409 `api_key_expired` / 404). Needs an owner or admin session, or an API key with the `admin` scope. A key holding `api_keys:mint` may also do this for keys it minted itself (403 for any other). Audited.
 
-        **Auth:** an API key with `team:write`, or a session of any role.
+        **Auth:** an API key with `api_keys:mint`, or a session of any role.
 
-        **Scopes:** `team:write`, `full`, `admin`.
+        **Scopes:** `api_keys:mint`, `admin`.
         """
         return self._request("POST", f"/v1/api-keys/{_seg(id)}/rotate", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
@@ -3668,6 +3732,15 @@ class Operations:
         """
         return self._request("POST", f"/v1/auth/connections", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    def post_auth_connections_id_accounts(self, id: str, body: PostAuthConnectionsIdAccountsBody, *, idempotency_key: Optional[str] = None) -> PostAuthConnectionsIdAccountsResponse:
+        """Set an organization's owner (signed protocol). POST /v1/auth/connections/{id}/accounts
+
+        The `accounts` capability: an organization the app bills under (`accountRef`: its id in billing metadata, e.g. Atlas's `external_id`) is owned by `ownerCustomerRef` (a user the connection reports). Its payments earn for the owner's referral; send it again whenever ownership changes. When the organization's id changes, send the new id as `accountRef` with the old one as `previousAccountRef` (the owner carries over unless `ownerCustomerRef` is sent): the old id then follows the new one. When it is deleted, send `{ accountRef, deleted: true }`: it has no owner from then on, so its payments earn nothing (earned commissions stay; refunds still reverse them). Same as `PUT /v1/billing/accounts/{accountRef}/owner` and `DELETE /v1/billing/accounts/{accountRef}`; returns `{ ok, accountRef, ownerCustomerRef, previousOwnerCustomerRef, renamedFrom, deleted, changed, relinked, reprocessedPayments }`; a repeat answers `changed: false`. Publishes `billing_account.owner_changed`. Signed with the connection secret in `x-referalli-signature: t=<unix>,v1=…,v2=…` (v2 also signs the request line; once a connection has seen v2 it requires it), with a unique `x-referalli-id` per call. The legacy header names from before the rename are also accepted, for existing integrations. Calls older than 5 minutes, reused ids (`409 replay`), paused connections (`423 connection_paused`) and unknown fields (`422`) are refused.
+
+        **Auth:** none.
+        """
+        return self._request("POST", f"/v1/auth/connections/{_seg(id)}/accounts", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     def post_auth_connections_id_aliases(self, id: str, body: PostAuthConnectionsIdAliasesBody, *, idempotency_key: Optional[str] = None) -> PostAuthConnectionsIdAliasesResponse:
         """Change a user's id (signed protocol). POST /v1/auth/connections/{id}/aliases
 
@@ -3698,7 +3771,7 @@ class Operations:
     def post_auth_connections_id_ping(self, id: str, body: Dict[str, Any], *, idempotency_key: Optional[str] = None) -> PostAuthConnectionsIdPingResponse:
         """Test an auth connection (signed protocol). POST /v1/auth/connections/{id}/ping
 
-        Proves the secret works: returns the connection, its program and org, the server time (to check clock skew) and `capabilities` (`{ partners: true }`: user-chosen referral codes through `/partners`). Signed with the connection secret in `x-referalli-signature: t=<unix>,v1=…,v2=…` (v2 also signs the request line; once a connection has seen v2 it requires it), with a unique `x-referalli-id` per call. The legacy header names from before the rename are also accepted, for existing integrations. Calls older than 5 minutes, reused ids (`409 replay`), paused connections (`423 connection_paused`) and unknown fields (`422`) are refused.
+        Proves the secret works: returns the connection, its program and org, the server time (to check clock skew) and `capabilities` (`{ partners: true, origins: true, accounts: true }`: user-chosen referral codes through `/partners`, setting `allowedOrigins` through `PUT …/origins` or a signed PATCH, and organization owners through `/accounts`). Signed with the connection secret in `x-referalli-signature: t=<unix>,v1=…,v2=…` (v2 also signs the request line; once a connection has seen v2 it requires it), with a unique `x-referalli-id` per call. The legacy header names from before the rename are also accepted, for existing integrations. Calls older than 5 minutes, reused ids (`409 replay`), paused connections (`423 connection_paused`) and unknown fields (`422`) are refused.
 
         **Auth:** a signature (see above); no API key.
         """
@@ -3815,6 +3888,17 @@ class Operations:
         """
         return self._request("POST", f"/v1/billing/connections", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    def post_billing_connections_id_events(self, id: str, body: PostBillingConnectionsIdEventsBody, *, idempotency_key: Optional[str] = None) -> PostBillingConnectionsIdEventsResponse:
+        """Send events to a generic connection. POST /v1/billing/connections/{id}/events
+
+        The generic connection's webhook body (`{ "events": [...] }`, up to 500) sent with an API key instead of the connection's HMAC signature, so your server needs no second secret. Runs the same processing as `POST /webhooks/billing/{id}`: paid invoices become conversions and commissions, refunds and disputes reverse them, and each event is idempotent by `providerEventId` (a resend answers `duplicate: true`), whichever of the two routes sent it first. Needs `billing:write`; a program-scoped key reaches only connections limited to its own programs. `404` for an unknown, deleted or paused connection; `409 conflict` for a connection that isn't `generic` (those take their provider's webhooks).
+
+        **Auth:** an API key with `billing:write`, or a session with role `owner`, `admin`.
+
+        **Scopes:** `billing:write`, `full`, `admin`.
+        """
+        return self._request("POST", f"/v1/billing/connections/{_seg(id)}/events", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     def post_billing_connections_id_rotate_secret(self, id: str, *, idempotency_key: Optional[str] = None) -> PostBillingConnectionsIdRotateSecretResponse:
         """Rotate the webhook signing secret. POST /v1/billing/connections/{id}/rotate-secret
 
@@ -3836,6 +3920,17 @@ class Operations:
         **Scopes:** `billing:write`, `full`, `admin`.
         """
         return self._request("POST", f"/v1/billing/connections/{_seg(id)}/value-mapping/preview", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def post_billing_events_id_release(self, id: str, *, idempotency_key: Optional[str] = None) -> PostBillingEventsIdReleaseResponse:
+        """Release a held payment. POST /v1/billing/events/{id}/release
+
+        A payment over its connection's `maxAmountMinor` (default 1,000,000,000 minor units), or dated more than a day ahead, is recorded with `status: "held"` and earns nothing. Releasing it says it is real: it earns as it would have on arrival, and any refund that waited for it applies.
+
+        **Auth:** an API key with `billing:write`, or a session with role `owner`, `admin`.
+
+        **Scopes:** `billing:write`, `full`, `admin`.
+        """
+        return self._request("POST", f"/v1/billing/events/{_seg(id)}/release", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     def post_billing_internal_customers(self, body: PostBillingInternalCustomersBody, *, idempotency_key: Optional[str] = None) -> PostBillingInternalCustomersResponse:
         """Add an internal customer. POST /v1/billing/internal-customers
@@ -4406,7 +4501,7 @@ class Operations:
     def post_orgs_org_id_privacy_executor_key(self, org_id: str, body: PostOrgsOrgIdPrivacyExecutorKeyBody, *, idempotency_key: Optional[str] = None) -> PostOrgsOrgIdPrivacyExecutorKeyResponse:
         """Mint an executor key under a Cookie Munch partner link. POST /v1/orgs/{orgId}/privacy/executor-key
 
-        Called by Cookie Munch, not by you (CMU-X25): mints (or rotates) this org's cm-standard-v2 executor key so Cookie Munch's `referalli` executor preset can connect without a pasted key. The request must be signed by Cookie Munch's partner key exactly like its consent deliveries: `CookieMunch-Partner-Signature: t=<unix seconds>,kid=<key id>,ed25519=<base64url>` over `<t>.<raw body>`, with the key named in `https://api.cookiemunch.net/v1/partner/jwks.json` (300 s window; each signed request and each body `nonce` works once, a replay is 409; `partner` must be `referalli` and `externalId` the org in the path). Referalli then confirms the partner link with Cookie Munch over its own partner token (`GET /v1/partner/links`): it must be `active` or `waiting_on_partner`, name this org as `externalId`, sit on a site this org registered (`PUT /v1/org/consent-partners/cookiemunch`), and match `cbid`/`linkId` when sent; otherwise 403 `no_grant`. 201 `{secret, executorUrl, contract, orgId, linkId, cbid, rotated}`: `secret` is shown once and is the bearer key for `executorUrl` (`https://referalli.com/api`, the cm-standard-v2 baseUrl: calls go to `<executorUrl>/privacy/*`), where it reaches only this org's referred customers and partners. The old key stops working at once. Audited (`privacy.executor_key_minted`).
+        Called by Cookie Munch, not by you (CMU-X25): mints (or rotates) this org's cm-standard-v2 executor key, limited to `programIds` when sent so Cookie Munch's `referalli` executor preset can connect without a pasted key. The request must be signed by Cookie Munch's partner key exactly like its consent deliveries: `CookieMunch-Partner-Signature: t=<unix seconds>,kid=<key id>,ed25519=<base64url>` over `<t>.<raw body>`, with the key named in `https://api.cookiemunch.net/v1/partner/jwks.json` (300 s window; each signed request and each body `nonce` works once, a replay is 409; `partner` must be `referalli` and `externalId` the org in the path). Referalli then confirms the partner link with Cookie Munch over its own partner token (`GET /v1/partner/links`): it must be `active` or `waiting_on_partner`, name this org as `externalId`, sit on a site this org registered (`PUT /v1/org/consent-partners/cookiemunch`), and match `cbid`/`linkId` when sent; otherwise 403 `no_grant`. 201 `{secret, executorUrl, contract, orgId, linkId, cbid, rotated}`: `secret` is shown once and is the bearer key for `executorUrl` (`https://referalli.com/api`, the cm-standard-v2 baseUrl: calls go to `<executorUrl>/privacy/*`), where it reaches only this org's referred customers and partners. The old key stops working at once. Audited (`privacy.executor_key_minted`).
 
         **Auth:** none.
         """
@@ -4879,7 +4974,7 @@ class Operations:
     def post_programs(self, body: PostProgramsBody, *, idempotency_key: Optional[str] = None) -> Program:
         """Create a program. POST /v1/programs
 
-        Creates an affiliate program: its attribution model, cookie window, how long after sign-up a conversion still counts (`signupToConversionDays`, 1 to 1095, default 365; `cookieWindowDays` is 1 to 400, default 60), terms, public page and settings. `slug` is unique per org. Terms are versioned so partners can be asked to accept new ones. Over the plan's program limit this is `402 payment_required`.
+        Creates an affiliate program: its attribution model, cookie window, how long after sign-up a conversion still counts (`signupToConversionDays`, 1 to 1095, default 365; `cookieWindowDays` is 1 to 400, default 60), terms, public page and settings (`signupPaymentGraceMinutes`, 0 to 1440, default 5: how long before the referral's sign-up time a payment still earns). `slug` is unique per org. Terms are versioned so partners can be asked to accept new ones. `publicHandle` is unique across every org (check it first with `GET /v1/programs/handle-availability`). A taken `slug` or `publicHandle` is `409 conflict` with `details.field` naming it (`slug` or `publicHandle`). Over the plan's program limit this is `402 payment_required`.
 
         **Auth:** an API key with `programs:write`, or a session with role `owner`, `admin`.
 
@@ -5031,13 +5126,24 @@ class Operations:
     def post_referrals_associate(self, body: PostReferralsAssociateBody, *, idempotency_key: Optional[str] = None) -> AssociateResponse:
         """Attribute a new customer. POST /v1/referrals/associate
 
-        The key server-side call: tell Referalli a customer signed up, with whatever you know about where they came from (`referralToken`/`ref_click_id`, `anonId`, `couponCode`, `emailHash`, IP and user agent). The attribution engine picks the partner under the program's model and windows. `referral` is `null` when no partner matched (not an error); `reasoning.notes` says why. Repeating `idempotencyKey` returns the existing referral. `occurredAt` records a late call at the real sign-up time (up to 5 minutes of clock skew is tolerated) and backfills payments since. `emailDomain` lets burner-email sign-ups be held for review. Publishes `referral.created` (or `referral.held`).
+        The key server-side call: tell Referalli a customer signed up, with whatever you know about where they came from (`referralToken`/`ref_click_id`, `anonId`, `couponCode`, `emailHash`, IP and user agent). The attribution engine picks the partner under the program's model and windows. `referral` is `null` when no partner matched (not an error); `reasoning.notes` says why. Repeating `idempotencyKey` returns the existing referral. `occurredAt` records a late call at the real sign-up time (up to 5 minutes of clock skew is tolerated) and backfills payments since. `emailDomain` lets burner-email sign-ups be held for review. `handoffToken` (from `POST /t/{orgToken}/handoff` or `POST /v1/referrals/handoff-tokens`) fills `anonId`, `referralToken` and `couponCode` where they are not sent; a malformed, expired or other org's token is `400 invalid_handoff_token`. Publishes `referral.created` (or `referral.held`).
 
         **Auth:** an API key with `referrals:write`, or a session of any role.
 
         **Scopes:** `referrals:write`, `full`, `admin`.
         """
         return self._request("POST", f"/v1/referrals/associate", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def post_referrals_handoff_tokens(self, body: PostReferralsHandoffTokensBody, *, idempotency_key: Optional[str] = None) -> HandoffToken:
+        """Mint a hand-off token. POST /v1/referrals/handoff-tokens
+
+        The server-side twin of `POST /t/{orgToken}/handoff`: signs `anonId`, `clickId` and/or `code` (at least one) into a token valid for 24 hours, for this org only, to pass later to `POST /v1/referrals/associate` as `handoffToken`. Use it when the server that saw the landing (`?ref_click_id=`) is not the one that files the sign-up.
+
+        **Auth:** an API key with `referrals:write`, or a session of any role.
+
+        **Scopes:** `referrals:write`, `full`, `admin`.
+        """
+        return self._request("POST", f"/v1/referrals/handoff-tokens", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     def post_referrals_id_approve(self, id: str, *, idempotency_key: Optional[str] = None) -> Referral:
         """Approve a held referral. POST /v1/referrals/{id}/approve
@@ -5130,7 +5236,7 @@ class Operations:
     def post_sandbox_simulate(self, body: PostSandboxSimulateBody, *, idempotency_key: Optional[str] = None) -> PostSandboxSimulateResponse:
         """Simulate billing history. POST /v1/sandbox/simulate
 
-        Generates deterministic billing history through the real commission pipeline, so you can see commissions flow without a provider: a new sandbox customer referred to the partner, `months` (default 3) of subscription payments at `priceMinor`, then for `scenario: "refund"` a half refund of the first invoice or for `churn` a cancellation. Returns the customer and what was created. Audited.
+        Generates deterministic billing history through the real commission pipeline, so you can see commissions flow without a provider: a new sandbox customer referred to the partner, `months` (default 3) of subscription payments at `priceMinor`, then for `scenario: "refund"` a half refund of the first invoice or for `churn` a cancellation. Returns the customer and what was created. `scenario: "signup_and_pay"` (test mode only, `409 test_mode_only` otherwise) proves the whole loop instead: a sign-up of `customerRef` (default a new `cus_sandbox_…`) referred by `partnerId` (a click on their link) or by `code` (a link or coupon code), filed through auth connection `authConnectionId` exactly as its signed `POST /v1/auth/connections/{id}/signups` would file it (auto-enroll included) or, without one, as `POST /v1/referrals/associate`; then a provider-neutral `payment.paid` of `amountMinor` (default 4900) in `currency` (default USD) through billing connection `billingConnectionId` (default the org's only active one, else `409`), run through the same pipeline as `POST /v1/sandbox/billing-fixtures`. Answers `{ scenario, ok, steps: [signup, payment], commissions }`; a step that could not succeed answers `ok: false` with `notes` saying why (sign-up not credited, auth connection paused or in another program, billing connection `awaiting_secret`, paused or limited to other programs, payment ignored, program without a commission rule) rather than an error. Audited.
 
         **Auth:** an API key with `billing:write`, or a session with role `owner`, `admin`.
 
@@ -5352,6 +5458,15 @@ class Operations:
         """
         return self._request("POST", f"/v1/zapier/hooks", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    def put_auth_connections_id_origins(self, id: str, body: PutAuthConnectionsIdOriginsBody, *, idempotency_key: Optional[str] = None) -> PutAuthConnectionsIdOriginsResponse:
+        """Set a connection's allowed origins (signed protocol). PUT /v1/auth/connections/{id}/origins
+
+        The `origins` capability: the auth platform replaces this connection's own `allowedOrigins` (the browser origins that may call `POST /v1/widget/session`) when its app's origins change. Exact origins only (`https://app.example.com`, no path or wildcard; `http` only for localhost), at most 50; the body takes nothing else. Returns `{ id, allowedOrigins }`. Audited. A connection-signed `PATCH /v1/auth/connections/{id}` with the same body does the same. Signed with the connection secret in `x-referalli-signature: t=<unix>,v1=…,v2=…` (v2 also signs the request line; once a connection has seen v2 it requires it), with a unique `x-referalli-id` per call. The legacy header names from before the rename are also accepted, for existing integrations. Calls older than 5 minutes, reused ids (`409 replay`), paused connections (`423 connection_paused`) and unknown fields (`422`) are refused.
+
+        **Auth:** none.
+        """
+        return self._request("PUT", f"/v1/auth/connections/{_seg(id)}/origins", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     def put_auth_connections_id_secret(self, id: str, body: PutAuthConnectionsIdSecretBody, *, idempotency_key: Optional[str] = None) -> PutAuthConnectionsIdSecretResponse:
         """Set a vendor-issued secret. PUT /v1/auth/connections/{id}/secret
 
@@ -5362,6 +5477,17 @@ class Operations:
         **Scopes:** `integrations:write`, `connections:write`, `full`, `admin`.
         """
         return self._request("PUT", f"/v1/auth/connections/{_seg(id)}/secret", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    def put_billing_accounts_account_ref_owner(self, account_ref: str, body: PutBillingAccountsAccountRefOwnerBody, *, idempotency_key: Optional[str] = None) -> PutBillingAccountsAccountRefOwnerResponse:
+        """Set a billing account's owner. PUT /v1/billing/accounts/{accountRef}/owner
+
+        For products that bill an organization (a team, a workspace) rather than a person. `accountRef` is the id your billing events carry for the organization (the `customerRef` of a generic event, or the metadata value a connection's `customerRefMetadataKey` reads, e.g. `organization_id`); `ownerCustomerRef` is the user whose referral its payments earn for. From then on the account's payments earn for the owner's referral (unless a referral is filed under the account itself). The first owner set replays the account's earlier payments for that owner's referral. Changing the owner re-points the account's provider customers, so later payments earn for the new owner's referral; payments made before the change stay with the previous owner's referral. When the organization's id changed, call it under the new id with `previousAccountRef` (the old one) instead of, or as well as, `ownerCustomerRef`: the old id then follows the new one (payments still arriving under it earn for the new id's owner), and the owner carries over unless named. Returns `{ accountRef, ownerCustomerRef, previousOwnerCustomerRef, renamedFrom, deleted, changed, relinked, reprocessedPayments }`; the same call again answers `changed: false`. Publishes `billing_account.owner_changed`. Auth platforms with the `accounts` capability (Atlas) send this for you through `POST /v1/auth/connections/{id}/accounts`. Needs `billing:write`. Audited.
+
+        **Auth:** an API key with `billing:write`, or a session with role `owner`, `admin`.
+
+        **Scopes:** `billing:write`, `full`, `admin`.
+        """
+        return self._request("PUT", f"/v1/billing/accounts/{_seg(account_ref)}/owner", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     def put_billing_connections_id_credentials(self, id: str, body: PutBillingConnectionsIdCredentialsBody, *, idempotency_key: Optional[str] = None) -> PutBillingConnectionsIdCredentialsResponse:
         """Set provider API credentials. PUT /v1/billing/connections/{id}/credentials
@@ -5856,11 +5982,11 @@ class AsyncOperations:
     async def delete_api_keys_id(self, id: str, *, cascade: Optional[Literal["true", "false"]] = None, pair: Optional[Literal["true", "false"]] = None, idempotency_key: Optional[str] = None) -> DeleteApiKeysIdResponse:
         """Revoke an API key. DELETE /v1/api-keys/{id}
 
-        Revokes a key at once. `cascade=true` also revokes every key it minted (and theirs); `pair=true` also revokes its live/test twin. Returns the revoked ids. Needs an owner or admin session, or an API key with the `admin` scope. Audited.
+        Revokes a key at once. `cascade=true` also revokes every key it minted (and theirs); `pair=true` also revokes its live/test twin. Returns the revoked ids. Needs an owner or admin session, or an API key with the `admin` scope. A key holding `api_keys:mint` may also do this for keys it minted itself (403 for any other). Audited.
 
-        **Auth:** an API key with `team:write`, or a session of any role.
+        **Auth:** an API key with `api_keys:mint`, or a session of any role.
 
-        **Scopes:** `team:write`, `full`, `admin`.
+        **Scopes:** `api_keys:mint`, `admin`.
 
         cascade: true: also revoke every key this key minted, and theirs.
         pair: true: also revoke its live/test twin.
@@ -5888,6 +6014,17 @@ class AsyncOperations:
         **Scopes:** `integrations:write`, `connections:write`, `full`, `admin`.
         """
         return await self._request("DELETE", f"/v1/auth/connections/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def delete_billing_accounts_account_ref(self, account_ref: str, *, idempotency_key: Optional[str] = None) -> PutBillingAccountsAccountRefOwnerResponse:
+        """Delete a billing account. DELETE /v1/billing/accounts/{accountRef}
+
+        The organization was deleted: it has no owner from now on, and its provider customers stop resolving to the old owner, so later payments under it earn nothing. Commissions already earned stay, and refunds still reverse them. Setting an owner again restores it for later payments (payments made while it was deleted are not replayed). Returns the same shape as `PUT …/owner` with `deleted: true` and `ownerCustomerRef: null`; deleting an account with nothing recorded (or already deleted) answers `changed: false`. Publishes `billing_account.owner_changed`. Needs `billing:write`. Audited.
+
+        **Auth:** an API key with `billing:write`, or a session with role `owner`, `admin`.
+
+        **Scopes:** `billing:write`, `full`, `admin`.
+        """
+        return await self._request("DELETE", f"/v1/billing/accounts/{_seg(account_ref)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def delete_billing_connections_id(self, id: str, *, idempotency_key: Optional[str] = None) -> DeleteBillingConnectionsIdResponse:
         """Delete a billing connection. DELETE /v1/billing/connections/{id}
@@ -6422,7 +6559,7 @@ class AsyncOperations:
     async def get_auth_connections(self, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[AuthConnection]:
         """List auth connections. GET /v1/auth/connections
 
-        Auth-platform connections with provider, program, status, signature version and rotation state. Secrets are never returned.
+        Auth-platform connections with provider, program, status, signature version, rotation state and `lastSignupAt` (when it last filed a new sign-up; null when never). Secrets are never returned.
 
         **Auth:** an API key with `integrations:read`, or a session of any role.
 
@@ -6439,6 +6576,17 @@ class AsyncOperations:
     def get_auth_connections_iter(self, *, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> AsyncIterator[AuthConnection]:
         """Every item of ``get_auth_connections``, following the pages (use ``async for``)."""
         return self._paginate(lambda cursor: self.get_auth_connections(limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
+
+    async def get_auth_connections_id(self, id: str, *, idempotency_key: Optional[str] = None) -> AuthConnection:
+        """Get an auth connection. GET /v1/auth/connections/{id}
+
+        One auth-platform connection, as in the list: provider, program, status, `allowedOrigins`, `tokenVerification` (without its secret), signature version and rotation state. Secrets are never returned. Unknown or deleted connections are 404.
+
+        **Auth:** an API key with `integrations:read`, or a session of any role.
+
+        **Scopes:** `integrations:read`, `integrations:write`, `connections:read`, `connections:write`, `read`, `full`, `admin`.
+        """
+        return await self._request("GET", f"/v1/auth/connections/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def get_auth_connections_id_export(self, id: str, *, customer_ref: str, idempotency_key: Optional[str] = None) -> GetAuthConnectionsIdExportResponse:
         """Export a user (signed protocol). GET /v1/auth/connections/{id}/export
@@ -6478,6 +6626,17 @@ class AsyncOperations:
         """
         return await self._request("GET", f"/v1/auth/providers", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
+    async def get_billing_accounts_account_ref(self, account_ref: str, *, idempotency_key: Optional[str] = None) -> GetBillingAccountsAccountRefResponse:
+        """Get a billing account's owner. GET /v1/billing/accounts/{accountRef}
+
+        What is recorded for a billing account: `{ accountRef, ownerCustomerRef, since, renamedTo, deleted }`. A renamed id answers with `renamedTo` (and `ownerCustomerRef: null`); it follows that account. `404` when nothing is recorded.
+
+        **Auth:** an API key with `billing:read`, or a session of any role.
+
+        **Scopes:** `billing:read`, `billing:write`, `read`, `full`, `admin`.
+        """
+        return await self._request("GET", f"/v1/billing/accounts/{_seg(account_ref)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
     async def get_billing_connections(self, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[BillingConnection]:
         """List billing connections. GET /v1/billing/connections
 
@@ -6510,10 +6669,10 @@ class AsyncOperations:
         """
         return await self._request("GET", f"/v1/billing/connections/{_seg(id)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
-    async def get_billing_events(self, *, customer_ref: Optional[str] = None, status: Optional[Literal["processed", "ignored_by_filter"]] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[BillingEvent]:
+    async def get_billing_events(self, *, customer_ref: Optional[str] = None, status: Optional[Literal["processed", "ignored_by_filter", "parked", "held"]] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[BillingEvent]:
         """List billing events. GET /v1/billing/events
 
-        Payments, refunds and other billing events received from every connection, newest first. Filter with `customerRef`, or `status=ignored_by_filter` for the events a product filter or the internal-customer list set aside (recorded, never processed). `ignoredReason: "no_referral_in_scope"` (with `status: "processed"`) marks a payment on a connection limited to some programs from a customer referred only in other programs: it earned nothing.
+        Payments, refunds and other billing events received from every connection, newest first. Filter with `customerRef`, or `status=ignored_by_filter` for the events a product filter or the internal-customer list set aside (recorded, never processed), or `status=parked` for the refunds and disputes waiting for their payment: applied when it arrives, or dropped after 7 days with a `billing_event.expired` webhook event. `ignoredReason: "no_referral_in_scope"` (with `status: "processed"`) marks a payment on a connection limited to some programs from a customer referred only in other programs: it earned nothing.
 
         **Auth:** an API key with `billing:read`, or a session of any role.
 
@@ -6527,7 +6686,7 @@ class AsyncOperations:
         """
         return await self._request("GET", f"/v1/billing/events", query={"customerRef": customer_ref, "status": status, "limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
 
-    def get_billing_events_iter(self, *, customer_ref: Optional[str] = None, status: Optional[Literal["processed", "ignored_by_filter"]] = None, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> AsyncIterator[BillingEvent]:
+    def get_billing_events_iter(self, *, customer_ref: Optional[str] = None, status: Optional[Literal["processed", "ignored_by_filter", "parked", "held"]] = None, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> AsyncIterator[BillingEvent]:
         """Every item of ``get_billing_events``, following the pages (use ``async for``)."""
         return self._paginate(lambda cursor: self.get_billing_events(customer_ref=customer_ref, status=status, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
@@ -6686,7 +6845,7 @@ class AsyncOperations:
         """Every item of ``get_commission_rules``, following the pages (use ``async for``)."""
         return self._paginate(lambda cursor: self.get_commission_rules(program_id=program_id, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
-    async def get_commissions(self, *, partner_id: Optional[str] = None, program_id: Optional[str] = None, type_: Optional[Literal["earned", "adjusted", "reversed", "approved", "paid"]] = None, referral_id: Optional[str] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[CommissionEvent]:
+    async def get_commissions(self, *, partner_id: Optional[str] = None, program_id: Optional[str] = None, type_: Optional[Literal["earned", "adjusted", "reversed", "approved", "paid"]] = None, referral_id: Optional[str] = None, customer_ref: Optional[str] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[CommissionEvent]:
         """List commission ledger events. GET /v1/commissions
 
         The append-only commission ledger, newest first: `earned` lines and the `approved`, `paid`, `reversed` and `adjusted` events recorded against them (`relatedCommissionId`). Filter by `partnerId`, `programId`, `type` or `referralId`.
@@ -6701,11 +6860,11 @@ class AsyncOperations:
         created[gte]: Only items created at or after this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
         created[lte]: Only items created at or before this time (ISO 8601), on lists of timestamped records. From API version 2026-11-01; ignored under 2026-10-21, where lists are a capped plain array.
         """
-        return await self._request("GET", f"/v1/commissions", query={"partnerId": partner_id, "programId": program_id, "type": type_, "referralId": referral_id, "limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
+        return await self._request("GET", f"/v1/commissions", query={"partnerId": partner_id, "programId": program_id, "type": type_, "referralId": referral_id, "customerRef": customer_ref, "limit": limit, "starting_after": starting_after, "ending_before": ending_before, "created[gte]": created_gte, "created[lte]": created_lte}, body=None, idempotency_key=idempotency_key, kind="list")
 
-    def get_commissions_iter(self, *, partner_id: Optional[str] = None, program_id: Optional[str] = None, type_: Optional[Literal["earned", "adjusted", "reversed", "approved", "paid"]] = None, referral_id: Optional[str] = None, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> AsyncIterator[CommissionEvent]:
+    def get_commissions_iter(self, *, partner_id: Optional[str] = None, program_id: Optional[str] = None, type_: Optional[Literal["earned", "adjusted", "reversed", "approved", "paid"]] = None, referral_id: Optional[str] = None, customer_ref: Optional[str] = None, limit: Optional[int] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> AsyncIterator[CommissionEvent]:
         """Every item of ``get_commissions``, following the pages (use ``async for``)."""
-        return self._paginate(lambda cursor: self.get_commissions(partner_id=partner_id, program_id=program_id, type_=type_, referral_id=referral_id, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
+        return self._paginate(lambda cursor: self.get_commissions(partner_id=partner_id, program_id=program_id, type_=type_, referral_id=referral_id, customer_ref=customer_ref, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
     async def get_commissions_id(self, id: str, *, idempotency_key: Optional[str] = None) -> CommissionLine:
         """Get a commission. GET /v1/commissions/{id}
@@ -7136,11 +7295,11 @@ class AsyncOperations:
     async def get_me(self, *, idempotency_key: Optional[str] = None) -> GetMeResponse:
         """Get the current caller. GET /v1/me
 
-        Who is calling. With a user session: the user and their org memberships (no `x-org-id` needed). With an API key: `{ user: null, memberships: [], apiKey, org: { id, name } }`, where `apiKey` holds the key (name, prefix, scopes, pinned `apiVersion`, `livemode`, owner, expiry, `programIds`). The mode is `apiKey.livemode`; there is no top-level `livemode`.
+        Who is calling. With a user session: the user and their org memberships (no `x-org-id` needed). With an API key: `{ user: null, memberships: [], apiKey, org: { id, name } }`, where `apiKey` holds the key (name, prefix, scopes, pinned `apiVersion`, `livemode`, owner, expiry, `programIds`). The mode is `apiKey.livemode`; there is no top-level `livemode`. Any key may call it, whatever its scopes.
 
-        **Auth:** an API key with `team:read`, or a session of any role.
+        **Auth:** an API key with `null`, or a session of any role.
 
-        **Scopes:** `team:read`, `team:write`, `read`, `full`, `admin`.
+        **Scopes:** .
         """
         return await self._request("GET", f"/v1/me", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
@@ -7413,6 +7572,17 @@ class AsyncOperations:
         **Scopes:** `org:read`, `org:write`, `read`, `full`, `admin`.
         """
         return await self._request("GET", f"/v1/org/tracking-consent", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+
+    async def get_org_tracking_tokens(self, *, idempotency_key: Optional[str] = None) -> TrackingTokens:
+        """Both modes' tracking tokens. GET /v1/org/tracking-tokens
+
+        The org's public tracking values for live and test mode, labelled: `{ mode, live, test }`, each with `orgId`, `trackingToken`, `scriptUrl` (aff.js), `linkBaseUrl` (the verified link domain, else Referalli's origin) and `linkTemplate` (`…/go/{token}/{code}`). `mode` is the caller's. Any key reads both, live or test; nothing else crosses modes. The test org is created on first use.
+
+        **Auth:** an API key with `org:read`, or a session of any role.
+
+        **Scopes:** `org:read`, `org:write`, `read`, `full`, `admin`.
+        """
+        return await self._request("GET", f"/v1/org/tracking-tokens", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def get_outreach(self, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetOutreachResponseDataItem]:
         """List outreach messages. GET /v1/outreach
@@ -8308,6 +8478,17 @@ class AsyncOperations:
         """Every item of ``get_programs``, following the pages (use ``async for``)."""
         return self._paginate(lambda cursor: self.get_programs(slug=slug, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
+    async def get_programs_handle_availability(self, *, handle: str, idempotency_key: Optional[str] = None) -> GetProgramsHandleAvailabilityResponse:
+        """Check a public handle. GET /v1/programs/handle-availability
+
+        Whether `handle` can be set as a program's `publicHandle`, using the same rules as `POST`/`PATCH /v1/programs`: `available: false` with `reason: "invalid"` when it is not 3 to 48 characters of `a-z`, `0-9` and `-`, or `reason: "taken"` when any program (in any org, including your own) already has it. Handles are claimed only by setting them, so a free handle can still be taken before you do; the setter's `409` names `details.field: "publicHandle"`.
+
+        **Auth:** an API key with `programs:read`, or a session of any role.
+
+        **Scopes:** `programs:read`, `programs:write`, `read`, `full`, `admin`.
+        """
+        return await self._request("GET", f"/v1/programs/handle-availability", query={"handle": handle}, body=None, idempotency_key=idempotency_key, kind="json")
+
     async def get_programs_id(self, id: str, *, idempotency_key: Optional[str] = None) -> Program:
         """Get a program. GET /v1/programs/{id}
 
@@ -8491,16 +8672,16 @@ class AsyncOperations:
         """Every item of ``get_programs_id_stripe_credits_log``, following the pages (use ``async for``)."""
         return self._paginate(lambda cursor: self.get_programs_id_stripe_credits_log(id, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
-    async def get_programs_id_terms(self, id: str, *, idempotency_key: Optional[str] = None) -> ProgramTerms:
+    async def get_programs_id_terms(self, id: str, *, locale: Optional[str] = None, idempotency_key: Optional[str] = None) -> ProgramTerms:
         """Get a program's terms. GET /v1/programs/{id}/terms
 
-        The program's commission terms for product copy, from its latest commission rule version (`ruleVersion`): the `base` (`percentBps`, or `amountMinor` and `currency`), how long it recurs, the hold, and `summary.en`, an English sentence built deterministically from the rule, such as "20% of every payment for 12 months" or "$50.00 for the first payment only". Bounties are added (", plus $5.00 per signup"); rule conditions add "(conditions apply)"; overrides, tiers or new-vs-expansion rates set `ratesVary` and add "(rates vary)" rather than quote one rate. Partner-group rates and promotions are not included. Publishing a new rule version changes the terms on the next read. `404` when the program has no rule yet. Program-scoped keys read their own programs.
+        The program's commission terms for product copy, from its latest commission rule version (`ruleVersion`): the `base` (`percentBps`, or `amountMinor` and `currency`), how long it recurs, the hold, and `summary`, the same sentence in each partner-portal locale (`en`, `es`, `de`, `fr`, `pt`, `it`, `nl`, `sv`, `ja`, `zh`), built deterministically from the rule, such as "20% of every payment for 12 months" or "$50.00 for the first payment only". Bounties are added (", plus $5.00 per signup"); rule conditions add "(conditions apply)"; overrides, tiers or new-vs-expansion rates set `ratesVary` and add "(rates vary)" rather than quote one rate. With `?locale=de` or an `Accept-Language` header the response also names the chosen `locale` and its sentence as `text` (an unsupported language gets `en`). Bounty event names are kept as written. Partner-group rates and promotions are not included. Publishing a new rule version changes the terms on the next read. `404` when the program has no rule yet. Program-scoped keys read their own programs.
 
         **Auth:** an API key with `programs:read`, or a session of any role.
 
         **Scopes:** `programs:read`, `programs:write`, `read`, `full`, `admin`.
         """
-        return await self._request("GET", f"/v1/programs/{_seg(id)}/terms", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+        return await self._request("GET", f"/v1/programs/{_seg(id)}/terms", query={"locale": locale}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def get_programs_id_terms_acceptances(self, id: str, *, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[GetProgramsIdTermsAcceptancesResponseDataItem]:
         """List terms acceptances. GET /v1/programs/{id}/terms-acceptances
@@ -8544,14 +8725,14 @@ class AsyncOperations:
         """Every item of ``get_prospects``, following the pages (use ``async for``)."""
         return self._paginate(lambda cursor: self.get_prospects(status=status, limit=limit, ending_before=ending_before, created_gte=created_gte, created_lte=created_lte, starting_after=cursor, idempotency_key=idempotency_key))
 
-    async def get_public_programs_handle(self, handle: str, *, idempotency_key: Optional[str] = None) -> GetPublicProgramsHandleResponse:
+    async def get_public_programs_handle(self, handle: str, *, locale: Optional[str] = None, idempotency_key: Optional[str] = None) -> GetPublicProgramsHandleResponse:
         """Get a program's public page. GET /v1/public/programs/{handle}
 
-        What a program's public join page shows: the program and merchant names, pitch, cookie window, terms, base commission, branding and whether joining is approved at once. No authentication; only active live programs with a `publicHandle` are found.
+        What a program's public join page shows: the program and merchant names, pitch, cookie window, terms, base commission, branding and whether joining is approved at once. `terms` is the program's commission terms as `GET /v1/programs/{id}/terms` gives them (the rule's base, how long it recurs, hold and `summary` in each portal locale), or null when it has no rule yet; with `?locale=` or `Accept-Language` it also names the chosen `locale` and its sentence as `text`. No authentication; only active live programs with a `publicHandle` are found.
 
         **Auth:** none.
         """
-        return await self._request("GET", f"/v1/public/programs/{_seg(handle)}", query={}, body=None, idempotency_key=idempotency_key, kind="json")
+        return await self._request("GET", f"/v1/public/programs/{_seg(handle)}", query={"locale": locale}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def get_referrals(self, *, program_id: Optional[str] = None, partner_id: Optional[str] = None, status: Optional[Literal["active", "pending_review", "paused", "void"]] = None, customer_ref: Optional[str] = None, limit: Optional[int] = None, starting_after: Optional[str] = None, ending_before: Optional[str] = None, created_gte: Optional[str] = None, created_lte: Optional[str] = None, idempotency_key: Optional[str] = None) -> Page[Referral]:
         """List referrals. GET /v1/referrals
@@ -9206,24 +9387,33 @@ class AsyncOperations:
     async def patch_api_keys_id(self, id: str, body: PatchApiKeysIdBody, *, idempotency_key: Optional[str] = None) -> PatchApiKeysIdResponse:
         """Update an API key. PATCH /v1/api-keys/{id}
 
-        Changes a key's pinned `apiVersion`, `owner`, expiry (`expiresInDays` from now; `null` removes it) or `programIds` (`null` makes it org-wide); `apiVersion: "latest"` pins it to today's newest version. A new expiry re-arms the `api_key.expiring` notices. Revoked keys are 404. Needs an owner or admin session, or an API key with the `admin` scope. Audited.
+        Renames a key or changes its pinned `apiVersion`, `owner`, expiry (`expiresInDays` from now, or `expiresAt`, an ISO 8601 time at most 3650 days out, not both; `null` removes it) or `programIds` (`null` makes it org-wide); `apiVersion: "latest"` pins it to today's newest version. A new expiry re-arms the `api_key.expiring` notices. `name` renames it; `scopes` replaces its scopes. Revoked keys are 404. Needs an owner or admin session, or an API key with the `admin` scope. A key holding `api_keys:mint` may also do this for keys it minted itself (403 for any other), but only to narrow `scopes` and `programIds`, never widen them or make the key org-wide. Audited.
 
-        **Auth:** an API key with `team:write`, or a session of any role.
+        **Auth:** an API key with `api_keys:mint`, or a session of any role.
 
-        **Scopes:** `team:write`, `full`, `admin`.
+        **Scopes:** `api_keys:mint`, `admin`.
         """
         return await self._request("PATCH", f"/v1/api-keys/{_seg(id)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     async def patch_auth_connections_id(self, id: str, body: PatchAuthConnectionsIdBody, *, idempotency_key: Optional[str] = None) -> PatchAuthConnectionsIdResponse:
         """Update an auth connection. PATCH /v1/auth/connections/{id}
 
-        Pauses or resumes a connection, renames it, changes `autoEnrollUsers` or the destination of auto-created links, turns `resolveBillingCustomers` on or off, or (signed-protocol connections) sets `signatureVersion`: `v2` to require request-line signatures, `v1+v2` to accept both again. `resolveBillingCustomers` (any provider, default false): a billing customer that arrives with no customerRef (no `referalli_customer_ref` metadata, no `customerRefMetadataKey` hit) in a program this connection serves (within the billing connection's `programIds`) is resolved through this connection's users: `referalli_user_id` or `<provider>_user_id` metadata naming a user it reported, else exactly one user whose current email is the customer's and verified. The billing link is recorded as metadata would record it; none or several matches record `ignoredReason: "identity_unresolved"` / `"identity_ambiguous"` on the billing event. Explicit metadata always wins. Matching uses only the org's own data. `tokenVerification` replaces the widget-session verifier (an HS256 secret is kept when `sharedSecret` is left out; `null` removes it) and `allowedOrigins` replaces the origin list.
+        Pauses or resumes a connection, renames it, changes `autoEnrollUsers` or the destination of auto-created links, turns `resolveBillingCustomers` on or off, or (signed-protocol connections) sets `signatureVersion`: `v2` to require request-line signatures, `v1+v2` to accept both again. `resolveBillingCustomers` (any provider, default false): a billing customer that arrives with no customerRef (no `referalli_customer_ref` metadata, no `customerRefMetadataKey` hit) in a program this connection serves (within the billing connection's `programIds`) is resolved through this connection's users: `referalli_user_id` or `<provider>_user_id` metadata naming a user it reported, else exactly one user whose current email is the customer's and verified. The billing link is recorded as metadata would record it; none or several matches record `ignoredReason: "identity_unresolved"` / `"identity_ambiguous"` on the billing event. Explicit metadata always wins. Matching uses only the org's own data. `tokenVerification` replaces the widget-session verifier (an HS256 secret is kept when `sharedSecret` is left out; `null` removes it) and `allowedOrigins` replaces the origin list. The auth platform itself can also call this path, signed with the connection secret and with only `allowedOrigins` in the body (no session), to set its origins; see `PUT /v1/auth/connections/{id}/origins`.
 
         **Auth:** an API key with `integrations:write`, or a session with role `owner`, `admin`.
 
         **Scopes:** `integrations:write`, `connections:write`, `full`, `admin`.
         """
         return await self._request("PATCH", f"/v1/auth/connections/{_seg(id)}", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def patch_auth_connections_id_origins(self, id: str, body: PatchAuthConnectionsIdOriginsBody, *, idempotency_key: Optional[str] = None) -> PatchAuthConnectionsIdOriginsResponse:
+        """Set a connection's allowed origins (signed protocol, PATCH). PATCH /v1/auth/connections/{id}/origins
+
+        The same as `PUT /v1/auth/connections/{id}/origins`. Signed with the connection secret in `x-referalli-signature: t=<unix>,v1=…,v2=…` (v2 also signs the request line; once a connection has seen v2 it requires it), with a unique `x-referalli-id` per call. The legacy header names from before the rename are also accepted, for existing integrations. Calls older than 5 minutes, reused ids (`409 replay`), paused connections (`423 connection_paused`) and unknown fields (`422`) are refused.
+
+        **Auth:** none.
+        """
+        return await self._request("PATCH", f"/v1/auth/connections/{_seg(id)}/origins", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     async def patch_billing_connections_id(self, id: str, body: PatchBillingConnectionsIdBody, *, idempotency_key: Optional[str] = None) -> BillingConnection:
         """Update a billing connection. PATCH /v1/billing/connections/{id}
@@ -9316,7 +9506,7 @@ class AsyncOperations:
     async def patch_programs_id(self, id: str, body: PatchProgramsIdBody, *, idempotency_key: Optional[str] = None) -> Program:
         """Update a program. PATCH /v1/programs/{id}
 
-        Changes any program field or setting; omitted fields keep their value, and `publicPage` is merged. Changing `termsMd` records a new terms version. Setting `status` to `paused` or `archived` stops new attribution. `mobileApp` (iOS Team ID and bundle id, Android package and signing-certificate fingerprints) publishes the program's apps in the universal-links and App Links files on the org's link hosts. `destinationUrl` moves the program's default link destination: every link still on the old default (the widget's or a sign-in connection's) is repointed in the same call, custom destinations stay, and links already shared follow at click time; `{code}` in it becomes the link's code. Audited.
+        Changes any program field or setting; omitted fields keep their value, and `publicPage` is merged. Changing `termsMd` records a new terms version. Setting `status` to `paused` or `archived` stops new attribution. `signupPaymentGraceMinutes` (0 to 1440, default 5) is how long before the referral's sign-up time a payment still earns. `mobileApp` (iOS Team ID and bundle id, Android package and signing-certificate fingerprints) publishes the program's apps in the universal-links and App Links files on the org's link hosts. `destinationUrl` moves the program's default link destination: every link still on the old default (the widget's or a sign-in connection's) is repointed in the same call, custom destinations stay, and links already shared follow at click time; `{code}` in it becomes the link's code. A `publicHandle` another program has is `409 conflict` with `details: { field: 'publicHandle' }`. Audited.
 
         **Auth:** an API key with `programs:write`, or a session with role `owner`, `admin`.
 
@@ -9441,22 +9631,22 @@ class AsyncOperations:
     async def post_api_keys(self, body: PostApiKeysBody, *, idempotency_key: Optional[str] = None) -> PostApiKeysResponse:
         """Create an API key. POST /v1/api-keys
 
-        Mints a secret key (`rk_live_…` / `rk_test_…`), shown only in this response (and in its `Idempotency-Key` replay: a retry with the same key and body within 24 hours returns this response again, secret included, without minting another). `scopes` defaults to `full`; a key can't grant scopes it doesn't hold. `mode` picks live, test or a matching pair of both (`both` returns `{ pairId, live, test }`); a test-mode caller can mint test keys only. `publishable: true` mints a browser-safe `rk_pub_` key limited to `programs:read` and `events:write` from `allowedOrigins`. `apiVersion` pins the key to a version, or `latest` (the default) to the newest version at the time of the call; the pin never moves on its own (a key keeps answering in that version after newer ones ship) until you `PATCH` it or send a `referalli-version` header. A key pinned to `2026-10-21` gets every list as a capped plain array instead of the paginated envelope. `programIds` limits the key to those programs (their partners, links, referrals, commissions, enrollments, webhook endpoints whose `programIds` are all within the key's, with their deliveries, and billing connections likewise); a program-scoped key gets 403 `program_scoped_key` on org-wide endpoints (keys, team, org settings, the rest of billing, payouts, the event feed, analytics, creating programs). An `api_keys:mint` key may also call this (and no other key endpoint): it can't mint `admin` or `api_keys:mint` keys or scopes it doesn't hold, and a program-scoped one must send `programIds` within its own (`403` otherwise). Needs an owner or admin session, or an API key with the `admin` scope. Audited.
+        Expiry is `expiresInDays` or `expiresAt` (ISO 8601, at most 3650 days out), not both. Mints a secret key (`rk_live_…` / `rk_test_…`), shown only in this response (and in its `Idempotency-Key` replay: a retry with the same key and body within 24 hours returns this response again, secret included, without minting another). `scopes` defaults to `full`; a key can't grant scopes it doesn't hold. `mode` picks live, test or a matching pair of both (`both` returns `{ pairId, live, test }`); a test-mode caller can mint test keys only. `publishable: true` mints a browser-safe `rk_pub_` key limited to `programs:read` and `events:write` from `allowedOrigins`. `apiVersion` pins the key to a version, or `latest` (the default) to the newest version at the time of the call; the pin never moves on its own (a key keeps answering in that version after newer ones ship) until you `PATCH` it or send a `referalli-version` header. A key pinned to `2026-10-21` gets every list as a capped plain array instead of the paginated envelope. `programIds` limits the key to those programs (their partners, links, referrals, commissions, enrollments, webhook endpoints whose `programIds` are all within the key's, with their deliveries, billing connections likewise, auth connections of those programs, and privacy lookup, export, forget and requests for people in those programs); a program-scoped key gets 403 `program_scoped_key` on org-wide endpoints (keys, team, org settings, the rest of billing, payouts, the event feed, analytics, creating programs). An `api_keys:mint` key may also call this (and no other key endpoint): it can't mint `admin` or `api_keys:mint` keys or scopes it doesn't hold, and a program-scoped one must send `programIds` within its own (`403` otherwise). Needs an owner or admin session, or an API key with the `admin` scope. Audited.
 
-        **Auth:** an API key with `team:write`, or a session of any role.
+        **Auth:** an API key with `api_keys:mint`, or a session of any role.
 
-        **Scopes:** `team:write`, `api_keys:mint`, `full`, `admin`.
+        **Scopes:** `api_keys:mint`, `admin`.
         """
         return await self._request("POST", f"/v1/api-keys", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     async def post_api_keys_id_rotate(self, id: str, body: PostApiKeysIdRotateBody, *, idempotency_key: Optional[str] = None) -> PostApiKeysIdRotateResponse:
         """Rotate an API key. POST /v1/api-keys/{id}/rotate
 
-        Mints a replacement key with the same name, scopes, origins, version pin, owner, programs and lifetime (an expiring key's new expiry is the same length from now), returned once with `rotatedFrom: { id, expiresAt }`. The old key keeps working for `graceHours` (default 24, at most 168, 0 = stop now), then expires; it gets no `api_key.expiring` notice. An expired or revoked key can't be rotated (409 `api_key_expired` / 404). Needs an owner or admin session, or an API key with the `admin` scope. Audited.
+        Mints a replacement key with the same name, scopes, origins, version pin, owner, programs and lifetime (an expiring key's new expiry is the same length from now), returned once with `rotatedFrom: { id, expiresAt }`. The old key keeps working for `graceHours` (default 24, at most 168, 0 = stop now), then expires; it gets no `api_key.expiring` notice. An expired or revoked key can't be rotated (409 `api_key_expired` / 404). Needs an owner or admin session, or an API key with the `admin` scope. A key holding `api_keys:mint` may also do this for keys it minted itself (403 for any other). Audited.
 
-        **Auth:** an API key with `team:write`, or a session of any role.
+        **Auth:** an API key with `api_keys:mint`, or a session of any role.
 
-        **Scopes:** `team:write`, `full`, `admin`.
+        **Scopes:** `api_keys:mint`, `admin`.
         """
         return await self._request("POST", f"/v1/api-keys/{_seg(id)}/rotate", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
@@ -9502,6 +9692,15 @@ class AsyncOperations:
         """
         return await self._request("POST", f"/v1/auth/connections", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    async def post_auth_connections_id_accounts(self, id: str, body: PostAuthConnectionsIdAccountsBody, *, idempotency_key: Optional[str] = None) -> PostAuthConnectionsIdAccountsResponse:
+        """Set an organization's owner (signed protocol). POST /v1/auth/connections/{id}/accounts
+
+        The `accounts` capability: an organization the app bills under (`accountRef`: its id in billing metadata, e.g. Atlas's `external_id`) is owned by `ownerCustomerRef` (a user the connection reports). Its payments earn for the owner's referral; send it again whenever ownership changes. When the organization's id changes, send the new id as `accountRef` with the old one as `previousAccountRef` (the owner carries over unless `ownerCustomerRef` is sent): the old id then follows the new one. When it is deleted, send `{ accountRef, deleted: true }`: it has no owner from then on, so its payments earn nothing (earned commissions stay; refunds still reverse them). Same as `PUT /v1/billing/accounts/{accountRef}/owner` and `DELETE /v1/billing/accounts/{accountRef}`; returns `{ ok, accountRef, ownerCustomerRef, previousOwnerCustomerRef, renamedFrom, deleted, changed, relinked, reprocessedPayments }`; a repeat answers `changed: false`. Publishes `billing_account.owner_changed`. Signed with the connection secret in `x-referalli-signature: t=<unix>,v1=…,v2=…` (v2 also signs the request line; once a connection has seen v2 it requires it), with a unique `x-referalli-id` per call. The legacy header names from before the rename are also accepted, for existing integrations. Calls older than 5 minutes, reused ids (`409 replay`), paused connections (`423 connection_paused`) and unknown fields (`422`) are refused.
+
+        **Auth:** none.
+        """
+        return await self._request("POST", f"/v1/auth/connections/{_seg(id)}/accounts", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     async def post_auth_connections_id_aliases(self, id: str, body: PostAuthConnectionsIdAliasesBody, *, idempotency_key: Optional[str] = None) -> PostAuthConnectionsIdAliasesResponse:
         """Change a user's id (signed protocol). POST /v1/auth/connections/{id}/aliases
 
@@ -9532,7 +9731,7 @@ class AsyncOperations:
     async def post_auth_connections_id_ping(self, id: str, body: Dict[str, Any], *, idempotency_key: Optional[str] = None) -> PostAuthConnectionsIdPingResponse:
         """Test an auth connection (signed protocol). POST /v1/auth/connections/{id}/ping
 
-        Proves the secret works: returns the connection, its program and org, the server time (to check clock skew) and `capabilities` (`{ partners: true }`: user-chosen referral codes through `/partners`). Signed with the connection secret in `x-referalli-signature: t=<unix>,v1=…,v2=…` (v2 also signs the request line; once a connection has seen v2 it requires it), with a unique `x-referalli-id` per call. The legacy header names from before the rename are also accepted, for existing integrations. Calls older than 5 minutes, reused ids (`409 replay`), paused connections (`423 connection_paused`) and unknown fields (`422`) are refused.
+        Proves the secret works: returns the connection, its program and org, the server time (to check clock skew) and `capabilities` (`{ partners: true, origins: true, accounts: true }`: user-chosen referral codes through `/partners`, setting `allowedOrigins` through `PUT …/origins` or a signed PATCH, and organization owners through `/accounts`). Signed with the connection secret in `x-referalli-signature: t=<unix>,v1=…,v2=…` (v2 also signs the request line; once a connection has seen v2 it requires it), with a unique `x-referalli-id` per call. The legacy header names from before the rename are also accepted, for existing integrations. Calls older than 5 minutes, reused ids (`409 replay`), paused connections (`423 connection_paused`) and unknown fields (`422`) are refused.
 
         **Auth:** a signature (see above); no API key.
         """
@@ -9649,6 +9848,17 @@ class AsyncOperations:
         """
         return await self._request("POST", f"/v1/billing/connections", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    async def post_billing_connections_id_events(self, id: str, body: PostBillingConnectionsIdEventsBody, *, idempotency_key: Optional[str] = None) -> PostBillingConnectionsIdEventsResponse:
+        """Send events to a generic connection. POST /v1/billing/connections/{id}/events
+
+        The generic connection's webhook body (`{ "events": [...] }`, up to 500) sent with an API key instead of the connection's HMAC signature, so your server needs no second secret. Runs the same processing as `POST /webhooks/billing/{id}`: paid invoices become conversions and commissions, refunds and disputes reverse them, and each event is idempotent by `providerEventId` (a resend answers `duplicate: true`), whichever of the two routes sent it first. Needs `billing:write`; a program-scoped key reaches only connections limited to its own programs. `404` for an unknown, deleted or paused connection; `409 conflict` for a connection that isn't `generic` (those take their provider's webhooks).
+
+        **Auth:** an API key with `billing:write`, or a session with role `owner`, `admin`.
+
+        **Scopes:** `billing:write`, `full`, `admin`.
+        """
+        return await self._request("POST", f"/v1/billing/connections/{_seg(id)}/events", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     async def post_billing_connections_id_rotate_secret(self, id: str, *, idempotency_key: Optional[str] = None) -> PostBillingConnectionsIdRotateSecretResponse:
         """Rotate the webhook signing secret. POST /v1/billing/connections/{id}/rotate-secret
 
@@ -9670,6 +9880,17 @@ class AsyncOperations:
         **Scopes:** `billing:write`, `full`, `admin`.
         """
         return await self._request("POST", f"/v1/billing/connections/{_seg(id)}/value-mapping/preview", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def post_billing_events_id_release(self, id: str, *, idempotency_key: Optional[str] = None) -> PostBillingEventsIdReleaseResponse:
+        """Release a held payment. POST /v1/billing/events/{id}/release
+
+        A payment over its connection's `maxAmountMinor` (default 1,000,000,000 minor units), or dated more than a day ahead, is recorded with `status: "held"` and earns nothing. Releasing it says it is real: it earns as it would have on arrival, and any refund that waited for it applies.
+
+        **Auth:** an API key with `billing:write`, or a session with role `owner`, `admin`.
+
+        **Scopes:** `billing:write`, `full`, `admin`.
+        """
+        return await self._request("POST", f"/v1/billing/events/{_seg(id)}/release", query={}, body=None, idempotency_key=idempotency_key, kind="json")
 
     async def post_billing_internal_customers(self, body: PostBillingInternalCustomersBody, *, idempotency_key: Optional[str] = None) -> PostBillingInternalCustomersResponse:
         """Add an internal customer. POST /v1/billing/internal-customers
@@ -10240,7 +10461,7 @@ class AsyncOperations:
     async def post_orgs_org_id_privacy_executor_key(self, org_id: str, body: PostOrgsOrgIdPrivacyExecutorKeyBody, *, idempotency_key: Optional[str] = None) -> PostOrgsOrgIdPrivacyExecutorKeyResponse:
         """Mint an executor key under a Cookie Munch partner link. POST /v1/orgs/{orgId}/privacy/executor-key
 
-        Called by Cookie Munch, not by you (CMU-X25): mints (or rotates) this org's cm-standard-v2 executor key so Cookie Munch's `referalli` executor preset can connect without a pasted key. The request must be signed by Cookie Munch's partner key exactly like its consent deliveries: `CookieMunch-Partner-Signature: t=<unix seconds>,kid=<key id>,ed25519=<base64url>` over `<t>.<raw body>`, with the key named in `https://api.cookiemunch.net/v1/partner/jwks.json` (300 s window; each signed request and each body `nonce` works once, a replay is 409; `partner` must be `referalli` and `externalId` the org in the path). Referalli then confirms the partner link with Cookie Munch over its own partner token (`GET /v1/partner/links`): it must be `active` or `waiting_on_partner`, name this org as `externalId`, sit on a site this org registered (`PUT /v1/org/consent-partners/cookiemunch`), and match `cbid`/`linkId` when sent; otherwise 403 `no_grant`. 201 `{secret, executorUrl, contract, orgId, linkId, cbid, rotated}`: `secret` is shown once and is the bearer key for `executorUrl` (`https://referalli.com/api`, the cm-standard-v2 baseUrl: calls go to `<executorUrl>/privacy/*`), where it reaches only this org's referred customers and partners. The old key stops working at once. Audited (`privacy.executor_key_minted`).
+        Called by Cookie Munch, not by you (CMU-X25): mints (or rotates) this org's cm-standard-v2 executor key, limited to `programIds` when sent so Cookie Munch's `referalli` executor preset can connect without a pasted key. The request must be signed by Cookie Munch's partner key exactly like its consent deliveries: `CookieMunch-Partner-Signature: t=<unix seconds>,kid=<key id>,ed25519=<base64url>` over `<t>.<raw body>`, with the key named in `https://api.cookiemunch.net/v1/partner/jwks.json` (300 s window; each signed request and each body `nonce` works once, a replay is 409; `partner` must be `referalli` and `externalId` the org in the path). Referalli then confirms the partner link with Cookie Munch over its own partner token (`GET /v1/partner/links`): it must be `active` or `waiting_on_partner`, name this org as `externalId`, sit on a site this org registered (`PUT /v1/org/consent-partners/cookiemunch`), and match `cbid`/`linkId` when sent; otherwise 403 `no_grant`. 201 `{secret, executorUrl, contract, orgId, linkId, cbid, rotated}`: `secret` is shown once and is the bearer key for `executorUrl` (`https://referalli.com/api`, the cm-standard-v2 baseUrl: calls go to `<executorUrl>/privacy/*`), where it reaches only this org's referred customers and partners. The old key stops working at once. Audited (`privacy.executor_key_minted`).
 
         **Auth:** none.
         """
@@ -10713,7 +10934,7 @@ class AsyncOperations:
     async def post_programs(self, body: PostProgramsBody, *, idempotency_key: Optional[str] = None) -> Program:
         """Create a program. POST /v1/programs
 
-        Creates an affiliate program: its attribution model, cookie window, how long after sign-up a conversion still counts (`signupToConversionDays`, 1 to 1095, default 365; `cookieWindowDays` is 1 to 400, default 60), terms, public page and settings. `slug` is unique per org. Terms are versioned so partners can be asked to accept new ones. Over the plan's program limit this is `402 payment_required`.
+        Creates an affiliate program: its attribution model, cookie window, how long after sign-up a conversion still counts (`signupToConversionDays`, 1 to 1095, default 365; `cookieWindowDays` is 1 to 400, default 60), terms, public page and settings (`signupPaymentGraceMinutes`, 0 to 1440, default 5: how long before the referral's sign-up time a payment still earns). `slug` is unique per org. Terms are versioned so partners can be asked to accept new ones. `publicHandle` is unique across every org (check it first with `GET /v1/programs/handle-availability`). A taken `slug` or `publicHandle` is `409 conflict` with `details.field` naming it (`slug` or `publicHandle`). Over the plan's program limit this is `402 payment_required`.
 
         **Auth:** an API key with `programs:write`, or a session with role `owner`, `admin`.
 
@@ -10865,13 +11086,24 @@ class AsyncOperations:
     async def post_referrals_associate(self, body: PostReferralsAssociateBody, *, idempotency_key: Optional[str] = None) -> AssociateResponse:
         """Attribute a new customer. POST /v1/referrals/associate
 
-        The key server-side call: tell Referalli a customer signed up, with whatever you know about where they came from (`referralToken`/`ref_click_id`, `anonId`, `couponCode`, `emailHash`, IP and user agent). The attribution engine picks the partner under the program's model and windows. `referral` is `null` when no partner matched (not an error); `reasoning.notes` says why. Repeating `idempotencyKey` returns the existing referral. `occurredAt` records a late call at the real sign-up time (up to 5 minutes of clock skew is tolerated) and backfills payments since. `emailDomain` lets burner-email sign-ups be held for review. Publishes `referral.created` (or `referral.held`).
+        The key server-side call: tell Referalli a customer signed up, with whatever you know about where they came from (`referralToken`/`ref_click_id`, `anonId`, `couponCode`, `emailHash`, IP and user agent). The attribution engine picks the partner under the program's model and windows. `referral` is `null` when no partner matched (not an error); `reasoning.notes` says why. Repeating `idempotencyKey` returns the existing referral. `occurredAt` records a late call at the real sign-up time (up to 5 minutes of clock skew is tolerated) and backfills payments since. `emailDomain` lets burner-email sign-ups be held for review. `handoffToken` (from `POST /t/{orgToken}/handoff` or `POST /v1/referrals/handoff-tokens`) fills `anonId`, `referralToken` and `couponCode` where they are not sent; a malformed, expired or other org's token is `400 invalid_handoff_token`. Publishes `referral.created` (or `referral.held`).
 
         **Auth:** an API key with `referrals:write`, or a session of any role.
 
         **Scopes:** `referrals:write`, `full`, `admin`.
         """
         return await self._request("POST", f"/v1/referrals/associate", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def post_referrals_handoff_tokens(self, body: PostReferralsHandoffTokensBody, *, idempotency_key: Optional[str] = None) -> HandoffToken:
+        """Mint a hand-off token. POST /v1/referrals/handoff-tokens
+
+        The server-side twin of `POST /t/{orgToken}/handoff`: signs `anonId`, `clickId` and/or `code` (at least one) into a token valid for 24 hours, for this org only, to pass later to `POST /v1/referrals/associate` as `handoffToken`. Use it when the server that saw the landing (`?ref_click_id=`) is not the one that files the sign-up.
+
+        **Auth:** an API key with `referrals:write`, or a session of any role.
+
+        **Scopes:** `referrals:write`, `full`, `admin`.
+        """
+        return await self._request("POST", f"/v1/referrals/handoff-tokens", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     async def post_referrals_id_approve(self, id: str, *, idempotency_key: Optional[str] = None) -> Referral:
         """Approve a held referral. POST /v1/referrals/{id}/approve
@@ -10964,7 +11196,7 @@ class AsyncOperations:
     async def post_sandbox_simulate(self, body: PostSandboxSimulateBody, *, idempotency_key: Optional[str] = None) -> PostSandboxSimulateResponse:
         """Simulate billing history. POST /v1/sandbox/simulate
 
-        Generates deterministic billing history through the real commission pipeline, so you can see commissions flow without a provider: a new sandbox customer referred to the partner, `months` (default 3) of subscription payments at `priceMinor`, then for `scenario: "refund"` a half refund of the first invoice or for `churn` a cancellation. Returns the customer and what was created. Audited.
+        Generates deterministic billing history through the real commission pipeline, so you can see commissions flow without a provider: a new sandbox customer referred to the partner, `months` (default 3) of subscription payments at `priceMinor`, then for `scenario: "refund"` a half refund of the first invoice or for `churn` a cancellation. Returns the customer and what was created. `scenario: "signup_and_pay"` (test mode only, `409 test_mode_only` otherwise) proves the whole loop instead: a sign-up of `customerRef` (default a new `cus_sandbox_…`) referred by `partnerId` (a click on their link) or by `code` (a link or coupon code), filed through auth connection `authConnectionId` exactly as its signed `POST /v1/auth/connections/{id}/signups` would file it (auto-enroll included) or, without one, as `POST /v1/referrals/associate`; then a provider-neutral `payment.paid` of `amountMinor` (default 4900) in `currency` (default USD) through billing connection `billingConnectionId` (default the org's only active one, else `409`), run through the same pipeline as `POST /v1/sandbox/billing-fixtures`. Answers `{ scenario, ok, steps: [signup, payment], commissions }`; a step that could not succeed answers `ok: false` with `notes` saying why (sign-up not credited, auth connection paused or in another program, billing connection `awaiting_secret`, paused or limited to other programs, payment ignored, program without a commission rule) rather than an error. Audited.
 
         **Auth:** an API key with `billing:write`, or a session with role `owner`, `admin`.
 
@@ -11186,6 +11418,15 @@ class AsyncOperations:
         """
         return await self._request("POST", f"/v1/zapier/hooks", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
+    async def put_auth_connections_id_origins(self, id: str, body: PutAuthConnectionsIdOriginsBody, *, idempotency_key: Optional[str] = None) -> PutAuthConnectionsIdOriginsResponse:
+        """Set a connection's allowed origins (signed protocol). PUT /v1/auth/connections/{id}/origins
+
+        The `origins` capability: the auth platform replaces this connection's own `allowedOrigins` (the browser origins that may call `POST /v1/widget/session`) when its app's origins change. Exact origins only (`https://app.example.com`, no path or wildcard; `http` only for localhost), at most 50; the body takes nothing else. Returns `{ id, allowedOrigins }`. Audited. A connection-signed `PATCH /v1/auth/connections/{id}` with the same body does the same. Signed with the connection secret in `x-referalli-signature: t=<unix>,v1=…,v2=…` (v2 also signs the request line; once a connection has seen v2 it requires it), with a unique `x-referalli-id` per call. The legacy header names from before the rename are also accepted, for existing integrations. Calls older than 5 minutes, reused ids (`409 replay`), paused connections (`423 connection_paused`) and unknown fields (`422`) are refused.
+
+        **Auth:** none.
+        """
+        return await self._request("PUT", f"/v1/auth/connections/{_seg(id)}/origins", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
     async def put_auth_connections_id_secret(self, id: str, body: PutAuthConnectionsIdSecretBody, *, idempotency_key: Optional[str] = None) -> PutAuthConnectionsIdSecretResponse:
         """Set a vendor-issued secret. PUT /v1/auth/connections/{id}/secret
 
@@ -11196,6 +11437,17 @@ class AsyncOperations:
         **Scopes:** `integrations:write`, `connections:write`, `full`, `admin`.
         """
         return await self._request("PUT", f"/v1/auth/connections/{_seg(id)}/secret", query={}, body=body, idempotency_key=idempotency_key, kind="json")
+
+    async def put_billing_accounts_account_ref_owner(self, account_ref: str, body: PutBillingAccountsAccountRefOwnerBody, *, idempotency_key: Optional[str] = None) -> PutBillingAccountsAccountRefOwnerResponse:
+        """Set a billing account's owner. PUT /v1/billing/accounts/{accountRef}/owner
+
+        For products that bill an organization (a team, a workspace) rather than a person. `accountRef` is the id your billing events carry for the organization (the `customerRef` of a generic event, or the metadata value a connection's `customerRefMetadataKey` reads, e.g. `organization_id`); `ownerCustomerRef` is the user whose referral its payments earn for. From then on the account's payments earn for the owner's referral (unless a referral is filed under the account itself). The first owner set replays the account's earlier payments for that owner's referral. Changing the owner re-points the account's provider customers, so later payments earn for the new owner's referral; payments made before the change stay with the previous owner's referral. When the organization's id changed, call it under the new id with `previousAccountRef` (the old one) instead of, or as well as, `ownerCustomerRef`: the old id then follows the new one (payments still arriving under it earn for the new id's owner), and the owner carries over unless named. Returns `{ accountRef, ownerCustomerRef, previousOwnerCustomerRef, renamedFrom, deleted, changed, relinked, reprocessedPayments }`; the same call again answers `changed: false`. Publishes `billing_account.owner_changed`. Auth platforms with the `accounts` capability (Atlas) send this for you through `POST /v1/auth/connections/{id}/accounts`. Needs `billing:write`. Audited.
+
+        **Auth:** an API key with `billing:write`, or a session with role `owner`, `admin`.
+
+        **Scopes:** `billing:write`, `full`, `admin`.
+        """
+        return await self._request("PUT", f"/v1/billing/accounts/{_seg(account_ref)}/owner", query={}, body=body, idempotency_key=idempotency_key, kind="json")
 
     async def put_billing_connections_id_credentials(self, id: str, body: PutBillingConnectionsIdCredentialsBody, *, idempotency_key: Optional[str] = None) -> PutBillingConnectionsIdCredentialsResponse:
         """Set provider API credentials. PUT /v1/billing/connections/{id}/credentials
@@ -11688,6 +11940,7 @@ OPERATIONS: Dict[str, tuple] = {
     "deleteApiKeysId": ("DELETE", "/v1/api-keys/{id}", ["id"], [["cascade","cascade"],["pair","pair"]], False, "json", "delete_api_keys_id"),
     "deleteAssetsId": ("DELETE", "/v1/assets/{id}", ["id"], [], False, "json", "delete_assets_id"),
     "deleteAuthConnectionsId": ("DELETE", "/v1/auth/connections/{id}", ["id"], [], False, "json", "delete_auth_connections_id"),
+    "deleteBillingAccountsAccountRef": ("DELETE", "/v1/billing/accounts/{accountRef}", ["accountRef"], [], False, "json", "delete_billing_accounts_account_ref"),
     "deleteBillingConnectionsId": ("DELETE", "/v1/billing/connections/{id}", ["id"], [], False, "json", "delete_billing_connections_id"),
     "deleteBillingInternalCustomersCustomerRef": ("DELETE", "/v1/billing/internal-customers/{customerRef}", ["customerRef"], [], False, "json", "delete_billing_internal_customers_customer_ref"),
     "deleteBrandingDomain": ("DELETE", "/v1/branding/domain", [], [], False, "json", "delete_branding_domain"),
@@ -11726,10 +11979,12 @@ OPERATIONS: Dict[str, tuple] = {
     "getAssistantSuggestions": ("GET", "/v1/assistant/suggestions", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_assistant_suggestions"),
     "getAuditLogs": ("GET", "/v1/audit-logs", [], [["actor","actor"],["actorType","actor_type"],["action","action"],["subjectType","subject_type"],["subjectId","subject_id"],["created[gte]","created_gte"],["created[lte]","created_lte"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"]], False, "list", "get_audit_logs"),
     "getAuthConnections": ("GET", "/v1/auth/connections", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_auth_connections"),
+    "getAuthConnectionsId": ("GET", "/v1/auth/connections/{id}", ["id"], [], False, "json", "get_auth_connections_id"),
     "getAuthConnectionsIdExport": ("GET", "/v1/auth/connections/{id}/export", ["id"], [["customerRef","customer_ref"]], False, "json", "get_auth_connections_id_export"),
     "getAuthConnectionsIdUsersCustomerRefReferral": ("GET", "/v1/auth/connections/{id}/users/{customerRef}/referral", ["id","customerRef"], [], False, "json", "get_auth_connections_id_users_customer_ref_referral"),
     "getAuthConnectionsProviders": ("GET", "/v1/auth/connections/providers", [], [], False, "json", "get_auth_connections_providers"),
     "getAuthProviders": ("GET", "/v1/auth/providers", [], [], False, "json", "get_auth_providers"),
+    "getBillingAccountsAccountRef": ("GET", "/v1/billing/accounts/{accountRef}", ["accountRef"], [], False, "json", "get_billing_accounts_account_ref"),
     "getBillingConnections": ("GET", "/v1/billing/connections", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_billing_connections"),
     "getBillingConnectionsId": ("GET", "/v1/billing/connections/{id}", ["id"], [], False, "json", "get_billing_connections_id"),
     "getBillingEvents": ("GET", "/v1/billing/events", [], [["customerRef","customer_ref"],["status","status"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_billing_events"),
@@ -11746,7 +12001,7 @@ OPERATIONS: Dict[str, tuple] = {
     "getCliLogs": ("GET", "/v1/cli/logs", [], [["after","after"],["wait","wait"],["limit","limit"]], False, "json", "get_cli_logs"),
     "getCliTopics": ("GET", "/v1/cli/topics", [], [], False, "json", "get_cli_topics"),
     "getCommissionRules": ("GET", "/v1/commission-rules", [], [["programId","program_id"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_commission_rules"),
-    "getCommissions": ("GET", "/v1/commissions", [], [["partnerId","partner_id"],["programId","program_id"],["type","type_"],["referralId","referral_id"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_commissions"),
+    "getCommissions": ("GET", "/v1/commissions", [], [["partnerId","partner_id"],["programId","program_id"],["type","type_"],["referralId","referral_id"],["customerRef","customer_ref"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_commissions"),
     "getCommissionsId": ("GET", "/v1/commissions/{id}", ["id"], [], False, "json", "get_commissions_id"),
     "getContracts": ("GET", "/v1/contracts", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_contracts"),
     "getCoupons": ("GET", "/v1/coupons", [], [["programId","program_id"],["partnerId","partner_id"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_coupons"),
@@ -11797,6 +12052,7 @@ OPERATIONS: Dict[str, tuple] = {
     "getOrgSsoConnectionsIdSamlMetadata": ("GET", "/v1/org/sso/connections/{id}/saml-metadata", ["id"], [], False, "json", "get_org_sso_connections_id_saml_metadata"),
     "getOrgTaxProfile": ("GET", "/v1/org/tax-profile", [], [], False, "json", "get_org_tax_profile"),
     "getOrgTrackingConsent": ("GET", "/v1/org/tracking-consent", [], [], False, "json", "get_org_tracking_consent"),
+    "getOrgTrackingTokens": ("GET", "/v1/org/tracking-tokens", [], [], False, "json", "get_org_tracking_tokens"),
     "getOutreach": ("GET", "/v1/outreach", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_outreach"),
     "getPartnerAchievements": ("GET", "/v1/partner/achievements", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_partner_achievements"),
     "getPartnerAdvance": ("GET", "/v1/partner/advance", [], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_partner_advance"),
@@ -11861,6 +12117,7 @@ OPERATIONS: Dict[str, tuple] = {
     "getProfitabilityRebuildJobId": ("GET", "/v1/profitability/rebuild/{jobId}", ["jobId"], [], False, "json", "get_profitability_rebuild_job_id"),
     "getProfitabilitySettings": ("GET", "/v1/profitability/settings", [], [["programId","program_id"]], False, "json", "get_profitability_settings"),
     "getPrograms": ("GET", "/v1/programs", [], [["slug","slug"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_programs"),
+    "getProgramsHandleAvailability": ("GET", "/v1/programs/handle-availability", [], [["handle","handle"]], False, "json", "get_programs_handle_availability"),
     "getProgramsId": ("GET", "/v1/programs/{id}", ["id"], [], False, "json", "get_programs_id"),
     "getProgramsIdAutopricing": ("GET", "/v1/programs/{id}/autopricing", ["id"], [], False, "json", "get_programs_id_autopricing"),
     "getProgramsIdCreditRail": ("GET", "/v1/programs/{id}/credit-rail", ["id"], [], False, "json", "get_programs_id_credit_rail"),
@@ -11873,10 +12130,10 @@ OPERATIONS: Dict[str, tuple] = {
     "getProgramsIdRefereeReward": ("GET", "/v1/programs/{id}/referee-reward", ["id"], [], False, "json", "get_programs_id_referee_reward"),
     "getProgramsIdStripeCredits": ("GET", "/v1/programs/{id}/stripe-credits", ["id"], [], False, "json", "get_programs_id_stripe_credits"),
     "getProgramsIdStripeCreditsLog": ("GET", "/v1/programs/{id}/stripe-credits/log", ["id"], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_programs_id_stripe_credits_log"),
-    "getProgramsIdTerms": ("GET", "/v1/programs/{id}/terms", ["id"], [], False, "json", "get_programs_id_terms"),
+    "getProgramsIdTerms": ("GET", "/v1/programs/{id}/terms", ["id"], [["locale","locale"]], False, "json", "get_programs_id_terms"),
     "getProgramsIdTermsAcceptances": ("GET", "/v1/programs/{id}/terms-acceptances", ["id"], [["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_programs_id_terms_acceptances"),
     "getProspects": ("GET", "/v1/prospects", [], [["status","status"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_prospects"),
-    "getPublicProgramsHandle": ("GET", "/v1/public/programs/{handle}", ["handle"], [], False, "json", "get_public_programs_handle"),
+    "getPublicProgramsHandle": ("GET", "/v1/public/programs/{handle}", ["handle"], [["locale","locale"]], False, "json", "get_public_programs_handle"),
     "getReferrals": ("GET", "/v1/referrals", [], [["programId","program_id"],["partnerId","partner_id"],["status","status"],["customerRef","customer_ref"],["limit","limit"],["starting_after","starting_after"],["ending_before","ending_before"],["created[gte]","created_gte"],["created[lte]","created_lte"]], False, "list", "get_referrals"),
     "getReferralsId": ("GET", "/v1/referrals/{id}", ["id"], [], False, "json", "get_referrals_id"),
     "getReferralsIdJourney": ("GET", "/v1/referrals/{id}/journey", ["id"], [], False, "json", "get_referrals_id_journey"),
@@ -11924,6 +12181,7 @@ OPERATIONS: Dict[str, tuple] = {
     "patchAdminStatusIncidentsId": ("PATCH", "/v1/admin/status/incidents/{id}", ["id"], [], True, "json", "patch_admin_status_incidents_id"),
     "patchApiKeysId": ("PATCH", "/v1/api-keys/{id}", ["id"], [], True, "json", "patch_api_keys_id"),
     "patchAuthConnectionsId": ("PATCH", "/v1/auth/connections/{id}", ["id"], [], True, "json", "patch_auth_connections_id"),
+    "patchAuthConnectionsIdOrigins": ("PATCH", "/v1/auth/connections/{id}/origins", ["id"], [], True, "json", "patch_auth_connections_id_origins"),
     "patchBillingConnectionsId": ("PATCH", "/v1/billing/connections/{id}", ["id"], [], True, "json", "patch_billing_connections_id"),
     "patchOrg": ("PATCH", "/v1/org", [], [], True, "json", "patch_org"),
     "patchOrgMembersUserId": ("PATCH", "/v1/org/members/{userId}", ["userId"], [], True, "json", "patch_org_members_user_id"),
@@ -11951,6 +12209,7 @@ OPERATIONS: Dict[str, tuple] = {
     "postAttributionReplay": ("POST", "/v1/attribution/replay", [], [], True, "json", "post_attribution_replay"),
     "postAuthBackchannelLogout": ("POST", "/v1/auth/backchannel-logout", [], [], True, "json", "post_auth_backchannel_logout"),
     "postAuthConnections": ("POST", "/v1/auth/connections", [], [], True, "json", "post_auth_connections"),
+    "postAuthConnectionsIdAccounts": ("POST", "/v1/auth/connections/{id}/accounts", ["id"], [], True, "json", "post_auth_connections_id_accounts"),
     "postAuthConnectionsIdAliases": ("POST", "/v1/auth/connections/{id}/aliases", ["id"], [], True, "json", "post_auth_connections_id_aliases"),
     "postAuthConnectionsIdErase": ("POST", "/v1/auth/connections/{id}/erase", ["id"], [], True, "json", "post_auth_connections_id_erase"),
     "postAuthConnectionsIdPartners": ("POST", "/v1/auth/connections/{id}/partners", ["id"], [], True, "json", "post_auth_connections_id_partners"),
@@ -11966,8 +12225,10 @@ OPERATIONS: Dict[str, tuple] = {
     "postBillingActivate": ("POST", "/v1/billing/activate", [], [], True, "json", "post_billing_activate"),
     "postBillingCheckout": ("POST", "/v1/billing/checkout", [], [], True, "json", "post_billing_checkout"),
     "postBillingConnections": ("POST", "/v1/billing/connections", [], [], True, "json", "post_billing_connections"),
+    "postBillingConnectionsIdEvents": ("POST", "/v1/billing/connections/{id}/events", ["id"], [], True, "json", "post_billing_connections_id_events"),
     "postBillingConnectionsIdRotateSecret": ("POST", "/v1/billing/connections/{id}/rotate-secret", ["id"], [], False, "json", "post_billing_connections_id_rotate_secret"),
     "postBillingConnectionsIdValueMappingPreview": ("POST", "/v1/billing/connections/{id}/value-mapping/preview", ["id"], [], True, "json", "post_billing_connections_id_value_mapping_preview"),
+    "postBillingEventsIdRelease": ("POST", "/v1/billing/events/{id}/release", ["id"], [], False, "json", "post_billing_events_id_release"),
     "postBillingInternalCustomers": ("POST", "/v1/billing/internal-customers", [], [], True, "json", "post_billing_internal_customers"),
     "postBillingPortal": ("POST", "/v1/billing/portal", [], [], False, "json", "post_billing_portal"),
     "postBrandingDomain": ("POST", "/v1/branding/domain", [], [], True, "json", "post_branding_domain"),
@@ -12082,6 +12343,7 @@ OPERATIONS: Dict[str, tuple] = {
     "postPublicProgramsHandleJoin": ("POST", "/v1/public/programs/{handle}/join", ["handle"], [], True, "json", "post_public_programs_handle_join"),
     "postQualityRecompute": ("POST", "/v1/quality/recompute", [], [], False, "json", "post_quality_recompute"),
     "postReferralsAssociate": ("POST", "/v1/referrals/associate", [], [], True, "json", "post_referrals_associate"),
+    "postReferralsHandoffTokens": ("POST", "/v1/referrals/handoff-tokens", [], [], True, "json", "post_referrals_handoff_tokens"),
     "postReferralsIdApprove": ("POST", "/v1/referrals/{id}/approve", ["id"], [], False, "json", "post_referrals_id_approve"),
     "postReferralsIdReassign": ("POST", "/v1/referrals/{id}/reassign", ["id"], [], True, "json", "post_referrals_id_reassign"),
     "postReferralsIdVoid": ("POST", "/v1/referrals/{id}/void", ["id"], [], False, "json", "post_referrals_id_void"),
@@ -12111,7 +12373,9 @@ OPERATIONS: Dict[str, tuple] = {
     "postWidgetTokens": ("POST", "/v1/widget/tokens", [], [], True, "json", "post_widget_tokens"),
     "postZapierConversions": ("POST", "/v1/zapier/conversions", [], [], True, "json", "post_zapier_conversions"),
     "postZapierHooks": ("POST", "/v1/zapier/hooks", [], [], True, "json", "post_zapier_hooks"),
+    "putAuthConnectionsIdOrigins": ("PUT", "/v1/auth/connections/{id}/origins", ["id"], [], True, "json", "put_auth_connections_id_origins"),
     "putAuthConnectionsIdSecret": ("PUT", "/v1/auth/connections/{id}/secret", ["id"], [], True, "json", "put_auth_connections_id_secret"),
+    "putBillingAccountsAccountRefOwner": ("PUT", "/v1/billing/accounts/{accountRef}/owner", ["accountRef"], [], True, "json", "put_billing_accounts_account_ref_owner"),
     "putBillingConnectionsIdCredentials": ("PUT", "/v1/billing/connections/{id}/credentials", ["id"], [], True, "json", "put_billing_connections_id_credentials"),
     "putBillingConnectionsIdSecret": ("PUT", "/v1/billing/connections/{id}/secret", ["id"], [], True, "json", "put_billing_connections_id_secret"),
     "putBillingConnectionsIdValueMapping": ("PUT", "/v1/billing/connections/{id}/value-mapping", ["id"], [], True, "json", "put_billing_connections_id_value_mapping"),

@@ -64,6 +64,39 @@ class ApiKeyExpiringEvent(TypedDict):
     data: "ApiKeyExpiringEventData"
 
 
+class BillingAccountOwnerChangedEvent(TypedDict):
+    """``billing_account.owner_changed``: A billing account's owner changed"""
+
+    id: str
+    topic: Literal["billing_account.owner_changed"]
+    orgId: str
+    livemode: bool
+    createdAt: str
+    data: "BillingAccountOwnerChangedEventData"
+
+
+class BillingEventExpiredEvent(TypedDict):
+    """``billing_event.expired``: A parked refund or dispute expired"""
+
+    id: str
+    topic: Literal["billing_event.expired"]
+    orgId: str
+    livemode: bool
+    createdAt: str
+    data: "BillingEventExpiredEventData"
+
+
+class BillingEventHeldEvent(TypedDict):
+    """``billing_event.held``: A payment was held for review"""
+
+    id: str
+    topic: Literal["billing_event.held"]
+    orgId: str
+    livemode: bool
+    createdAt: str
+    data: "BillingEventHeldEventData"
+
+
 class BillingEventRecordedEvent(TypedDict):
     """``billing_event.recorded``: A billing event was recorded"""
 
@@ -483,7 +516,7 @@ class WebhookEndpointRecoveredEvent(TypedDict):
 
 
 #: Any webhook event. Narrow it on ``event["topic"]``.
-WebhookEvent = Union[AccountCreditAppliedEvent, AccountCreditFailedEvent, AccountCreditReversedEvent, ApiKeyExpiringEvent, BillingEventRecordedEvent, ClickRecordedEvent, CommissionEarnedEvent, CommissionReversedEvent, CommissionSettledEvent, CreditRedeemedEvent, CustomerAliasedEvent, DealSubmittedEvent, DisputeResolvedEvent, FraudCaseOpenedEvent, FxRatesUpdatedEvent, PartnerAppliedEvent, PartnerApprovedEvent, PartnerEnrolledEvent, PartnerLevelUpEvent, PayoutCancelledEvent, PayoutFailedEvent, PayoutScheduledEvent, PayoutSentEvent, PayoutSubmittedEvent, PrivacyRequestCompletedEvent, RefereeRewardEarnedEvent, ReferralApprovedEvent, ReferralCreatedEvent, ReferralHeldEvent, ReferralPausedEvent, ReferralReassignedEvent, ReferralRejectedEvent, ReferralResumedEvent, ReferralVoidedEvent, RoiPatternDetectedEvent, RoiPaybackReachedEvent, StripeCreditAppliedEvent, StripeCreditFailedEvent, TaxFormDeliveredEvent, WebhookEndpointDisabledEvent, WebhookEndpointFailingEvent, WebhookEndpointRecoveredEvent, BaseWebhookEvent]
+WebhookEvent = Union[AccountCreditAppliedEvent, AccountCreditFailedEvent, AccountCreditReversedEvent, ApiKeyExpiringEvent, BillingAccountOwnerChangedEvent, BillingEventExpiredEvent, BillingEventHeldEvent, BillingEventRecordedEvent, ClickRecordedEvent, CommissionEarnedEvent, CommissionReversedEvent, CommissionSettledEvent, CreditRedeemedEvent, CustomerAliasedEvent, DealSubmittedEvent, DisputeResolvedEvent, FraudCaseOpenedEvent, FxRatesUpdatedEvent, PartnerAppliedEvent, PartnerApprovedEvent, PartnerEnrolledEvent, PartnerLevelUpEvent, PayoutCancelledEvent, PayoutFailedEvent, PayoutScheduledEvent, PayoutSentEvent, PayoutSubmittedEvent, PrivacyRequestCompletedEvent, RefereeRewardEarnedEvent, ReferralApprovedEvent, ReferralCreatedEvent, ReferralHeldEvent, ReferralPausedEvent, ReferralReassignedEvent, ReferralRejectedEvent, ReferralResumedEvent, ReferralVoidedEvent, RoiPatternDetectedEvent, RoiPaybackReachedEvent, StripeCreditAppliedEvent, StripeCreditFailedEvent, TaxFormDeliveredEvent, WebhookEndpointDisabledEvent, WebhookEndpointFailingEvent, WebhookEndpointRecoveredEvent, BaseWebhookEvent]
 
 #: Every topic the API publishes.
-TOPICS: Tuple[str, ...] = ("account_credit.applied", "account_credit.failed", "account_credit.reversed", "api_key.expiring", "billing_event.recorded", "click.recorded", "commission.earned", "commission.reversed", "commission.settled", "credit.redeemed", "customer.aliased", "deal.submitted", "dispute.resolved", "fraud.case_opened", "fx.rates_updated", "partner.applied", "partner.approved", "partner.enrolled", "partner.level_up", "payout.cancelled", "payout.failed", "payout.scheduled", "payout.sent", "payout.submitted", "privacy.request_completed", "referee_reward.earned", "referral.approved", "referral.created", "referral.held", "referral.paused", "referral.reassigned", "referral.rejected", "referral.resumed", "referral.voided", "roi.pattern_detected", "roi.payback_reached", "stripe_credit.applied", "stripe_credit.failed", "tax.form_delivered", "webhook_endpoint.disabled", "webhook_endpoint.failing", "webhook_endpoint.recovered")
+TOPICS: Tuple[str, ...] = ("account_credit.applied", "account_credit.failed", "account_credit.reversed", "api_key.expiring", "billing_account.owner_changed", "billing_event.expired", "billing_event.held", "billing_event.recorded", "click.recorded", "commission.earned", "commission.reversed", "commission.settled", "credit.redeemed", "customer.aliased", "deal.submitted", "dispute.resolved", "fraud.case_opened", "fx.rates_updated", "partner.applied", "partner.approved", "partner.enrolled", "partner.level_up", "payout.cancelled", "payout.failed", "payout.scheduled", "payout.sent", "payout.submitted", "privacy.request_completed", "referee_reward.earned", "referral.approved", "referral.created", "referral.held", "referral.paused", "referral.reassigned", "referral.rejected", "referral.resumed", "referral.voided", "roi.pattern_detected", "roi.payback_reached", "stripe_credit.applied", "stripe_credit.failed", "tax.form_delivered", "webhook_endpoint.disabled", "webhook_endpoint.failing", "webhook_endpoint.recovered")
